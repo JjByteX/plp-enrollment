@@ -39,7 +39,7 @@ function slotColumns(value: SlotInput) {
     end_time: value.endTime,
     capacity: value.capacity,
     office_name: value.officeName,
-    what_to_bring: value.whatToBring,
+    what_to_bring: value.whatToBring.length > 0 ? value.whatToBring : null,
   };
 }
 

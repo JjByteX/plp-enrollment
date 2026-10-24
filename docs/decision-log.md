@@ -276,3 +276,41 @@ What becomes harder or easier because of this choice?
 **Consequences:** Applicants no longer reserve a slot, so tell the Registrar's office before go-live. A slot with bookings keeps its program, date, time and office; moving people is the mass reschedule in step 12. "What to bring" is a required slot field, pre-filled with PLP's published list. Whether the Registrar needs a visible "endorsed" marker is open for step 7.
 
 ---
+
+---
+
+**#:** 16
+**Date:** 2026-10-25
+**Milestone:** Build step 7, documents and student numbering
+
+**Context:** PLP accepts "complete requirements only" and keeps the paper originals, with one exception: the original Form 137 is submitted later. Admissions already holds approved scans, and Admissions blocks the exam until every required document is approved, with no override.
+
+**Options Considered:**
+- Option A: Promotion is blocked until every required document is ticked, and late items (Form 137) never block it.
+- Option B: The Registrar may promote with documents missing, with a typed reason.
+- Option C: Keep scans of documents in Enrollment.
+
+**Community Consensus:** Not searched. Option A follows PLP's published rule and the Admissions pattern; no PLP source says the Registrar scans originals.
+
+**Decision:** Option A. `mark_documents_received` refuses and names what is missing, for Registrar and Admin alike. A late item is a catalog row with `required = false`, never blocks promotion and stays tickable after it. No scans are stored (Option C dropped).
+
+**Consequences:** A student missing one paper cannot be enrolled that day, and a wrong promotion cannot be undone because the number stays used. If the Registrar's office quietly allows exceptions, that needs a new entry and a controlled state. The Endorsement Slip is a required checklist item, which settles the "endorsed" marker left open in #15.
+
+---
+
+**#:** 17
+**Date:** 2026-10-25
+**Milestone:** Build step 7, where "what to bring" comes from
+
+**Context:** Step 6 made "what to bring" a required text field on each visit slot, so the applicant's list and the Registrar's checklist could drift apart.
+
+**Options Considered:**
+- Option A: The catalog `document_requirements`, per admission type, is the one source; the slot field becomes optional extra notes.
+- Option B: Keep the slot text and build a separate checklist.
+
+**Community Consensus:** Not searched. Option B keeps two lists that must be edited together.
+
+**Decision:** Option A, chosen by the human. `assign_visit_slot` writes the type's checklist followed by the slot notes, and the applicant card reads the same list. The catalog is seeded by migration and has no editor until step 15.
+
+**Consequences:** This changes the step 6 slot form (the field is optional and no longer pre-filled), so slots saved before step 7 may repeat the old list after the checklist and should be cleaned by hand. A change to the document list is a new migration until step 15.
+

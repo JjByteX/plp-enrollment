@@ -9,6 +9,7 @@ export default function RegistrarPage() {
     <Stack gap={spacing.md}>
       <Title order={3}>Registrar</Title>
       <Anchor href="/registrar/visits">Visits</Anchor>
+      <Anchor href="/registrar/documents">Documents</Anchor>
     </Stack>
   );
 }

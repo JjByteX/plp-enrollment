@@ -11,27 +11,12 @@
 //   endTime       HH:MM, after startTime
 //   capacity      whole number, 1 or more
 //   officeName    where to go, shown on the applicant's card
-//   whatToBring   required, shown on the card and copied into the notification
+//   whatToBring   optional extra notes, shown after the checklist for the applicant's admission type
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const MAX_CAPACITY = 500;
 export const MAX_REASON = 200;
-
-// Starting text for the "what to bring" box. It is PLP's published list for
-// AY 2026-2027 (plpasig.edu.ph, notice of 2026-05-15). The Registrar edits it
-// each cycle; the form still refuses an empty value. Transferee, Balik Aral
-// and foreign variants come in step 7.
-export const DEFAULT_WHAT_TO_BRING = [
-  'Bring originals and photocopies of:',
-  '1. Form 138 (new students), or a TOR marked "Copy for PLP" (transferees and Balik Aral)',
-  '2. Birth certificate on PSA paper',
-  '3. One recent 2x2 photo with a white background',
-  '4. Two valid IDs with photocopies, at least one showing your current address',
-  '5. Printed Student Information Form',
-  '6. Original SHS Form 137 marked "Copy for Pamantasan ng Lungsod ng Pasig"',
-  '7. Endorsement Slip from Admissions',
-].join('\n');
 
 export type SlotInput = {
   programId: string;
@@ -101,8 +86,7 @@ export function parseSlotInput(raw: unknown, today: string = manilaToday()): Par
   if (officeName.length > 100) return { ok: false, reason: 'The office name is longer than 100 characters.' };
 
   const whatToBring = text(body, 'whatToBring');
-  if (whatToBring.length === 0) return { ok: false, reason: 'Enter what the applicant should bring.' };
-  if (whatToBring.length > 2000) return { ok: false, reason: 'What to bring is longer than 2000 characters.' };
+  if (whatToBring.length > 2000) return { ok: false, reason: 'The notes are longer than 2000 characters.' };
 
   return { ok: true, value: { programId, slotDate, startTime, endTime, capacity, officeName, whatToBring } };
 }

@@ -35,6 +35,8 @@ Originals and photocopies of:
 
 Source: plpasig.edu.ph notice "Congratulations to our successful PLP applicants" (2026-05-15). The Registrar should confirm the list each cycle, since it changes. Transferee and Balik Aral variants are step 7.
 
+> Changed in step 7 (decision-log.md #17): the slot's "what to bring" field is now optional extra notes with no pre-filled text. The list the applicant sees comes from the document catalog for their admission type, with the slot notes added after it. Decision D and the seed text above describe step 6 as built; the seed text now lives in the catalog.
+
 ## 3. What exists today
 
 - Tables `visit_slots` and `visit_bookings` (init migration, section 5). One booking per applicant (`applicant_id` unique), so moving someone changes `slot_id`.

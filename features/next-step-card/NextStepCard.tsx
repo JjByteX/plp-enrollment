@@ -24,6 +24,20 @@ export function NextStepCard({ step }: { step: NextStep }) {
         </Text>
       )}
 
+      {step.kind === 'student_waiting' && (
+        <Stack gap={spacing.sm}>
+          <Text size="sm">
+            Your documents were received. Your student number is {step.studentNumber}. Your college will prepare your
+            schedule and you will see it here.
+          </Text>
+          {step.openLateItems.length > 0 && (
+            <Text size="sm" c={color.textSecondary}>
+              Still to submit: {step.openLateItems.join('; ')}.
+            </Text>
+          )}
+        </Stack>
+      )}
+
       {step.kind === 'visit' && (
         <Stack gap={spacing.sm}>
           <Text>

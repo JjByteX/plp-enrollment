@@ -9,7 +9,7 @@ import { Button, Group, Modal, NumberInput, Select, Stack, Text, TextInput, Text
 import { color, padding, spacing } from '@/styles/tokens';
 import { createSlot, updateSlot, type VisitActionResult } from './actions';
 import type { ProgramOption, SlotRow } from './queries';
-import { DEFAULT_WHAT_TO_BRING, MAX_CAPACITY, manilaToday, parseSlotInput } from './schema';
+import { MAX_CAPACITY, manilaToday, parseSlotInput } from './schema';
 
 export function SlotFormModal({
   slot,
@@ -30,7 +30,7 @@ export function SlotFormModal({
   const [endTime, setEndTime] = useState(slot?.endTime ?? '');
   const [capacity, setCapacity] = useState<number | string>(slot?.capacity ?? 1);
   const [officeName, setOfficeName] = useState(slot?.officeName ?? '');
-  const [whatToBring, setWhatToBring] = useState(slot?.whatToBring ?? DEFAULT_WHAT_TO_BRING);
+  const [whatToBring, setWhatToBring] = useState(slot?.whatToBring ?? '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -132,14 +132,14 @@ export function SlotFormModal({
             required
           />
           <Textarea
-            label="What to bring"
+            label="Extra notes"
+            description="Shown after the documents listed for the applicant's admission type"
             value={whatToBring}
             onChange={(event) => setWhatToBring(event.currentTarget.value)}
             autosize
-            minRows={6}
-            maxRows={12}
+            minRows={3}
+            maxRows={8}
             maxLength={2000}
-            required
           />
           {locked && (
             <Text size="sm" c={color.textSecondary}>

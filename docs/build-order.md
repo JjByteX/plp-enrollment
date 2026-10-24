@@ -22,8 +22,9 @@ What to build, in order. Each step assumes the ones before it exist. Tick a step
       Written, not yet run: migration `20261025040000_visit_scheduling.sql`, checks in `supabase/gates_check.sql`, `features/visit-scheduling/`, `/registrar/visits`, `features/next-step-card/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. Plan: `docs/step-6-visit-scheduling-plan.md`.
       When this ships, retire the "Enrollment Schedule" in PLP Admissions (`/admin/school-year`): replace it on the student result page with an Endorsement Slip (no date) and drop its release gate, so students see one date only (decision-log.md #14 and #15).
 
-- [ ] 7. **Documents and student numbering**
-      Registrar uploads and marks documents received. Student number assigned automatically, Applicant becomes Student.
+- [x] 7. **Documents and student numbering**
+      Registrar ticks off each original document on a checklist, then marks documents received. Student number assigned automatically, Applicant becomes Student. No scans are kept (decision-log.md #16).
+      Written, not yet run: migrations `20261025050000_documents_and_numbering.sql` and `20261025060000_my_open_late_items.sql`, checks in `supabase/gates_check.sql`, `features/documents-and-numbering/`, `/registrar/documents`, the student case in `features/next-step-card/`, and the optional slot notes in `features/visit-scheduling/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. Plan: `docs/step-7-documents-and-numbering-plan.md`.
 
 - [ ] 8. **Section, professor and room scheduling**
       Secretary prepares, Dean signs off professor loading, Registrar approves. Students placed in sections.
