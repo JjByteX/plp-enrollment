@@ -16,6 +16,10 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...nextPlugin.configs.recommended.rules,
+      // These two rules (Pages Router only) call ESLint APIs removed in
+      // ESLint 9 and crash the run. Not relevant to an App Router project.
+      "@next/next/no-duplicate-head": "off",
+      "@next/next/no-page-custom-font": "off",
     },
   }
 );
