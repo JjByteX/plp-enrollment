@@ -1,18 +1,22 @@
 'use client';
 
-import { AppShell, Button, Card, Group, Menu, Stack, Text, Title } from '@mantine/core';
+import { AppShell, Button, Card, Group, Menu, Stack, Title } from '@mantine/core';
 import { signOut } from '@/lib/auth/actions';
+import { NextStepCard } from '@/features/next-step-card/NextStepCard';
+import type { NextStep } from '@/features/next-step-card/queries';
 
 // Shell per ux-ui-guidelines.md: header, nav area, and the persistent
-// "Your next step" card slot. Nav links and the card content are filled in
-// by later build steps. The profile menu sits top right and holds Sign out.
+// "Your next step" card slot. Nav links are filled in by later build steps.
+// The profile menu sits top right and holds Sign out.
 export function PortalShell({
   userName,
   roleLabel,
+  nextStep,
   children,
 }: {
   userName: string;
   roleLabel: string;
+  nextStep: NextStep;
   children: React.ReactNode;
 }) {
   return (
@@ -34,10 +38,7 @@ export function PortalShell({
       <AppShell.Main>
         <Stack gap="md">
           <Card withBorder radius="md" p="md" data-slot="next-step-card">
-            <Text fw={600}>Your next step</Text>
-            <Text c="dimmed" size="sm">
-              Nothing to do yet.
-            </Text>
+            <NextStepCard step={nextStep} />
           </Card>
           {children}
         </Stack>

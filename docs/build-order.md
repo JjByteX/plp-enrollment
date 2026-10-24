@@ -19,7 +19,8 @@ What to build, in order. Each step assumes the ones before it exist. Tick a step
 
 - [ ] 6. **Visit scheduling**
       Registrar sets up slots (date, time window, capacity per program) and assigns applicants. "Your next step" card slot in the portal shell.
-      When this ships, retire the "Enrollment Schedule" in PLP Admissions (`/admin/school-year`): remove it from the student result page and replace its release gate, so students see one date only (decision-log.md #14).
+      Written, not yet run: migration `20261025040000_visit_scheduling.sql`, checks in `supabase/gates_check.sql`, `features/visit-scheduling/`, `/registrar/visits`, `features/next-step-card/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. Plan: `docs/step-6-visit-scheduling-plan.md`.
+      When this ships, retire the "Enrollment Schedule" in PLP Admissions (`/admin/school-year`): replace it on the student result page with an Endorsement Slip (no date) and drop its release gate, so students see one date only (decision-log.md #14 and #15).
 
 - [ ] 7. **Documents and student numbering**
       Registrar uploads and marks documents received. Student number assigned automatically, Applicant becomes Student.

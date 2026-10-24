@@ -257,3 +257,22 @@ What becomes harder or easier because of this choice?
 **Consequences:** Build step 6 includes that cleanup. Until then a student can see the Admissions date and, later, an Enrollment date.
 
 ---
+
+**#:** 15
+**Date:** 2026-10-25
+**Milestone:** Build step 6, visit scheduling
+
+**Context:** PLP's real process lets applicants reserve a slot through an Enrollment Link from Admissions, with submission dates per program, and requires an Endorsement Slip signed by the Admissions Officer before the Registrar takes documents (plpasig.edu.ph notice of 2026-05-15). Admissions has one global schedule and no slip. Decision #14 already said to retire that schedule once Enrollment sets visit slots.
+
+**Options Considered:**
+- Option A: Applicants reserve a slot themselves, as PLP does today.
+- Option B: The Registrar assigns slots; the applicant only sees the result.
+- Option C: Keep the Admissions schedule and the release gate.
+
+**Community Consensus:** Not searched. The choice follows the request that applicants never pick a slot (build step 6 plan, decision A).
+
+**Decision:** Option B. The Registrar presses "Assign all unassigned" per program, or assigns and moves one applicant. The booking and its notification are written by database functions in one transaction. Admissions changes after go-live: the schedule block becomes an Endorsement Slip with no date, and the `enrollment_schedule_posted()` gate is dropped, because it only protected the student's view and no data depends on it. Attendance (`attended`, `no_show`) is not set in step 6; step 7 sets `attended` when documents are received.
+
+**Consequences:** Applicants no longer reserve a slot, so tell the Registrar's office before go-live. A slot with bookings keeps its program, date, time and office; moving people is the mass reschedule in step 12. "What to bring" is a required slot field, pre-filled with PLP's published list. Whether the Registrar needs a visible "endorsed" marker is open for step 7.
+
+---

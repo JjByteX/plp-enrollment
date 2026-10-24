@@ -10,6 +10,7 @@ export default function AdminPage() {
       <Title order={3}>Admin</Title>
       <Anchor href="/admin/accounts">Accounts</Anchor>
       <Anchor href="/admin/admissions">Admissions</Anchor>
+      <Anchor href="/registrar/visits">Visits</Anchor>
     </Stack>
   );
 }
