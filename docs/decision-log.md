@@ -208,3 +208,52 @@ What becomes harder or easier because of this choice?
 **Consequences:** The JSON keys in `features/admissions-intake/schema.ts` are the contract the Admissions sender must follow. Every authenticated request is logged, but a request that fails validation is logged with placeholder values because the log columns are required; the real body is kept in `raw_payload`.
 
 ---
+
+**#:** 12
+**Date:** 2026-10-25
+**Milestone:** Admissions sender: how accounts and roles connect
+
+**Context:** Admissions and Enrollment each have their own users and roles. Admissions has student, professor, proctor, SSO, Dean and Admin. Enrollment has applicant, student, Registrar, Finance, Dean, College Secretary, Professor and Admin.
+
+**Options Considered:**
+- Option A: Link the applicant account by `applicant_ref` and email. Staff accounts stay separate, matched in a documented role table.
+- Option B: Also create or update Enrollment staff accounts from Admissions.
+- Option C: Shared sign-in across both systems.
+
+**Community Consensus:** Not searched. This follows decision #1 (separate databases and logins), and option A is the only one that needs no second signed endpoint.
+
+**Decision:** Option A. Only an Admin creates staff accounts in Enrollment. If staff ever need one sign-in, use a shared identity provider (for example Google on the school domain) rather than a shared database.
+
+**Consequences:** Roles are never synced. The applicant link is the `applicant_ref` plus the email, and a name or email change reaches Enrollment only by a resend. Options B and C need a new decision entry.
+
+---
+
+**#:** 13
+**Date:** 2026-10-25
+**Milestone:** Admissions sender: foreign applicants
+
+**Context:** Admissions has three applicant types: freshman, transferee and foreign. Enrollment accepted only `new` and `transferee`.
+
+**Options Considered:**
+- Option A: Send foreign applicants as `new`.
+- Option B: Add `foreign` to the contract.
+
+**Community Consensus:** Not searched.
+
+**Decision:** Option B. Foreign students need different documents, and folding them into `new` loses that with no way to recover it. Migration `20261025030000_admission_type_foreign.sql` widens the check on `applicants` and `admissions_intake_log`.
+
+**Consequences:** `features/admissions-intake/schema.ts` accepts `foreign`. The documents step (build step 7) must branch on it.
+
+---
+
+**#:** 14
+**Date:** 2026-10-25
+**Milestone:** Admissions sender: one source for the visit date
+
+**Context:** Admissions has its own single "Enrollment Schedule" (date, time, venue) that gates releasing an acceptance. Enrollment will set visit slots per program (build step 6).
+
+**Decision:** Leave the Admissions schedule alone until Enrollment build step 6 ships, then retire it and replace its release gate, so a student sees one date from one system.
+
+**Consequences:** Build step 6 includes that cleanup. Until then a student can see the Admissions date and, later, an Enrollment date.
+
+---

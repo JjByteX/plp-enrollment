@@ -8,7 +8,7 @@
 //   email           the applicant's email
 //   program_code    one of the 13 Admissions program codes (for example BSENT)
 //   admission_date  YYYY-MM-DD
-//   admission_type  "new" or "transferee"
+//   admission_type  "new", "transferee" or "foreign"
 //   source_name     optional, defaults to "PLP Admissions"
 import { isEmail } from '@/lib/auth/validate';
 
@@ -18,7 +18,7 @@ export type IntakePayload = {
   email: string;
   program_code: string;
   admission_date: string;
-  admission_type: 'new' | 'transferee';
+  admission_type: 'new' | 'transferee' | 'foreign';
   source_name: string;
 };
 
@@ -64,8 +64,8 @@ export function parseIntakePayload(raw: unknown): ParsedIntake {
     return { ok: false, reason: 'admission_date must be a real date written YYYY-MM-DD.' };
   }
   const admissionType = text(body, 'admission_type');
-  if (admissionType !== 'new' && admissionType !== 'transferee') {
-    return { ok: false, reason: 'admission_type must be "new" or "transferee".' };
+  if (admissionType !== 'new' && admissionType !== 'transferee' && admissionType !== 'foreign') {
+    return { ok: false, reason: 'admission_type must be "new", "transferee" or "foreign".' };
   }
   const sourceName = text(body, 'source_name') || DEFAULT_SOURCE;
   if (sourceName.length > 60) {
@@ -104,7 +104,7 @@ export function logFieldsFor(raw: unknown, parsed: ParsedIntake) {
     email: pick('email', 254),
     program_code: pick('program_code', 20),
     admission_date: isRealDate(date) ? date : new Date().toISOString().slice(0, 10),
-    admission_type: type === 'transferee' ? 'transferee' : 'new',
+    admission_type: type === 'transferee' || type === 'foreign' ? type : 'new',
     source_name: text(body, 'source_name').slice(0, 60) || DEFAULT_SOURCE,
   };
 }
