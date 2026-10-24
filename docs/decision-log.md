@@ -172,3 +172,39 @@ What becomes harder or easier because of this choice?
 **Consequences:** Changing the format later would not renumber existing students. Past 99999 numbers in one year the system refuses to assign more, so the format must change before that.
 
 ---
+
+**#:** 10
+**Date:** 2026-10-25
+**Milestone:** Auth and roles: how server code identifies the user to the database
+
+**Context:** `lib/db.ts` uses a superuser connection that bypasses row level security, so the database rules for Registrar, Finance, Dean and the others would not apply to real people.
+
+**Options Considered:**
+- Option A: Server code uses the signed-in person's Supabase session (`@supabase/ssr`), so the database sees `auth.uid()`.
+- Option B: Keep `pg` and set `app.actor_id` per transaction.
+
+**Community Consensus:** Supabase's current SSR guide for Next.js uses cookie-based sessions with `@supabase/ssr`, middleware that refreshes the token, and `getClaims()` to check the session. Option B is a supported fallback in this schema but means every query path must set the actor correctly and row level security is bypassed if one forgets.
+
+**Decision:** Option A, approved by the human in the step 4 plan. The role is read from the `users` table on each request, not from the token, so an Applicant who becomes a Student is treated as one at once.
+
+**Consequences:** User-initiated reads and writes go through `lib/supabase/server.ts`, so row level security and the audit log see the real person. `lib/db.ts` is kept only for system jobs with no signed-in person, such as the Admissions intake webhook.
+
+---
+
+**#:** 11
+**Date:** 2026-10-25
+**Milestone:** Admissions intake: how the one call from Admissions works
+
+**Context:** Decision #1 fixed one secure call with a shared secret, but not its exact form, who it runs as, or how a retry works.
+
+**Options Considered:**
+- Option A: One idempotent endpoint, `POST /api/admissions/intake`, with `Authorization: Bearer <ADMISSIONS_INTAKE_SECRET>`. Retries call the same endpoint.
+- Option B: A separate resend endpoint for Admissions' retry button.
+
+**Community Consensus:** Webhook guidance from Stripe and similar providers is to verify a shared secret and make receivers idempotent, because senders retry. A second endpoint only adds a second path to secure.
+
+**Decision:** Option A. The receiver runs as the system with the service role key, not a person. The applicant ref makes a repeat a refresh while the person is an Applicant and a no-op once they are a Student.
+
+**Consequences:** The JSON keys in `features/admissions-intake/schema.ts` are the contract the Admissions sender must follow. Every authenticated request is logged, but a request that fails validation is logged with placeholder values because the log columns are required; the real body is kept in `raw_payload`.
+
+---

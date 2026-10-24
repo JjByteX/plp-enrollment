@@ -3,6 +3,11 @@
 // Postgres client (Supabase transaction pooler). Mirrors the connection
 // pattern used by the PLP Admissions system (config/db.php) — same
 // Supabase/Postgres setup, separate project and database.
+//
+// This is a superuser connection and BYPASSES row level security. Use it only
+// for system jobs that have no signed-in person (such as the Admissions
+// intake webhook). Anything done on behalf of a signed-in person must use
+// lib/supabase/server.ts instead. See decision-log.md #10.
 import { Pool } from 'pg';
 
 declare global {
