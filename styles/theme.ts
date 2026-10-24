@@ -1,0 +1,65 @@
+// styles/theme.ts
+import { createTheme, type MantineColorsTuple } from '@mantine/core';
+import { gray, blue, fontFamily, fontWeight, radius } from './tokens';
+
+// Mantine requires a 10-shade tuple per color. Primer's scales are 11/10
+// steps; we map them onto Mantine's 0(lightest)-9(darkest) ordering.
+const primerGray: MantineColorsTuple = [
+  gray[50],
+  gray[100],
+  gray[200],
+  gray[300],
+  gray[400],
+  gray[500],
+  gray[600],
+  gray[700],
+  gray[800],
+  gray[900],
+];
+
+const primerBlue: MantineColorsTuple = [
+  blue[0],
+  blue[1],
+  blue[2],
+  blue[3],
+  blue[4],
+  blue[5],
+  blue[6],
+  blue[7],
+  blue[8],
+  blue[9],
+];
+
+export const theme = createTheme({
+  colors: {
+    gray: primerGray,
+    blue: primerBlue,
+  },
+  primaryColor: 'blue',
+  primaryShade: 5,
+  fontFamily: fontFamily.body,
+  headings: {
+    fontFamily: fontFamily.heading,
+    fontWeight: String(fontWeight.semibold),
+  },
+  defaultRadius: 'sm', // maps to radius.default (8px) via CSS vars below
+  radius: {
+    sm: `${radius.default}px`,
+    md: `${radius.default}px`,
+    lg: `${radius.prominent}px`,
+  },
+  shadows: {
+    // single shadow token, only for floating elements — see tokens.ts
+    sm: '0 4px 16px rgba(31, 35, 40, 0.12)',
+  },
+  components: {
+    // Shadows restricted to floating elements only (menus, modals, toasts).
+    // Cards, panels, and buttons get no shadow per ux-ui-guidelines.md.
+    Card: {
+      defaultProps: { shadow: undefined, withBorder: true },
+    },
+    Paper: {
+      defaultProps: { shadow: undefined, withBorder: true },
+    },
+  },
+});
