@@ -9,7 +9,7 @@ What to build, in order. Each step assumes the ones before it exist. Tick a step
       `tsconfig.json`, `next.config`, root layout, Mantine provider, folder structure from `architecture-notes.md`. Makes type check and build pass in CI.
 
 - [ ] 3. **Database schema and RLS**
-      `supabase/migrations/20261025000000_init.sql` written. Gates and row level security checked on a local Postgres 16 with `supabase/gates_check.sql`; not yet run through the Supabase CLI. Still needs: the 13 program codes seeded and the student number format. Schema first, no UI yet.
+      `supabase/migrations/20261025000000_init.sql` written. Gates and row level security checked on a local Postgres 16 with `supabase/gates_check.sql`; not yet run through the Supabase CLI. Follow-up migration `20261025020000_...` adds the YY-NNNNN student number, seeds the 7 colleges and 13 programs, and lets Applicants request a reschedule. Schema first, no UI yet.
 
 - [ ] 4. **Auth and roles**
       Supabase Auth, staff accounts created by Admin only, set-password link for Applicants. Decide how server code identifies the user to the database (see open-questions.md).

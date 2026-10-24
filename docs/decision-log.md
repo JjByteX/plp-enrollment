@@ -160,3 +160,15 @@ What becomes harder or easier because of this choice?
 **Consequences:** A faulty migration reaches live data with no staging buffer, which matters for student numbering, payments and the audit log. Guardrails copy Lakbay Pasig: forward-only migrations, a `db reset` test and `db lint` in CI. The production Vercel deploy runs from the workflow after the migration, so Vercel's Git auto-deploy is off for main.
 
 ---
+
+**#:** 9
+**Date:** 2026-10-25
+**Milestone:** Documents & numbering: student number format
+
+**Context:** The student number is permanent and printed on the slip and COR, and the first schema used a plain 8 digit sequence as a placeholder.
+
+**Decision:** Format `YY-NNNNN` (year of assignment in Manila time, a dash, a 5 digit counter that restarts each year), chosen by the human. Counters live in `student_number_counters`, handed out under a row lock.
+
+**Consequences:** Changing the format later would not renumber existing students. Past 99999 numbers in one year the system refuses to assign more, so the format must change before that.
+
+---

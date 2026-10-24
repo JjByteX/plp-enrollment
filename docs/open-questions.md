@@ -53,9 +53,6 @@ Each question is tagged to the milestone where it must be resolved.
 | 7 | SonarQube: use SonarCloud (hosted; free tier only for public repos) or a self-hosted SonarQube server? Is the GitHub repo public or private? | CI/CD setup | [x] See Resolved #3 |
 | 8 | Supabase CLI expects timestamped files in `supabase/migrations/`; the project has `db/migrations/0001_init.sql` and a `migrate` script pointing at a `db/migrate.mjs` that does not exist. Move to the Supabase CLI layout, or keep `db/migrations/` and write a custom runner? (Schema files need human approval.) | CI/CD setup | [x] See Resolved #4 |
 | 9 | With production-only and auto-migrate on merge to main, which guardrails do you want: PR required with checks passing before merge, forward-only migrations, and a Supabase backup before each production migration? | CI/CD setup | [x] See Resolved #5 |
-| 10 | What is the student number format (year prefix, length)? Today it is an 8 digit padded sequence in `generate_student_number()`. | Documents & numbering | [ ] |
-| 11 | What are the 13 Admissions program codes, their names and colleges (including BSENT)? They are not seeded yet. | Content population | [ ] |
-| 12 | Applicants get their visit slot before they become Students, but the plan lets only Students request a reschedule. Should Applicants be allowed to request one too? | Reschedules | [ ] |
 | 13 | `lib/db.ts` connects with a superuser connection string, which bypasses row level security. Should server code use the signed-in user's Supabase session, or keep `pg` and set `app.actor_id` per transaction? | Auth and roles | [ ] |
 | 14 | If the Dean or Registrar rejects a schedule, what happens? The schema only moves forward (draft, pending_dean, dean_signed, approved). | Section scheduling | [ ] |
 | 15 | Which Admin or staff role places a student into a section: Secretary and Dean only, or automatically? | Section scheduling | [ ] |
@@ -102,5 +99,8 @@ Answered questions live here permanently as part of project history.
 | 3 | Which SonarQube setup? | SonarQube Cloud (SonarCloud) free plan: private repos up to 50k lines of code, up to 5 users, PR and main branch analysis. | 2026-10-25, CI/CD setup |
 | 4 | Where do migrations live? | Supabase CLI layout: `supabase/migrations/`, timestamped files (AI recommendation, accepted by human). `0001_init.sql` moved to `20261025000000_init.sql`; `migrate` script now `supabase db push`. | 2026-10-25, CI/CD setup |
 | 5 | Which production guardrails for auto-migrate on merge to main? | Copy what Lakbay Pasig does: forward-only migrations (never edit a migration merged to main, add a new one), every migration tested with `supabase db reset` in CI, `supabase db lint`, and SQL check files. No PR requirement and no backup step (not in Lakbay). | 2026-10-25, CI/CD setup |
+| 6 | What is the student number format? | `YY-NNNNN`: two digit year, a dash, a 5 digit counter that restarts each year (for example 24-00669). The counter is automatic. | 2026-10-25, Documents & numbering |
+| 7 | What are the 13 Admissions program codes, names and colleges? | Taken from the PLP Admissions code (`PLP_COURSES`, `COURSE_DEPARTMENT_MAP`) and seeded: BSA, BSBA, BSENT (College of Business and Accountancy), BSHM (Hospitality Management), BEED, BSED-ENG, BSED-FIL, BSED-MATH (Education), AB Psych (Arts and Sciences), BSCS, BSIT (Computer Studies), BSECE (Engineering), BSN (Nursing). | 2026-10-25, Content population |
+| 8 | May Applicants request a reschedule, not only Students? | Yes. Same Registrar approval path. | 2026-10-25, Reschedules |
 
 ---

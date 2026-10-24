@@ -70,8 +70,8 @@ Two ways a visit date can move. In both, the student never picks a new slot. The
    - Every student booked on that date is moved automatically to the next available slot, or to a new date that staff set.
    - Moved students are told on their "Your next step" card and by email, with the new date, place and what to bring.
    - Nobody loses their place or counts as a no-show because of it.
-2. Student request (emergency, illness, family)
-   - The student sends a reschedule request from their next step card, with a reason. The student cannot move themselves.
+2. Applicant or student request (emergency, illness, family)
+   - The applicant or student sends a reschedule request from their next step card, with a reason. The student cannot move themselves.
    - The Registrar reviews it. If a slot is available, they approve it and the student is moved. If not, they decline with a note or offer the next available date.
    - The student sees the answer on their card and by email.
 
@@ -84,7 +84,7 @@ Rule: everyone sees only what they need to do their job. Deny by default. The li
 
 | Role | Can see | Can do | Cannot see |
 |---|---|---|---|
-| Applicant | Only their own status and next step | Nothing in enrollment yet | Anyone else, any staff pages |
+| Applicant | Only their own status and next step | Request a reschedule for their own visit | Anyone else, any staff pages |
 | Student | Only their own record, assessment slip, COR, schedule, next step | View and download their own documents, request a reschedule | Anyone else, payment settings |
 | Registrar | All students' enrollment records and submitted documents | Mark documents received, approve schedules, issue the assessment slip and COR, approve or decline reschedule requests, set a mass reschedule | Payment settings (view only), user management |
 | Finance | Payment status and amounts due | Record payment, change the payment toggle | Uploaded documents, schedules |
@@ -117,7 +117,7 @@ Other rules:
 - Dean sign-off: required before the schedule reaches the Registrar, because that matches PLP.
 - College Secretary: the Dean's assistant. Does the day-to-day work: advising, preparing the schedule, assigning professors to subjects.
 - Payment order: Finance comes after the assessment slip and before the COR
-- Student number: assigned automatically by the system when the Registrar marks the documents received. Nobody types it. One number per student, never reused, and it cannot be edited afterward.
+- Student number: assigned automatically by the system when the Registrar marks the documents received. Nobody types it. One number per student, never reused, and it cannot be edited afterward. Format `YY-NNNNN`: the year, then a 5 digit counter that restarts each year (for example 24-00669).
 - Access: role based access control (RBAC), see the Access section above
 - Enrollment slip: Admissions side, not here
 - Visit slots: set up by staff, never by the student. A student can only request a reschedule.
