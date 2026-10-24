@@ -5,19 +5,19 @@ What to build, in order. Each step assumes the ones before it exist. Tick a step
 - [x] 1. **CI/CD and project scaffold files**
       GitHub Actions workflow, lint, design gate, Sonar config, Supabase config, tokens, theme, fonts. See `docs/ci-cd.md`. The Next.js scaffold (`tsconfig.json`, `next.config`) is still missing.
 
-- [ ] 2. **Next.js scaffold**
+- [x] 2. **Next.js scaffold**
       `tsconfig.json`, `next.config`, root layout, Mantine provider, folder structure from `architecture-notes.md`. Makes type check and build pass in CI.
 
-- [ ] 3. **Database schema and RLS**
+- [x] 3. **Database schema and RLS**
       `supabase/migrations/20261025000000_init.sql` written. Gates and row level security checked on a local Postgres 16 with `supabase/gates_check.sql`; not yet run through the Supabase CLI. Follow-up migration `20261025020000_...` adds the YY-NNNNN student number, seeds the 7 colleges and 13 programs, and lets Applicants request a reschedule. Schema first, no UI yet.
 
-- [ ] 4. **Auth and roles**
+- [x] 4. **Auth and roles**
       Supabase Auth, staff accounts created by Admin only, set-password link for Applicants. Decide how server code identifies the user to the database (see open-questions.md).
 
-- [ ] 5. **Admissions intake**
+- [x] 5. **Admissions intake**
       `app/api/admissions/intake/route.ts`: shared secret check, program code check, create or refresh Applicant, log every request. Admin page: view requests, resend a failed one, switch the connection on or off.
 
-- [ ] 6. **Visit scheduling**
+- [x] 6. **Visit scheduling**
       Registrar sets up slots (date, time window, capacity per program) and assigns applicants. "Your next step" card slot in the portal shell.
       Written, not yet run: migration `20261025040000_visit_scheduling.sql`, checks in `supabase/gates_check.sql`, `features/visit-scheduling/`, `/registrar/visits`, `features/next-step-card/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. Plan: `docs/step-6-visit-scheduling-plan.md`.
       When this ships, retire the "Enrollment Schedule" in PLP Admissions (`/admin/school-year`): replace it on the student result page with an Endorsement Slip (no date) and drop its release gate, so students see one date only (decision-log.md #14 and #15).
