@@ -5,6 +5,7 @@ import {
   listRequirements,
 } from '@/features/documents-and-numbering/queries';
 import { parseFilter } from '@/features/documents-and-numbering/schema';
+import { catchUpAdmissionsStatus } from '@/features/admissions-callback/send';
 import { listPrograms } from '@/features/visit-scheduling/queries';
 
 export const metadata = { title: 'Documents | PLP Enrollment' };
@@ -16,6 +17,9 @@ export default async function DocumentsPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
+  // Sends Admissions any status update it missed earlier. Never throws.
+  await catchUpAdmissionsStatus();
+
   const filter = parseFilter(searchParams);
 
   const [programs, requirements] = await Promise.all([listPrograms(), listRequirements()]);

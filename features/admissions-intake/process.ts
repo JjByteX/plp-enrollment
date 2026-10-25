@@ -10,13 +10,17 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logFieldsFor, parseIntakePayload, type IntakePayload } from './schema';
 
+// The visit the applicant was booked into at intake, when a slot was free.
+// Times are Manila time, written HH:MM (24 hour).
+export type IntakeVisit = { date: string; start_time: string; end_time: string; office_name: string };
+
 export type IntakeBody =
-  | { status: 'created' | 'updated' | 'unchanged'; applicant_ref: string }
+  | { status: 'created' | 'updated' | 'unchanged'; applicant_ref: string; visit?: IntakeVisit }
   | { error: string };
 export type IntakeOutcome = { httpStatus: number; body: IntakeBody };
 
 type Applied =
-  | { ok: true; result: 'created' | 'updated' | 'unchanged'; applicantId: string }
+  | { ok: true; result: 'created' | 'updated' | 'unchanged'; applicantId: string; visit?: IntakeVisit | null }
   | { ok: false; httpStatus: number; reason: string };
 
 const reject = (httpStatus: number, reason: string): Applied => ({ ok: false, httpStatus, reason });
@@ -53,8 +57,37 @@ async function apply(admin: SupabaseClient, input: IntakePayload): Promise<Appli
   if (existingError) return reject(500, 'Could not look up the applicant.');
   const existing = existingRow as ApplicantRow | null;
 
-  if (existing) return refresh(admin, existing, input, program.id);
-  return create(admin, input, program.id);
+  const applied = existing ? await refresh(admin, existing, input, program.id) : await create(admin, input, program.id);
+  if (!applied.ok) return applied;
+  return { ...applied, visit: await autoAssignVisit(admin, applied.applicantId) };
+}
+
+function readVisit(value: unknown): IntakeVisit | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const visit = value as Record<string, unknown>;
+  const { date, start_time, end_time, office_name } = visit;
+  if (typeof date !== 'string' || typeof start_time !== 'string') return null;
+  if (typeof end_time !== 'string' || typeof office_name !== 'string') return null;
+  return { date, start_time, end_time, office_name };
+}
+
+// Books the earliest open visit slot for the applicant's program, the way the
+// Registrar's "Assign all unassigned" button would, so the Registrar only has
+// to step in when no slot is free. Repeating it is safe: an applicant who is
+// already booked keeps that visit, and a student is skipped. A failure here is
+// logged and never blocks the handoff; the Registrar can still assign by hand.
+async function autoAssignVisit(admin: SupabaseClient, applicantId: string): Promise<IntakeVisit | null> {
+  try {
+    const { data, error } = await admin.rpc('auto_assign_visit', { p_applicant: applicantId });
+    if (error) {
+      console.error('Automatic visit assignment failed', error);
+      return null;
+    }
+    return readVisit(data);
+  } catch (error) {
+    console.error('Automatic visit assignment failed', error);
+    return null;
+  }
 }
 
 // Same applicant sent again: details refresh while they are still an
@@ -198,7 +231,14 @@ export async function processIntake(raw: unknown, sourceOverride?: string): Prom
   if (logError) console.error('Could not write the intake log', logError);
 
   if (applied.ok) {
-    return { httpStatus: applied.result === 'created' ? 201 : 200, body: { status: applied.result, applicant_ref: fields.applicant_ref } };
+    return {
+      httpStatus: applied.result === 'created' ? 201 : 200,
+      body: {
+        status: applied.result,
+        applicant_ref: fields.applicant_ref,
+        ...(applied.visit ? { visit: applied.visit } : {}),
+      },
+    };
   }
   return { httpStatus: applied.httpStatus, body: { error: applied.reason } };
 }

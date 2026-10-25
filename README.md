@@ -1,6 +1,6 @@
 # PLP Enrollment
 
-Enrollment system for newly admitted PLP students. It picks up where the separate PLP Admissions system stops: it receives an admitted applicant, then carries them through document receipt, an automatic student number, schedule and professor setup, optional payment, and the final COR.
+PLP Enrollment system for newly admitted PLP students. It picks up where the separate PLP Admissions system stops: it receives an admitted applicant, then carries them through document receipt, an automatic student number, schedule and professor setup, optional payment, and the final COR.
 
 It is its own system with its own hosting, database and logins. The only link to PLP Admissions is one secure HTTPS call from Admissions to Enrollment.
 

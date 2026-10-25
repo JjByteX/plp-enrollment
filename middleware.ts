@@ -24,8 +24,9 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// Skips static files and the Admissions intake endpoint (step 5), which is
-// called by another system with a shared secret, not by a signed-in person.
+// Skips static files and the Admissions endpoints (the intake call and the
+// program list), which are called by another system with a shared secret, not
+// by a signed-in person.
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/admissions/intake|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/admissions/(?:intake|programs)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
