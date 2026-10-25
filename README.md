@@ -24,7 +24,7 @@ Applicant, Student, Registrar, Finance, Dean, College Secretary, Professor, Admi
 | `app/` | Next.js routes and layouts |
 | `styles/` | Design tokens (`tokens.ts`) and the Mantine theme |
 | `lib/` | Shared code, such as the database client |
-| `supabase/` | Config and SQL migrations (`migrations/`), plus `gates_check.sql` |
+| `supabase/` | Config, SQL migrations (`migrations/`), `seed.sql` (demo accounts) and `gates_check.sql` |
 | `scripts/` | Small check scripts, such as the design gate |
 | `.github/workflows/` | CI/CD pipeline |
 | `docs/` | Plan, rules and decisions (see below) |
@@ -42,7 +42,26 @@ npx supabase start             # local database
 npm run db:reset               # applies every migration from scratch
 ```
 
+`npm run db:reset` also runs `supabase/seed.sql`, which creates the demo accounts below.
+
 Run `npm run db:reset` after pulling new migration files. Never edit a migration already merged to main: add a new one with `npx supabase migration new <name>`.
+
+## Demo accounts
+
+`supabase/seed.sql` creates demo staff accounts, in the same style as PLP Admissions' `seed_users.sql`. Demo data only: change every password before real use. The seed is safe to re-run. Applicants and students are not seeded; they come from the Admissions intake.
+
+| Account | Password |
+|---------|----------|
+| `admin@plp.edu.ph` | `Admin@123` |
+| `registrar@plp.edu.ph` | `Registrar@123` |
+| `finance@plp.edu.ph` | `Finance@123` |
+| `dean.<college>@plp.edu.ph` | `Dean@123` |
+| `secretary.<college>@plp.edu.ph` | `Secretary@123` |
+| `professor.<college>@plp.edu.ph` | `Professor@123` |
+
+`<college>` is `ccs`, `con`, `cba`, `coe`, `cas`, `cen` or `hm`.
+
+`supabase db reset` (local and CI) runs the seed automatically. `supabase db push` does not, so production gets no demo accounts unless you paste `seed.sql` into the Supabase SQL editor.
 
 ## Checks
 
