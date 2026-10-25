@@ -7,17 +7,28 @@
 //
 // Applicants see their visit with the checklist for their admission type
 // (step 7 decision C). Students see their student number and any late item
-// still open. Every other role keeps "Nothing to do yet" until the
+// still open, their section and whether its schedule is approved (step 8), and the assessment slip once issued (step 9). Every other role keeps "Nothing to do yet" until the
 // dashboards in step 14.
 import { createClient } from '@/lib/supabase/server';
 import type { CurrentUser } from '@/lib/auth/session';
 import { formatSlotDate, windowLabel } from '@/features/visit-scheduling/schema';
+import { sectionLabel } from '@/features/section-scheduling/schema';
 
 export type NextStep =
   | { kind: 'none' }
   | { kind: 'waiting' }
   | { kind: 'visit'; date: string; window: string; office: string; whatToBring: string | null }
-  | { kind: 'student_waiting'; studentNumber: string; openLateItems: string[] };
+  | {
+      kind: 'student_waiting';
+      studentNumber: string;
+      openLateItems: string[];
+      section: { label: string; approved: boolean } | null;
+      slip: { paymentRequired: boolean } | null;
+    };
+
+type PlacementRow = {
+  sections: { name: string; year_level: number; schedule_status: string; programs: { code: string } | null } | null;
+};
 
 type BookingRow = {
   status: 'booked' | 'attended' | 'no_show';
@@ -46,10 +57,29 @@ async function getStudentStep(): Promise<NextStep> {
   if (!student) return { kind: 'none' };
 
   const { data: late } = await supabase.rpc('my_open_late_items');
+
+  // Row level security lets a student read only their own placement and section.
+  const { data: placed } = await supabase
+    .from('student_sections')
+    .select('sections(name, year_level, schedule_status, programs(code))')
+    .maybeSingle();
+  const section = (placed as unknown as PlacementRow | null)?.sections ?? null;
+
+  // The slip is readable by its own student (step 9).
+  const { data: slipRow } = await supabase.from('assessment_slips').select('payment_required').maybeSingle();
+  const slip = slipRow as { payment_required: boolean } | null;
+
   return {
     kind: 'student_waiting',
     studentNumber: student.student_number,
     openLateItems: Array.isArray(late) ? (late as string[]) : [],
+    section: section
+      ? {
+          label: sectionLabel(section.programs?.code ?? '', section.year_level, section.name),
+          approved: section.schedule_status === 'approved',
+        }
+      : null,
+    slip: slip ? { paymentRequired: slip.payment_required } : null,
   };
 }
 

@@ -8,6 +8,14 @@
 -- type, mark documents received (hard gate, late items, numbering, booking, notification),
 -- locks after promotion, role refusal and row level security. Step 7 also adds
 -- my_open_late_items in 20261025060000_my_open_late_items.sql.
+-- Also checks step 8 in 20261025070000_section_scheduling.sql: subjects filling a new section,
+-- loading rules (professor, room, time clashes, program and college), the Secretary / Dean /
+-- Registrar chain with rejection back to draft, automatic placement and capacity, moving a
+-- student, notifications, role refusal and row level security.
+-- Also checks step 9 in 20261025080000_assessment_slip.sql: issue one slip (schedule gate, once only,
+-- notification, payment snapshot), issue all ready, and who may read a slip's content.
+-- Also checks the laboratory meetings in 20261025090000_laboratory_meetings.sql: a lecture and a
+-- laboratory row per subject, filled automatically, and units counted once on the slip.
 -- Blocked actions print 'ok   blocked'. Any 'FAIL' line is a broken rule.
 \set ON_ERROR_STOP on
 SET search_path = public, extensions;
@@ -55,7 +63,7 @@ SELECT expect_fail('edit student number', $$UPDATE students SET student_number='
 SELECT act('sc');
 INSERT INTO subjects (id,program_id,code,title,units) VALUES (md5('SUB')::uuid,'00000000-0000-0000-0000-0000000000a1','ED101','Intro',3);
 INSERT INTO rooms (id,name) VALUES (md5('R1')::uuid,'Room 1');
-INSERT INTO sections (id,program_id,name,year_level) VALUES (md5('SEC')::uuid,'00000000-0000-0000-0000-0000000000a1','A',1);
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SEC')::uuid,'00000000-0000-0000-0000-0000000000a1','A',1,40);
 INSERT INTO section_subjects (section_id,subject_id,professor_id,room_id,day_of_week,start_time,end_time)
   VALUES (md5('SEC')::uuid, md5('SUB')::uuid, md5('pf')::uuid, md5('R1')::uuid, 1,'08:00','09:00');
 INSERT INTO subjects (id,program_id,code,title,units) VALUES (md5('SUB2')::uuid,'00000000-0000-0000-0000-0000000000a1','ED102','Two',3);
@@ -67,7 +75,8 @@ SELECT expect_fail('edit loading after submit', $$UPDATE section_subjects SET ro
 SELECT act('dn'); UPDATE sections SET schedule_status='dean_signed';
 SELECT act('rg'); UPDATE sections SET schedule_status='approved';
 SELECT 'section approved', schedule_status, dean_signed_by IS NOT NULL AS dean_stamped, approved_by IS NOT NULL AS reg_stamped FROM sections;
-SELECT act('sc'); INSERT INTO student_sections (student_id,section_id) VALUES (md5('ST1')::uuid, md5('SEC')::uuid);
+-- ST1 was promoted before section A existed; creating the section placed it automatically (step 8)
+SELECT 'ST1 placed by the new section', (SELECT section_id = md5('SEC')::uuid FROM student_sections WHERE student_id = md5('ST1')::uuid) AS in_sec;
 
 -- slip, payment, COR (toggle on)
 SELECT act('fn'); UPDATE program_payment_settings SET payment_required = true;
@@ -406,6 +415,289 @@ SELECT act('rg');
 SELECT tick('d1', ARRAY['form_137']);
 SELECT act('d1');
 SELECT expect_eq('d1 late item closes once ticked', (SELECT cardinality(my_open_late_items())::text), '0');
+
+-- ============================================================
+-- section scheduling (step 8). Own programs BSY (college 1) and BSZ
+-- (college 2). Students are promoted straight into the students table
+-- as the Registrar, which runs the same placement trigger as
+-- mark_documents_received.
+-- ============================================================
+SELECT act('ad');
+INSERT INTO colleges (id,name,code) VALUES ('00000000-0000-0000-0000-0000000000c2','College of Nursing','CON');
+INSERT INTO programs (id,code,name,college_id) VALUES
+  ('00000000-0000-0000-0000-0000000000a3','BSY','Test Program Y','00000000-0000-0000-0000-0000000000c1'),
+  ('00000000-0000-0000-0000-0000000000a4','BSZ','Test Program Z','00000000-0000-0000-0000-0000000000c2');
+INSERT INTO subjects (id,program_id,code,title,units,year_level) VALUES
+  (md5('Y1')::uuid,'00000000-0000-0000-0000-0000000000a3','Y101','Y one',3,1),
+  (md5('Y2')::uuid,'00000000-0000-0000-0000-0000000000a3','Y102','Y two',3,1),
+  (md5('Y3')::uuid,'00000000-0000-0000-0000-0000000000a3','Y201','Y three',3,2),
+  (md5('YN')::uuid,'00000000-0000-0000-0000-0000000000a3','Y1XX','Y no year level',3,NULL);
+INSERT INTO rooms (id,name,college_id) VALUES (md5('RM1')::uuid,'Room Y1',NULL),(md5('RM2')::uuid,'Room Z1','00000000-0000-0000-0000-0000000000c2');
+INSERT INTO auth.users (id,email) VALUES (md5('pf2')::uuid,'pf2@x.ph');
+INSERT INTO users (id,auth_id,full_name,email,role) VALUES (md5('pf2')::uuid, md5('pf2')::uuid,'pf2','pf2@x.ph','professor');
+SELECT mk_applicant('e1','00000000-0000-0000-0000-0000000000a3', mnl_today());
+SELECT mk_applicant('e2','00000000-0000-0000-0000-0000000000a3', mnl_today());
+SELECT mk_applicant('e3','00000000-0000-0000-0000-0000000000a3', mnl_today());
+SELECT mk_applicant('e4','00000000-0000-0000-0000-0000000000a3', mnl_today());
+SELECT mk_applicant('e5','00000000-0000-0000-0000-0000000000a3', mnl_today());
+SELECT mk_applicant('z1','00000000-0000-0000-0000-0000000000a4', mnl_today());
+
+-- three students before any section exists: promotion works and nobody is placed
+SELECT act('rg');
+INSERT INTO students (applicant_id,student_number,documents_received_by)
+  SELECT md5('Ae'||n)::uuid,'x',md5('rg')::uuid FROM generate_series(1,3) n;
+SELECT expect_eq('promoted with no section: 3 students, 0 placed',
+  (SELECT count(*)||'/'||(SELECT count(*) FROM student_sections WHERE student_id IN (SELECT id FROM students WHERE applicant_id IN (md5('Ae1')::uuid,md5('Ae2')::uuid,md5('Ae3')::uuid))) FROM students WHERE applicant_id IN (md5('Ae1')::uuid,md5('Ae2')::uuid,md5('Ae3')::uuid)), '3/0');
+
+-- a new section fills with its subjects (same program and year level only) and takes waiting students up to capacity
+SELECT act('sc');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SYA')::uuid,'00000000-0000-0000-0000-0000000000a3','A',1,2);
+SELECT expect_eq('new section got the year 1 subjects only',
+  (SELECT string_agg(sub.code, ',' ORDER BY sub.code) FROM section_subjects ss JOIN subjects sub ON sub.id = ss.subject_id WHERE ss.section_id = md5('SYA')::uuid), 'Y101,Y102');
+SELECT expect_eq('new section placed 2 of 3 waiting (capacity 2)',
+  (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SYA')::uuid), '2');
+SELECT expect_eq('placed students were told',
+  (SELECT count(*)::text FROM notifications WHERE kind = 'section_placed' AND user_id IN (md5('e1')::uuid,md5('e2')::uuid,md5('e3')::uuid)), '2');
+SELECT expect_eq('placement notification names the section',
+  (SELECT (min(message) LIKE 'You are placed in BSY Year 1 - A.%')::text FROM notifications WHERE kind = 'section_placed' AND user_id IN (md5('e1')::uuid,md5('e2')::uuid,md5('e3')::uuid)), 'true');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SYB')::uuid,'00000000-0000-0000-0000-0000000000a3','B',1,1);
+SELECT expect_eq('second section took the last waiting student',
+  (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SYB')::uuid), '1');
+SELECT expect_eq('every section is within capacity',
+  (SELECT bool_and(c <= capacity)::text FROM (SELECT s.capacity, count(ss.student_id) c FROM sections s LEFT JOIN student_sections ss ON ss.section_id = s.id WHERE s.program_id = '00000000-0000-0000-0000-0000000000a3' GROUP BY s.id) t), 'true');
+
+-- a student promoted when every seat is taken waits; raising capacity places them
+SELECT act('rg');
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Ae4')::uuid,'x',md5('rg')::uuid);
+SELECT expect_eq('no seat: the new student waits',
+  (SELECT count(*)::text FROM student_sections WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid)), '0');
+SELECT act('sc');
+UPDATE sections SET capacity = 2 WHERE id = md5('SYB')::uuid;
+SELECT expect_eq('raising capacity placed the waiting student in B',
+  (SELECT section_id::text FROM student_sections WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid)), md5('SYB')::uuid::text);
+SELECT act('rg');
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Ae5')::uuid,'x',md5('rg')::uuid);
+SELECT expect_eq('no seat again: e5 waits',
+  (SELECT count(*)::text FROM student_sections WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid)), '0');
+
+-- a subject added later reaches the draft sections of its year level
+SELECT act('ad');
+INSERT INTO subjects (id,program_id,code,title,units,year_level) VALUES (md5('Y4')::uuid,'00000000-0000-0000-0000-0000000000a3','Y103','Y four',3,1);
+SELECT expect_eq('late subject added to both draft sections',
+  (SELECT count(*)::text FROM section_subjects WHERE subject_id = md5('Y4')::uuid), '2');
+
+-- loading rules
+SELECT act('sc');
+SELECT expect_msg('subject of another program', $$INSERT INTO section_subjects (section_id,subject_id) VALUES (md5('SYA')::uuid, md5('SUB')::uuid)$$, 'does not belong');
+SELECT expect_msg('room of another college', $$UPDATE section_subjects SET room_id = md5('RM2')::uuid WHERE section_id = md5('SYA')::uuid AND subject_id = md5('Y1')::uuid$$, 'another college');
+SELECT expect_msg('assign a non professor', $$UPDATE section_subjects SET professor_id = md5('ap')::uuid WHERE section_id = md5('SYA')::uuid AND subject_id = md5('Y1')::uuid$$, 'not an active Professor');
+SELECT expect_msg('submit with nothing assigned', $$UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SYA')::uuid$$, 'still need a professor, room and time');
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RM1')::uuid, day_of_week=1, start_time='08:00', end_time='09:00' WHERE section_id=md5('SYA')::uuid AND subject_id=md5('Y1')::uuid;
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RM1')::uuid, day_of_week=1, start_time='09:00', end_time='10:00' WHERE section_id=md5('SYA')::uuid AND subject_id=md5('Y2')::uuid;
+SELECT expect_fail('professor in two places at once', $$UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=NULL, day_of_week=1, start_time='08:30', end_time='09:30' WHERE section_id=md5('SYA')::uuid AND subject_id=md5('Y4')::uuid$$);
+SELECT expect_fail('room used twice at once, other professor', $$UPDATE section_subjects SET professor_id=md5('pf')::uuid, room_id=md5('RM1')::uuid, day_of_week=1, start_time='08:30', end_time='09:30' WHERE section_id=md5('SYA')::uuid AND subject_id=md5('Y4')::uuid$$);
+SELECT expect_msg('submit with one subject still open', $$UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SYA')::uuid$$, '1 of 3 subjects');
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RM1')::uuid, day_of_week=2, start_time='08:00', end_time='09:00' WHERE section_id=md5('SYA')::uuid AND subject_id=md5('Y4')::uuid;
+SELECT expect_msg('program of a section cannot change', $$UPDATE sections SET program_id = '00000000-0000-0000-0000-0000000000a1' WHERE id = md5('SYA')::uuid$$, 'cannot be changed');
+SELECT expect_msg('year level of a section cannot change', $$UPDATE sections SET year_level = 2 WHERE id = md5('SYA')::uuid$$, 'cannot be changed');
+
+-- chain: submit, Dean rejects (reason required), fix, resubmit
+UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SYA')::uuid;
+SELECT expect_eq('submitted', (SELECT schedule_status||'/'||(prepared_by = md5('sc')::uuid)::text FROM sections WHERE id = md5('SYA')::uuid), 'pending_dean/true');
+SELECT expect_msg('secretary rejects', $$SELECT reject_schedule(md5('SYA')::uuid, 'no')$$, 'Only the Dean or the Registrar');
+SELECT act('rg');
+SELECT expect_msg('registrar rejects before the Dean signed', $$SELECT reject_schedule(md5('SYA')::uuid, 'too early')$$, 'Only this college''s Dean can reject');
+SELECT act('dn');
+SELECT expect_msg('dean rejects without a reason', $$SELECT reject_schedule(md5('SYA')::uuid, '   ')$$, 'reason is required');
+SELECT expect_msg('dean rejects by direct update without a reason', $$UPDATE sections SET schedule_status = 'draft' WHERE id = md5('SYA')::uuid$$, 'reason is required');
+SELECT reject_schedule(md5('SYA')::uuid, 'Monday loading overlaps with the lab');
+SELECT expect_eq('rejected back to draft with the reason stored',
+  (SELECT schedule_status||'/'||rejected_reason||'/'||(rejected_by = md5('dn')::uuid)::text FROM sections WHERE id = md5('SYA')::uuid), 'draft/Monday loading overlaps with the lab/true');
+SELECT expect_eq('rejection audited with actor and reason',
+  (SELECT actor_id::text||'/'||reason FROM audit_log WHERE table_name='sections' AND action='UPDATE' AND record_id = md5('SYA')::uuid::text AND new_data->>'schedule_status'='draft' ORDER BY id DESC LIMIT 1),
+  md5('dn')::uuid::text||'/Monday loading overlaps with the lab');
+SELECT expect_msg('reject a draft', $$SELECT reject_schedule(md5('SYA')::uuid, 'again')$$, 'Only a schedule waiting');
+SELECT act('sc');
+UPDATE section_subjects SET day_of_week=3, start_time='08:00', end_time='09:00' WHERE section_id=md5('SYA')::uuid AND subject_id=md5('Y4')::uuid;
+SELECT expect_eq('loading is open again after rejection', (SELECT day_of_week::text FROM section_subjects WHERE section_id=md5('SYA')::uuid AND subject_id=md5('Y4')::uuid), '3');
+UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SYA')::uuid;
+SELECT expect_eq('resubmit clears the rejection', (SELECT coalesce(rejected_reason,'none')||'/'||coalesce(rejected_by::text,'none') FROM sections WHERE id = md5('SYA')::uuid), 'none/none');
+SELECT expect_fail('loading locked while waiting for the Dean', $$UPDATE section_subjects SET room_id = NULL WHERE section_id=md5('SYA')::uuid$$);
+
+-- Dean signs, then the Registrar rejects: back to draft, Dean must sign again
+SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('SYA')::uuid;
+SELECT expect_msg('dean rejects after signing', $$SELECT reject_schedule(md5('SYA')::uuid, 'changed my mind')$$, 'Only the Registrar can reject');
+SELECT act('rg');
+SELECT reject_schedule(md5('SYA')::uuid, 'Room Y1 is closed on Wednesday');
+SELECT expect_eq('registrar rejection: draft, Dean sign-off cleared',
+  (SELECT schedule_status||'/'||rejected_reason||'/'||coalesce(dean_signed_by::text,'none')||'/'||(rejected_by = md5('rg')::uuid)::text FROM sections WHERE id = md5('SYA')::uuid),
+  'draft/Room Y1 is closed on Wednesday/none/true');
+SELECT act('sc'); UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SYA')::uuid;
+SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('SYA')::uuid;
+SELECT expect_msg('dean cannot approve', $$UPDATE sections SET schedule_status = 'approved' WHERE id = md5('SYA')::uuid$$, 'Only the Registrar can approve');
+SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('SYA')::uuid;
+SELECT expect_eq('approved with both stamps', (SELECT schedule_status||'/'||(dean_signed_by IS NOT NULL)::text||'/'||(approved_by = md5('rg')::uuid)::text FROM sections WHERE id = md5('SYA')::uuid), 'approved/true/true');
+SELECT expect_eq('approval told every placed student',
+  (SELECT count(*)::text FROM notifications WHERE kind = 'schedule_approved' AND message LIKE 'The schedule for BSY Year 1 - A is approved.%'),
+  (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SYA')::uuid));
+SELECT expect_msg('reject an approved schedule', $$SELECT reject_schedule(md5('SYA')::uuid, 'too late')$$, 'Only a schedule waiting');
+SELECT expect_msg('registrar edits capacity', $$UPDATE sections SET capacity = 3 WHERE id = md5('SYA')::uuid$$, 'cannot edit section details');
+
+-- placing and moving students
+SELECT act('ad');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES
+  (md5('SZA')::uuid,'00000000-0000-0000-0000-0000000000a4','A',1,5),
+  (md5('SZB')::uuid,'00000000-0000-0000-0000-0000000000a4','B',1,5);
+SELECT act('rg');
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Az1')::uuid,'x',md5('rg')::uuid);
+SELECT expect_eq('z1 placed automatically in the first section of BSZ',
+  (SELECT section_id::text FROM student_sections WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Az1')::uuid)), md5('SZA')::uuid::text);
+SELECT expect_msg('registrar moves a student', $$SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid), md5('SYA')::uuid)$$, 'Only the College Secretary');
+SELECT act('ap');
+SELECT expect_msg('applicant calls move', $$SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid), md5('SYA')::uuid)$$, 'Only the College Secretary');
+SELECT act('fn');
+SELECT expect_msg('finance calls reject', $$SELECT reject_schedule(md5('SYA')::uuid, 'x')$$, 'Only the Dean or the Registrar');
+SELECT act('sc');
+SELECT expect_msg('secretary moves a student of another college', $$SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Az1')::uuid), md5('SZB')::uuid)$$, 'another college');
+SELECT expect_msg('move to a section of another program', $$SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Ae1')::uuid), md5('SZA')::uuid)$$, 'own program');
+SELECT expect_msg('move to the section they are in', $$SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid), md5('SYB')::uuid)$$, 'already in this section');
+-- e5 waits (no seat): the Secretary places them by hand, over capacity
+SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid), md5('SYA')::uuid, 'Seat found for a late arrival');
+SELECT expect_eq('manual placement may go over capacity',
+  (SELECT count(*)::text||'/'||(SELECT capacity FROM sections WHERE id = md5('SYA')::uuid)::text FROM student_sections WHERE section_id = md5('SYA')::uuid), '3/2');
+SELECT expect_eq('manual placement of a waiting student sends section_placed',
+  (SELECT count(*)::text FROM notifications WHERE user_id = md5('e5')::uuid AND kind = 'section_placed'), '1');
+SELECT expect_eq('manual placement audited with actor and reason',
+  (SELECT actor_id::text||'/'||reason FROM audit_log WHERE table_name='student_sections' AND action='INSERT' AND new_data->>'section_id' = md5('SYA')::uuid::text AND new_data->>'student_id' = (SELECT id::text FROM students WHERE applicant_id = md5('Ae5')::uuid)),
+  md5('sc')::uuid::text||'/Seat found for a late arrival');
+-- move a placed student: allowed, even though both sections are approved or not
+SELECT act('dn');
+SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid), md5('SYA')::uuid);
+SELECT expect_eq('dean moved a student from B to A', (SELECT section_id::text FROM student_sections WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid)), md5('SYA')::uuid::text);
+SELECT expect_eq('a move sends section_moved',
+  (SELECT count(*)::text FROM notifications WHERE user_id = md5('e4')::uuid AND kind = 'section_moved'), '1');
+SELECT expect_eq('the move is audited as an update with the old section',
+  (SELECT old_data->>'section_id' FROM audit_log WHERE table_name='student_sections' AND action='UPDATE' AND old_data->>'student_id' = (SELECT id::text FROM students WHERE applicant_id = md5('Ae4')::uuid) ORDER BY id DESC LIMIT 1), md5('SYB')::uuid::text);
+SELECT act('ad');
+SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid), md5('SYB')::uuid);
+SELECT expect_eq('admin moved a student back', (SELECT section_id::text FROM student_sections WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid)), md5('SYB')::uuid::text);
+-- once the slip is issued the section is fixed
+SELECT act('rg');
+INSERT INTO assessment_slips (student_id,payment_required,issued_by) VALUES ((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid),false,md5('rg')::uuid);
+SELECT act('sc');
+SELECT expect_msg('move after the slip', $$SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid), md5('SYB')::uuid)$$, 'assessment slip was already issued');
+
+-- row level security as the signed-in roles (skipped when the role does not exist)
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('sc');
+SELECT expect_eq('secretary sees only sections of their own college', (SELECT count(*)::text FROM sections WHERE program_id = '00000000-0000-0000-0000-0000000000a4'), '0');
+SELECT expect_eq('secretary sees their own sections', ((SELECT count(*) FROM sections WHERE program_id = '00000000-0000-0000-0000-0000000000a3') = 2)::text, 'true');
+SELECT expect_fail('secretary creates a section in another college', $$INSERT INTO sections (program_id,name,year_level,capacity) VALUES ('00000000-0000-0000-0000-0000000000a4','C',1,5)$$);
+SELECT expect_fail('secretary moves a section to the Dean stage directly', $$UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('SYB')::uuid$$);
+SELECT act('rg');
+SELECT expect_eq('registrar reads professors for the loading', ((SELECT count(*) FROM users WHERE role = 'professor') >= 2)::text, 'true');
+SELECT expect_eq('registrar still cannot read staff accounts', (SELECT count(*)::text FROM users WHERE role IN ('dean','college_secretary','finance')), '0');
+SELECT expect_fail('registrar creates a section', $$INSERT INTO sections (program_id,name,year_level,capacity) VALUES ('00000000-0000-0000-0000-0000000000a3','C',1,5)$$);
+WITH u AS (UPDATE section_subjects SET room_id = NULL WHERE section_id = md5('SYB')::uuid RETURNING 1)
+  SELECT expect_eq('registrar edits loading: no row changes', (SELECT count(*)::text FROM u), '0');
+SELECT act('e1');
+SELECT expect_eq('a student sees only their own section', (SELECT count(*)::text FROM sections), '1');
+SELECT expect_fail('a student moves themselves', $$INSERT INTO student_sections (student_id,section_id) VALUES ((SELECT id FROM students WHERE applicant_id = md5('Ae3')::uuid), md5('SYB')::uuid)$$);
+SELECT act('pf2');
+SELECT expect_eq('professor sees their sections', ((SELECT count(*) FROM sections) >= 1)::text, 'true');
+SELECT expect_eq('professor class list has names and numbers only', (SELECT count(*)::text FROM professor_class_lists WHERE section_id = md5('SYA')::uuid AND student_number IS NOT NULL AND full_name IS NOT NULL), '9');
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 8 row level security checks not run';
+\endif
+
+-- ============================================================
+-- assessment slip (step 9). Uses the step 8 fixtures: section SYA is
+-- approved with students, SYB is still a draft, e5 already has a slip.
+-- ============================================================
+CREATE TEMP TABLE slipsnap AS
+  SELECT count(*)::text AS ready FROM student_sections ss JOIN sections s ON s.id = ss.section_id
+   WHERE s.schedule_status = 'approved' AND NOT EXISTS (SELECT 1 FROM assessment_slips sl WHERE sl.student_id = ss.student_id);
+SELECT act('sc');
+SELECT expect_msg('secretary issues a slip', $$SELECT issue_assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid))$$, 'Only the Registrar or Admin');
+SELECT expect_msg('secretary issues all', $$SELECT issue_all_ready_slips()$$, 'Only the Registrar or Admin');
+SELECT act('rg');
+SELECT expect_msg('slip while the schedule is a draft', $$SELECT issue_assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid))$$, 'must be approved');
+SELECT expect_msg('slip for nobody', $$SELECT issue_assessment_slip(md5('nobody')::uuid)$$, 'Student not found');
+SELECT expect_msg('slip issued twice', $$SELECT issue_assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid))$$, 'already issued');
+SELECT expect_eq('issue all ready returns the number waiting', (SELECT issued::text FROM issue_all_ready_slips()), (SELECT ready FROM slipsnap));
+SELECT expect_eq('nobody in an approved section is left without a slip',
+  (SELECT count(*)::text FROM student_sections ss JOIN sections s ON s.id = ss.section_id
+    WHERE s.schedule_status = 'approved' AND NOT EXISTS (SELECT 1 FROM assessment_slips sl WHERE sl.student_id = ss.student_id)), '0');
+SELECT expect_eq('issue all again does nothing', (SELECT issued::text FROM issue_all_ready_slips()), '0');
+SELECT expect_eq('each issued slip told its student once',
+  (SELECT count(*)::text FROM notifications WHERE kind = 'slip_issued'), (SELECT ready FROM slipsnap));
+SELECT expect_eq('no payment required: the notification points to the COR',
+  (SELECT (min(message) LIKE '%the Registrar issues your COR.')::text FROM notifications WHERE kind = 'slip_issued' AND user_id IN (md5('e1')::uuid, md5('e2')::uuid, md5('e3')::uuid)), 'true');
+SELECT expect_eq('issued slips are audited with the registrar',
+  (SELECT count(DISTINCT actor_id)::text||'/'||min(actor_id::text) FROM audit_log WHERE table_name = 'assessment_slips' AND action = 'INSERT' AND new_data->>'student_id' IN (SELECT id::text FROM students WHERE applicant_id IN (md5('Ae1')::uuid, md5('Ae2')::uuid, md5('Ae3')::uuid))),
+  '1/'||md5('rg')::uuid::text);
+
+-- what the slip shows, and who may read it
+SELECT expect_eq('registrar reads a slip: number, section and 3 subjects',
+  (SELECT (s->>'studentNumber' IS NOT NULL)::text||'/'||(s->>'section')||'/'||jsonb_array_length(s->'subjects')::text
+     FROM (SELECT assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid)) s) t),
+  'true/BSY Year 1 - A/3');
+SELECT expect_eq('slip subjects carry professor, room and time',
+  (SELECT (sub->>'professor' = 'pf2' AND sub->>'room' = 'Room Y1' AND sub->>'start' IS NOT NULL)::text
+     FROM (SELECT jsonb_array_elements(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid))->'subjects') sub LIMIT 1) t), 'true');
+SELECT expect_eq('slip without an issue is null', coalesce(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid))::text, 'null'), 'null');
+SELECT act('e5');
+SELECT expect_eq('a student reads their own slip', (assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid)) IS NOT NULL)::text, 'true');
+SELECT expect_msg('a student reads another slip', $$SELECT assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae1')::uuid))$$, 'only view your own');
+SELECT act('fn');
+SELECT expect_msg('finance reads a slip', $$SELECT assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae1')::uuid))$$, 'only view your own');
+SELECT act('ap2');
+SELECT expect_msg('an applicant reads a slip', $$SELECT assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae1')::uuid))$$, 'only view your own');
+
+-- ============================================================
+-- laboratory meetings. Own program BSW (college 1).
+-- ============================================================
+SELECT act('ad');
+INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000a5','BSW','Test Program W','00000000-0000-0000-0000-0000000000c1');
+INSERT INTO subjects (id,program_id,code,title,units,year_level,has_laboratory) VALUES
+  (md5('W1')::uuid,'00000000-0000-0000-0000-0000000000a5','W101','W one',3,1,true),
+  (md5('W2')::uuid,'00000000-0000-0000-0000-0000000000a5','W102','W two',3,1,false);
+SELECT mk_applicant('w1','00000000-0000-0000-0000-0000000000a5', mnl_today());
+SELECT act('sc');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SWA')::uuid,'00000000-0000-0000-0000-0000000000a5','A',1,5);
+SELECT expect_eq('lecture row per subject, laboratory row only where flagged',
+  (SELECT string_agg(sub.code||':'||ss.meeting, ',' ORDER BY sub.code, ss.meeting DESC) FROM section_subjects ss JOIN subjects sub ON sub.id = ss.subject_id WHERE ss.section_id = md5('SWA')::uuid),
+  'W101:lecture,W101:laboratory,W102:lecture');
+SELECT expect_fail('second lecture row for the same subject', $$INSERT INTO section_subjects (section_id,subject_id,meeting) VALUES (md5('SWA')::uuid, md5('W1')::uuid, 'lecture')$$);
+SELECT expect_fail('unknown meeting type', $$INSERT INTO section_subjects (section_id,subject_id,meeting) VALUES (md5('SWA')::uuid, md5('W2')::uuid, 'seminar')$$);
+SELECT act('ad');
+UPDATE subjects SET has_laboratory = true WHERE id = md5('W2')::uuid;
+SELECT expect_eq('flagging a subject later adds its laboratory row once',
+  (SELECT count(*)::text FROM section_subjects WHERE section_id = md5('SWA')::uuid AND subject_id = md5('W2')::uuid), '2');
+UPDATE subjects SET has_laboratory = false WHERE id = md5('W2')::uuid;
+UPDATE subjects SET has_laboratory = true WHERE id = md5('W2')::uuid;
+SELECT expect_eq('flagging again adds nothing', (SELECT count(*)::text FROM section_subjects WHERE section_id = md5('SWA')::uuid), '4');
+
+-- lecture and laboratory of one subject: own room, day and time, same professor
+SELECT act('sc');
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RM1')::uuid, day_of_week=4, start_time='08:00', end_time='09:00' WHERE section_id=md5('SWA')::uuid AND subject_id=md5('W1')::uuid AND meeting='lecture';
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RM1')::uuid, day_of_week=4, start_time='09:00', end_time='11:00' WHERE section_id=md5('SWA')::uuid AND subject_id=md5('W1')::uuid AND meeting='laboratory';
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RM1')::uuid, day_of_week=5, start_time='08:00', end_time='09:00' WHERE section_id=md5('SWA')::uuid AND subject_id=md5('W2')::uuid AND meeting='lecture';
+SELECT expect_msg('laboratory row still open blocks the submit', $$UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SWA')::uuid$$, '1 of 4 subjects');
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RM1')::uuid, day_of_week=5, start_time='09:00', end_time='10:00' WHERE section_id=md5('SWA')::uuid AND subject_id=md5('W2')::uuid AND meeting='laboratory';
+SELECT expect_fail('laboratory overlapping its own lecture', $$UPDATE section_subjects SET day_of_week=4, start_time='08:30', end_time='09:30' WHERE section_id=md5('SWA')::uuid AND subject_id=md5('W1')::uuid AND meeting='laboratory'$$);
+UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SWA')::uuid;
+SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('SWA')::uuid;
+SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('SWA')::uuid;
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Aw1')::uuid,'x',md5('rg')::uuid);
+SELECT expect_eq('w1 placed in the new section', (SELECT section_id::text FROM student_sections WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Aw1')::uuid)), md5('SWA')::uuid::text);
+SELECT issue_assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Aw1')::uuid));
+SELECT expect_eq('slip lists lecture and laboratory rows', (SELECT jsonb_array_length(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Aw1')::uuid))->'subjects')::text), '4');
+SELECT expect_eq('slip units count once: 6 in total, laboratory rows 0',
+  (SELECT (sum((e->>'units')::numeric) = 6)::text||'/'||count(*) FILTER (WHERE e->>'meeting' = 'laboratory' AND (e->>'units')::numeric = 0)::text
+     FROM jsonb_array_elements(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Aw1')::uuid))->'subjects') e), 'true/2');
 
 -- audit
 SELECT 'audit rows', count(*), count(DISTINCT table_name) AS tables FROM audit_log;

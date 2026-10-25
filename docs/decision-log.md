@@ -314,3 +314,59 @@ What becomes harder or easier because of this choice?
 
 **Consequences:** This changes the step 6 slot form (the field is optional and no longer pre-filled), so slots saved before step 7 may repeat the old list after the checklist and should be cleaned by hand. A change to the document list is a new migration until step 15.
 
+---
+
+**#:** 18
+**Date:** 2026-10-25
+**Milestone:** Build step 8, rejecting a schedule
+
+**Context:** The schedule chain (decision #4) only moved forward. Nothing said what a Dean or Registrar does when the loading is wrong.
+
+**Options Considered:**
+- Option A: Reject sends the schedule back to draft with a required reason.
+- Option B: Reject goes back one gate only.
+- Option C: No rejection; corrections go through Admin.
+
+**Community Consensus:** Not searched. This is a workflow choice for PLP, not a technical one.
+
+**Decision:** Option A, chosen by the human. `reject_schedule` sets the status to draft and stores the reason; the Dean may reject from "waiting for Dean", the Registrar from "waiting for Registrar", never from approved. The gates still cannot be skipped or reordered.
+
+**Consequences:** A Registrar rejection discards the Dean's sign-off, so the Dean signs the corrected loading again. A schedule cannot be submitted with a subject missing a professor, room or time.
+
+---
+
+**#:** 19
+**Date:** 2026-10-25
+**Milestone:** Build step 8, placing students in sections
+
+**Context:** Students need a section before the schedule means anything to them. Applicants do not record a year level.
+
+**Options Considered:**
+- Option A: Automatic placement, with the Secretary or Dean able to move a student at any time.
+- Option B: Secretary and Dean place every student by hand.
+- Option C: Automatic, only after the Registrar approves the schedule.
+
+**Community Consensus:** Not searched. Option A follows the "automate what is safe" rule in the plan.
+
+**Decision:** Option A, chosen by the human. Placement runs when a student is promoted, when a section is created and when a capacity goes up: first section of the student's program at year level 1 with a free seat, by section name. A manual move may go over capacity and is refused once the assessment slip exists.
+
+**Consequences:** `sections.capacity` is required. Every new student lands in year level 1, so a transferee who belongs higher up must be moved by hand. A student with no seat waits and is placed when a seat appears.
+
+---
+
+**#:** 20
+**Date:** 2026-10-25
+**Milestone:** Build step 8 follow-up, laboratory meetings
+
+**Context:** The sample PLP Certificate of Registration lists a subject's lecture and laboratory as separate rows with their own room, day and time, and units on the lecture row only. Step 8 allowed one row per subject in a section.
+
+**Options Considered:**
+- Option A: A `meeting` column (lecture or laboratory) on each section row, filled automatically from a `has_laboratory` flag on the subject.
+- Option B: Treat a laboratory as its own subject in the catalog, with its own code and no units.
+- Option C: The Secretary adds a laboratory row by hand per section.
+
+**Community Consensus:** Not searched. This follows the layout of PLP's own COR.
+
+**Decision:** Option A. The human chose to allow lecture and laboratory rows per subject; filling them from a catalog flag is the AI's design and is open to change. New sections, and subjects added or flagged later, get a laboratory row automatically; the row carries no units, so units are counted once on the slip and the COR.
+
+**Consequences:** The catalog (step 15) must set `has_laboratory` correctly; until then Admin sets it directly. Rows already created for a subject are not removed if the flag is turned off.

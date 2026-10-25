@@ -12,6 +12,8 @@ export default function AdminPage() {
       <Anchor href="/admin/admissions">Admissions</Anchor>
       <Anchor href="/registrar/visits">Visits</Anchor>
       <Anchor href="/registrar/documents">Documents</Anchor>
+      <Anchor href="/registrar/schedules">Schedules</Anchor>
+      <Anchor href="/registrar/slips">Slips</Anchor>
     </Stack>
   );
 }

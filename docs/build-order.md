@@ -26,11 +26,13 @@ What to build, in order. Each step assumes the ones before it exist. Tick a step
       Registrar ticks off each original document on a checklist, then marks documents received. Student number assigned automatically, Applicant becomes Student. No scans are kept (decision-log.md #16).
       Written, not yet run: migrations `20261025050000_documents_and_numbering.sql` and `20261025060000_my_open_late_items.sql`, checks in `supabase/gates_check.sql`, `features/documents-and-numbering/`, `/registrar/documents`, the student case in `features/next-step-card/`, and the optional slot notes in `features/visit-scheduling/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. Plan: `docs/step-7-documents-and-numbering-plan.md`.
 
-- [ ] 8. **Section, professor and room scheduling**
-      Secretary prepares, Dean signs off professor loading, Registrar approves. Students placed in sections.
+- [x] 8. **Section, professor and room scheduling**
+      Secretary prepares, Dean signs off professor loading, Registrar approves. Students placed in sections. A rejection goes back to draft with a reason (decision-log.md #18); placement is automatic and movable (decision-log.md #19).
+      Written, not yet run: migration `20261025070000_section_scheduling.sql`, checks in `supabase/gates_check.sql` (two older fixture lines were adjusted for the new capacity column and automatic placement), `features/section-scheduling/`, `/secretary/schedule`, `/registrar/schedules`, the student case in `features/next-step-card/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. Subjects and rooms have no editor until step 15, so a section shows no subjects until Admin adds them. A subject with `has_laboratory` gets a second laboratory row per section (migration `20261025090000_laboratory_meetings.sql`, decision-log.md #20).
 
-- [ ] 9. **Assessment slip**
+- [x] 9. **Assessment slip**
       Registrar issues it after the schedule is approved. Student can view and download it.
+      Written, not yet run: migration `20261025080000_assessment_slip.sql`, checks in `supabase/gates_check.sql`, `features/assessment-slip/`, `/registrar/slips`, the student's `/slip` page, and the slip line in `features/next-step-card/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. The slip is the light version with the fields the plan names (student number, name, program, section, subjects with professor, room and time, payment required or not); open question #2 stays open for the COR in step 11. "Download" is the browser's print dialog, which saves a PDF; no PDF library was added.
 
 - [ ] 10. **Payment**
       Per-course toggle (Admin and Finance), Finance records payment. Skipped when the toggle is off.

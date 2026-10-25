@@ -3,7 +3,7 @@
 // The persistent "Your next step" card, shown by the portal shell on every
 // page. Presentational only: the data comes from ./queries through the layout.
 // No reschedule button yet; the reschedule request arrives in step 12.
-import { Divider, Stack, Text } from '@mantine/core';
+import { Anchor, Divider, Stack, Text } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import type { NextStep } from './queries';
 
@@ -27,9 +27,26 @@ export function NextStepCard({ step }: { step: NextStep }) {
       {step.kind === 'student_waiting' && (
         <Stack gap={spacing.sm}>
           <Text size="sm">
-            Your documents were received. Your student number is {step.studentNumber}. Your college will prepare your
-            schedule and you will see it here.
+            Your documents were received. Your student number is {step.studentNumber}.{' '}
+            {step.section === null
+              ? 'Your college will prepare your schedule and you will see it here.'
+              : step.section.approved
+                ? `Your schedule for ${step.section.label} is approved.${step.slip ? '' : ' Your next step is the assessment slip from the Registrar.'}`
+                : `You are placed in ${step.section.label}. Your college is preparing your schedule.`}
           </Text>
+          {step.slip && (
+            <Stack gap={spacing.xs}>
+              <Text size="sm">
+                Your assessment slip is ready.{' '}
+                {step.slip.paymentRequired
+                  ? 'Next, Finance clears your payment, then the Registrar issues your COR.'
+                  : 'Next, the Registrar issues your COR.'}
+              </Text>
+              <Anchor href="/slip" size="sm">
+                View assessment slip
+              </Anchor>
+            </Stack>
+          )}
           {step.openLateItems.length > 0 && (
             <Text size="sm" c={color.textSecondary}>
               Still to submit: {step.openLateItems.join('; ')}.
