@@ -21,8 +21,21 @@ type Applied =
 
 const reject = (httpStatus: number, reason: string): Applied => ({ ok: false, httpStatus, reason });
 
-type ApplicantRow = { id: string; user_id: string; program_id: string; admission_date: string; admission_type: string };
+type ApplicantRow = {
+  id: string;
+  user_id: string;
+  program_id: string;
+  admission_date: string;
+  admission_type: string;
+  admissions_verified_docs: string[] | null;
+};
 type UserRow = { id: string; auth_id: string; role: string; email: string; full_name: string };
+
+function sameList(a: string[], b: string[]): boolean {
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
 
 async function apply(admin: SupabaseClient, input: IntakePayload): Promise<Applied> {
   const { data: programs, error: programsError } = await admin.from('programs').select('id, code');
@@ -34,7 +47,7 @@ async function apply(admin: SupabaseClient, input: IntakePayload): Promise<Appli
 
   const { data: existingRow, error: existingError } = await admin
     .from('applicants')
-    .select('id, user_id, program_id, admission_date, admission_type')
+    .select('id, user_id, program_id, admission_date, admission_type, admissions_verified_docs')
     .eq('applicant_ref', input.applicant_ref)
     .maybeSingle();
   if (existingError) return reject(500, 'Could not look up the applicant.');
@@ -63,7 +76,8 @@ async function refresh(admin: SupabaseClient, existing: ApplicantRow, input: Int
     user.full_name === input.full_name &&
     existing.program_id === programId &&
     existing.admission_date === input.admission_date &&
-    existing.admission_type === input.admission_type;
+    existing.admission_type === input.admission_type &&
+    sameList(existing.admissions_verified_docs ?? [], input.verified_documents);
   if (same) return { ok: true, result: 'unchanged', applicantId: existing.id };
 
   if (emailChanged) {
@@ -81,7 +95,12 @@ async function refresh(admin: SupabaseClient, existing: ApplicantRow, input: Int
 
   const { error: applicantUpdateError } = await admin
     .from('applicants')
-    .update({ program_id: programId, admission_date: input.admission_date, admission_type: input.admission_type })
+    .update({
+      program_id: programId,
+      admission_date: input.admission_date,
+      admission_type: input.admission_type,
+      admissions_verified_docs: input.verified_documents,
+    })
     .eq('id', existing.id);
   if (applicantUpdateError) return reject(500, 'Could not update the applicant.');
 
@@ -130,6 +149,7 @@ async function create(admin: SupabaseClient, input: IntakePayload, programId: st
       program_id: programId,
       admission_date: input.admission_date,
       admission_type: input.admission_type,
+      admissions_verified_docs: input.verified_documents,
     })
     .select('id')
     .single();

@@ -10,6 +10,8 @@
 //   admission_date  YYYY-MM-DD
 //   admission_type  "new", "transferee" or "foreign"
 //   source_name     optional, defaults to "PLP Admissions"
+//   verified_documents  optional list of document_requirements doc_type slugs
+//                   that Admissions staff already approved (information only)
 import { isEmail } from '@/lib/auth/validate';
 
 export type IntakePayload = {
@@ -20,11 +22,22 @@ export type IntakePayload = {
   admission_date: string;
   admission_type: 'new' | 'transferee' | 'foreign';
   source_name: string;
+  verified_documents: string[];
 };
 
 export type ParsedIntake = { ok: true; value: IntakePayload } | { ok: false; reason: string };
 
 export const DEFAULT_SOURCE = 'PLP Admissions';
+const MAX_VERIFIED = 30;
+
+// Anything that is not a plain slug is dropped rather than failing the whole
+// handoff: this list is a convenience and must never block an applicant.
+function verifiedDocuments(raw: Record<string, unknown>): string[] {
+  const value = raw.verified_documents;
+  if (!Array.isArray(value)) return [];
+  const slugs = value.filter((item): item is string => typeof item === 'string' && /^[a-z0-9_]{2,40}$/.test(item));
+  return Array.from(new Set(slugs)).slice(0, MAX_VERIFIED).sort();
+}
 
 function text(raw: Record<string, unknown>, key: string): string {
   const value = raw[key];
@@ -82,6 +95,7 @@ export function parseIntakePayload(raw: unknown): ParsedIntake {
       admission_date: admissionDate,
       admission_type: admissionType,
       source_name: sourceName,
+      verified_documents: verifiedDocuments(body),
     },
   };
 }
@@ -90,7 +104,12 @@ export function parseIntakePayload(raw: unknown): ParsedIntake {
 // validation. Missing or bad fields are logged as a placeholder; the real
 // body is always kept in raw_payload and the reason says what was wrong.
 export function logFieldsFor(raw: unknown, parsed: ParsedIntake) {
-  if (parsed.ok) return parsed.value;
+  if (parsed.ok) {
+    // The log table has no column for verified_documents; the raw body keeps it.
+    const { verified_documents: _verified, ...logged } = parsed.value;
+    void _verified;
+    return logged;
+  }
 
   const body: Record<string, unknown> =
     typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};

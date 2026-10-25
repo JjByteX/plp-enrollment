@@ -32,6 +32,7 @@ export type PendingApplicant = {
   visitDate: string | null; // YYYY-MM-DD
   progress: ChecklistProgress;
   documents: ReceivedDocument[];
+  verifiedDocs: string[]; // doc types Admissions already approved (information only)
 };
 
 export type ReceivedStudent = {
@@ -112,6 +113,7 @@ type RawApplicant = {
   visit_bookings: { visit_slots: { slot_date: string } | null } | { visit_slots: { slot_date: string } | null }[] | null;
   students: unknown;
   documents: RawDocument[] | null;
+  admissions_verified_docs: string[] | null;
 };
 
 // Applicants who are not students yet, in the order they were admitted, with
@@ -126,7 +128,7 @@ export async function listPendingApplicants(
     let query = supabase
       .from('applicants')
       .select(
-        'id, applicant_ref, program_id, admission_type, users(full_name, email), programs(code), ' +
+        'id, applicant_ref, program_id, admission_type, admissions_verified_docs, users(full_name, email), programs(code), ' +
           'visit_bookings(visit_slots(slot_date)), students(id), documents(doc_type, note, received_at)'
       )
       .order('admission_date')
@@ -158,6 +160,7 @@ export async function listPendingApplicants(
       visitDate: first(row.visit_bookings)?.visit_slots?.slot_date ?? null,
       progress: checklistProgress(buildChecklist(row.admission_type, requirements, documents)),
       documents,
+      verifiedDocs: row.admissions_verified_docs ?? [],
     });
   }
   return result;

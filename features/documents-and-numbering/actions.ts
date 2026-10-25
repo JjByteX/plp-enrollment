@@ -11,6 +11,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
+import { notifyStudentStage } from '@/features/admissions-callback/send';
 import { UUID, parseTickInput } from './schema';
 
 export type DocumentActionResult = { ok: true; message: string } | { error: string };
@@ -93,6 +94,9 @@ export async function markDocumentsReceived(applicantId: string): Promise<Promot
       .maybeSingle();
     studentNumber = (student as { student_number: string } | null)?.student_number ?? null;
   }
+
+  // Tell Admissions. Best effort: it never blocks or fails the promotion.
+  if (studentId) await notifyStudentStage(supabase, studentId, 'student');
 
   revalidatePath(PAGE);
   return {

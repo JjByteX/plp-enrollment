@@ -22,6 +22,15 @@ import {
 
 type Step = 'checklist' | 'confirm' | 'done';
 
+// Small hint under a document. "Verified in Admissions" means Admissions staff
+// approved a scan; the original still has to be received and ticked here.
+function describe(item: ChecklistItem, verified: string[]): string | undefined {
+  const parts = [];
+  if (item.late) parts.push('Can be submitted later');
+  if (verified.includes(item.docType)) parts.push('Scan verified in Admissions');
+  return parts.length > 0 ? parts.join('. ') : undefined;
+}
+
 export function ChecklistModal({
   applicant,
   requirements,
@@ -137,7 +146,7 @@ export function ChecklistModal({
                 {index > 0 && <Divider />}
                 <Checkbox
                   label={item.label}
-                  description={item.late ? 'Can be submitted later' : undefined}
+                  description={describe(item, applicant.verifiedDocs)}
                   checked={item.received}
                   disabled={busy !== null || (isOther && !item.received && note.trim().length === 0)}
                   onChange={(event) => save(item, event.currentTarget.checked, note)}

@@ -92,9 +92,11 @@ export function PortalShell({
 
     if (children.length > 0 && collapsed) {
       return (
-        <Menu key={item.href} position="right-start" offset={spacing.sm} withinPortal>
+        <Menu key={item.href} trigger="hover" openDelay={60} closeDelay={150} position="right-start" offset={spacing.sm} withinPortal>
           <Menu.Target>
             <NavLink
+              component={Link}
+              href={item.href}
               aria-label={item.label}
               leftSection={<Icon width={layout.iconSize} height={layout.iconSize} />}
               active={isActive(pathname, item)}
@@ -144,7 +146,7 @@ export function PortalShell({
         style={{ borderRadius: radius.default }}
         styles={styles}
       >
-        {children.map((child) => renderItem(child))}
+        {children.length > 0 ? children.map((child) => renderItem(child)) : undefined}
       </NavLink>
     );
     return collapsed ? (
