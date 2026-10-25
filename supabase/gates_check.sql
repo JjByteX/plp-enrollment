@@ -20,6 +20,9 @@
 -- office, the mass reschedule (role refusal, input refusals, one office, a whole date, run again after
 -- adding slots, attended and no show left alone), the applicant request, and the Registrar's approve
 -- or decline (notifications, audit, rolled back refusals, row level security).
+-- Also checks step 16 in 20261025180000_schedule_changes.sql: the slip and COR keep their own saved
+-- schedule, amend_schedule (roles, college, reason, draft, clashes, notifications, audit), the lock once
+-- a COR exists, my_schedule_changed and the function grants.
 -- Blocked actions print 'ok   blocked'. Any 'FAIL' line is a broken rule.
 \set ON_ERROR_STOP on
 SET search_path = public, extensions;
@@ -1122,6 +1125,112 @@ SELECT expect_fail('an applicant files a request for another applicant visit',
 RESET ROLE;
 \else
 SELECT 'skipped: no authenticated role, step 12 row level security checks not run';
+\endif
+
+-- ============================================================
+-- schedule changes after the slip (step 16), 20261025180000_schedule_changes.sql.
+-- Own program BSQ (college 1) with one section, two students with a slip, and a
+-- Dean of college 2 for the "another college" refusal. The term is set by now.
+-- ============================================================
+SELECT act('ad');
+INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000f1','BSQ','Test Program Q','00000000-0000-0000-0000-0000000000c1');
+INSERT INTO subjects (id,program_id,code,title,units,year_level) VALUES (md5('Q1')::uuid,'00000000-0000-0000-0000-0000000000f1','Q101','Q one',3,1);
+INSERT INTO rooms (id,name,college_id) VALUES (md5('RMQ1')::uuid,'Room Q1',NULL),(md5('RMQ2')::uuid,'Room Q2',NULL);
+INSERT INTO auth.users (id,email) VALUES (md5('pf3')::uuid,'pf3@x.ph'),(md5('dn2')::uuid,'dn2@x.ph');
+INSERT INTO users (id,auth_id,full_name,email,role,college_id) VALUES
+  (md5('pf3')::uuid, md5('pf3')::uuid,'pf3','pf3@x.ph','professor',NULL),
+  (md5('dn2')::uuid, md5('dn2')::uuid,'dn2','dn2@x.ph','dean','00000000-0000-0000-0000-0000000000c2');
+SELECT mk_applicant('k1','00000000-0000-0000-0000-0000000000f1', mnl_today());
+SELECT mk_applicant('k2','00000000-0000-0000-0000-0000000000f1', mnl_today());
+SELECT act('sc');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES
+  (md5('SQA')::uuid,'00000000-0000-0000-0000-0000000000f1','A',1,10),
+  (md5('SQD')::uuid,'00000000-0000-0000-0000-0000000000f1','D',1,10);
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RMQ1')::uuid, day_of_week=1, start_time='08:00', end_time='09:00' WHERE section_id=md5('SQA')::uuid;
+UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SQA')::uuid;
+SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('SQA')::uuid;
+SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('SQA')::uuid;
+INSERT INTO students (applicant_id,student_number,documents_received_by) SELECT md5('Ak'||n)::uuid,'x',md5('rg')::uuid FROM generate_series(1,2) n;
+SELECT issue_assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid));
+SELECT issue_assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak2')::uuid));
+SELECT expect_eq('both students are in the approved section',
+  (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SQA')::uuid), '2');
+SELECT expect_eq('slip stored its schedule', (SELECT jsonb_array_length(schedule)::text||'/'||(schedule->0->>'day') FROM assessment_slips WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid)), '1/1');
+SELECT expect_eq('nothing changed yet', (SELECT my_schedule_changed()::text), 'false');
+SELECT act('k1'); SELECT expect_eq('student: no change flagged yet', (SELECT my_schedule_changed()::text), 'false');
+
+-- who may change an approved schedule, and what is refused
+SELECT act('sc');
+SELECT ss.id AS q_row FROM section_subjects ss WHERE ss.section_id = md5('SQA')::uuid \gset
+SELECT ss.id AS q_draft_row FROM section_subjects ss WHERE ss.section_id = md5('SQD')::uuid \gset
+SELECT expect_msg('direct edit of an approved section is still locked',
+  format($$UPDATE section_subjects SET day_of_week = 2 WHERE id = %L$$, :'q_row'), 'locked');
+SELECT expect_msg('no reason', format($$SELECT amend_schedule(%L, %L, %L, 2::smallint, '09:00', '10:00', '  ')$$, :'q_row', md5('pf3')::uuid, md5('RMQ2')::uuid), 'reason is required');
+SELECT expect_msg('draft section', format($$SELECT amend_schedule(%L, %L, %L, 2::smallint, '09:00', '10:00', 'x')$$, :'q_draft_row', md5('pf3')::uuid, md5('RMQ2')::uuid), 'Only an approved schedule');
+SELECT expect_msg('unknown subject row', $$SELECT amend_schedule(md5('nope')::uuid, NULL, NULL, NULL, NULL, NULL, 'x')$$, 'Subject not found');
+SELECT act('dn2'); SELECT expect_msg('dean of another college', format($$SELECT amend_schedule(%L, %L, %L, 2::smallint, '09:00', '10:00', 'x')$$, :'q_row', md5('pf3')::uuid, md5('RMQ2')::uuid), 'another college');
+SELECT act('pf3'); SELECT expect_msg('professor', format($$SELECT amend_schedule(%L, %L, %L, 2::smallint, '09:00', '10:00', 'x')$$, :'q_row', md5('pf3')::uuid, md5('RMQ2')::uuid), 'Only the College Secretary');
+SELECT act('rg'); SELECT expect_msg('registrar', format($$SELECT amend_schedule(%L, %L, %L, 2::smallint, '09:00', '10:00', 'x')$$, :'q_row', md5('pf3')::uuid, md5('RMQ2')::uuid), 'Only the College Secretary');
+SELECT act('k1'); SELECT expect_msg('student', format($$SELECT amend_schedule(%L, %L, %L, 2::smallint, '09:00', '10:00', 'x')$$, :'q_row', md5('pf3')::uuid, md5('RMQ2')::uuid), 'Only the College Secretary');
+SELECT act('sc');
+SELECT expect_msg('not a professor', format($$SELECT amend_schedule(%L, %L, %L, 2::smallint, '09:00', '10:00', 'x')$$, :'q_row', md5('rg')::uuid, md5('RMQ2')::uuid), 'not an active Professor');
+SELECT expect_eq('refusals changed nothing',
+  (SELECT day_of_week::text||'/'||(professor_id = md5('pf2')::uuid)::text FROM section_subjects WHERE id = :'q_row'), '1/true');
+SELECT expect_eq('refusals told nobody', (SELECT count(*)::text FROM notifications WHERE kind = 'schedule_changed'), '0');
+
+-- a clash is still refused: pf3 teaches the draft section on Wednesday 10:00 to 11:00
+UPDATE section_subjects SET professor_id=md5('pf3')::uuid, room_id=md5('RMQ2')::uuid, day_of_week=3, start_time='10:00', end_time='11:00' WHERE id = :'q_draft_row';
+SELECT expect_fail('professor clash on a change', format($$SELECT amend_schedule(%L, %L, %L, 3::smallint, '10:30', '11:30', 'x')$$, :'q_row', md5('pf3')::uuid, md5('RMQ1')::uuid));
+SELECT expect_fail('room clash on a change', format($$SELECT amend_schedule(%L, %L, %L, 3::smallint, '10:30', '11:30', 'x')$$, :'q_row', md5('pf2')::uuid, md5('RMQ2')::uuid));
+
+-- the Secretary changes it: Tuesday 09:00 to 10:00, another professor and room
+SELECT amend_schedule(:'q_row', md5('pf3')::uuid, md5('RMQ2')::uuid, 2::smallint, '09:00', '10:00', 'Professor on leave');
+SELECT expect_eq('the section row has the new loading',
+  (SELECT day_of_week::text||'/'||to_char(start_time,'HH24:MI')||'/'||(professor_id = md5('pf3')::uuid)::text||'/'||(room_id = md5('RMQ2')::uuid)::text FROM section_subjects WHERE id = :'q_row'),
+  '2/09:00/true/true');
+SELECT expect_eq('the section stays approved', (SELECT schedule_status FROM sections WHERE id = md5('SQA')::uuid), 'approved');
+SELECT act('rg');
+SELECT expect_eq('the slip still shows the first schedule',
+  (SELECT (assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'day')||'/'||(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'start')||'/'||(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'professor')), '1/08:00/pf2');
+SELECT expect_eq('each placed student was told once',
+  (SELECT count(*)::text||'/'||count(DISTINCT user_id)::text||'/'||min(email_status) FROM notifications WHERE kind = 'schedule_changed'), '2/2/pending');
+SELECT expect_eq('the audit log has who and why',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'section_subjects' AND action = 'UPDATE' AND record_id = :'q_row'
+     AND actor_id = md5('sc')::uuid AND reason = 'Professor on leave'), '1');
+SELECT act('k1'); SELECT expect_eq('student: change flagged', (SELECT my_schedule_changed()::text), 'true');
+SELECT act('rg'); SELECT expect_eq('registrar is not a student: no flag', (SELECT my_schedule_changed()::text), 'false');
+
+-- the COR shows the final schedule and keeps it
+SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid));
+SELECT expect_eq('COR shows the final schedule',
+  (SELECT (certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'day')||'/'||(certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'professor')), '2/pf3');
+SELECT expect_eq('the slip of the same student is still the first schedule',
+  (SELECT assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'day'), '1');
+SELECT act('k1'); SELECT expect_eq('student with a COR: no flag', (SELECT my_schedule_changed()::text), 'false');
+SELECT act('k2'); SELECT expect_eq('section-mate without a COR: still flagged', (SELECT my_schedule_changed()::text), 'true');
+
+-- once any student of the section has a COR, the section is locked
+SELECT act('sc');
+SELECT expect_msg('change after a COR in the section', format($$SELECT amend_schedule(%L, %L, %L, 4::smallint, '09:00', '10:00', 'late change')$$, :'q_row', md5('pf3')::uuid, md5('RMQ2')::uuid), 'COR was already issued');
+SELECT expect_eq('the refusal left the loading alone', (SELECT day_of_week::text FROM section_subjects WHERE id = :'q_row'), '2');
+
+-- the whole path still works for the other student's COR, and the old COR is untouched
+SELECT act('rg');
+SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Ak2')::uuid));
+SELECT expect_eq('second COR shows the same final schedule',
+  (SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Ak2')::uuid))->'subjects'->0->>'day'), '2');
+
+-- row level security: the new functions answer for the signed-in student only, and the builder is internal
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('k2'); SELECT expect_eq('authenticated student calls my_schedule_changed', (SELECT my_schedule_changed()::text), 'false');
+SELECT expect_fail('authenticated calls the schedule builder', format($$SELECT student_schedule_json(%L)$$, md5('nobody')::uuid));
+SELECT act('sc');
+SELECT expect_msg('authenticated secretary reaches amend_schedule (refused by the COR rule, not by a missing grant)',
+  format($$SELECT amend_schedule(%L, %L, %L, 4::smallint, '09:00', '10:00', 'x')$$, :'q_row', md5('pf3')::uuid, md5('RMQ2')::uuid), 'COR was already issued');
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 16 grant checks not run';
 \endif
 
 -- audit

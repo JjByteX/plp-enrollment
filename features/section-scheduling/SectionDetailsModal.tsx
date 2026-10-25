@@ -3,14 +3,17 @@
 // One section in a centered modal: the loading rows (subject, professor, room,
 // day, time), the students in it, and the buttons for the chain: Secretary
 // submits, Dean signs off, Registrar approves, Dean or Registrar rejects with a
-// reason. Which controls show depends on the person's role and the status; the
-// database enforces the same rules. Fewer than 5 students render as a list, 5
+// reason. After approval the Secretary, Dean or Admin can still change a
+// subject's professor, room, day or time with a reason (step 16), until a
+// student of the section has a COR. Which controls show depends on the person's
+// role and the status; the database enforces the same rules. Fewer than 5 students render as a list, 5
 // or more as a table (ux-ui-guidelines.md).
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { color, fontWeight, padding, spacing } from '@/styles/tokens';
 import type { Role } from '@/lib/auth/roles';
 import {
+  amendLoading,
   approveSchedule,
   loadSectionDetail,
   moveStudent,
@@ -88,6 +91,8 @@ export function SectionDetailsModal({
   const [error, setError] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [amendReason, setAmendReason] = useState('');
   const [picks, setPicks] = useState<Record<string, string | null>>({});
 
   const isCollege = viewerRole === 'college_secretary' || viewerRole === 'dean' || viewerRole === 'admin';
@@ -96,6 +101,8 @@ export function SectionDetailsModal({
   const status = section.status;
 
   const canEditLoading = isCollege && status === 'draft';
+  const canAmend = isCollege && status === 'approved';
+  const showEditors = canEditLoading || canAmend;
   const canSignOff = isDean && status === 'pending_dean';
   const canApprove = isRegistrar && status === 'dean_signed';
   const canReject = (isDean && status === 'pending_dean') || (isRegistrar && status === 'dean_signed');
@@ -182,6 +189,35 @@ export function SectionDetailsModal({
           : null;
 
   const reasonCheck = parseReason(reason);
+  const amendReasonCheck = parseReason(amendReason);
+  const dirtyRows = rows.filter((row) => drafts[row.id] && isDirty(row, drafts[row.id]));
+  const firstInvalid = dirtyRows.map((row) => inputFor(row)).find((check) => !check.ok);
+  const amendBlock =
+    dirtyCount === 0
+      ? 'Change a professor, room, day or time first.'
+      : firstInvalid
+        ? 'Complete the changed subject first.'
+        : !amendReasonCheck.ok
+          ? 'Enter the reason for the change.'
+          : null;
+
+  // Applies every changed subject with the same reason, one after the other.
+  // Stops at the first refusal and shows the database's own message.
+  async function amendAll(): Promise<ScheduleActionResult> {
+    if (!amendReasonCheck.ok) return { error: amendReasonCheck.reason };
+    let applied = 0;
+    for (const row of dirtyRows) {
+      const checked = inputFor(row);
+      if (!checked.ok) return { error: checked.reason };
+      const result = await amendLoading(checked.value, amendReasonCheck.value);
+      if ('error' in result) {
+        if (applied > 0) await load('none');
+        return result;
+      }
+      applied += 1;
+    }
+    return { ok: true, message: `Schedule changed. The students in this section were told.` };
+  }
   const moveOptions = sameProgramSections.map((other) => ({
     value: other.id,
     label: `${sectionLabel(other.programCode, other.yearLevel, other.name)} (${other.studentCount} of ${other.capacity})`,
@@ -258,7 +294,7 @@ export function SectionDetailsModal({
                     {row.meeting === 'laboratory' ? 'No units' : `${row.units} units`}
                   </Text>
                 </Group>
-                {canEditLoading ? (
+                {showEditors ? (
                   <Stack gap={spacing.sm}>
                     <Group grow gap={spacing.md} align="flex-start">
                       <Select
@@ -307,7 +343,12 @@ export function SectionDetailsModal({
                         disabled={busy !== null}
                       />
                     </Group>
-                    {dirty && (
+                    {dirty && canAmend && (
+                      <Text size="sm" c={checked.ok ? color.textSecondary : color.error}>
+                        {checked.ok ? 'Changed, not applied yet.' : checked.reason}
+                      </Text>
+                    )}
+                    {dirty && canEditLoading && (
                       <Group justify="space-between">
                         <Text size="sm" c={checked.ok ? color.textSecondary : color.error}>
                           {checked.ok ? 'Unsaved changes.' : checked.reason}
@@ -375,6 +416,33 @@ export function SectionDetailsModal({
           </Table.ScrollContainer>
         )}
 
+        {notice && (
+          <Text size="sm" c={color.success} role="status">
+            {notice}
+          </Text>
+        )}
+
+        {canAmend && (
+          <>
+            <Divider />
+            <Stack gap={spacing.sm}>
+              <TextInput
+                label="Reason for the change"
+                description="Recorded in the audit log"
+                maxLength={MAX_REASON}
+                value={amendReason}
+                onChange={(event) => setAmendReason(event.currentTarget.value)}
+                disabled={busy !== null}
+              />
+              {amendBlock && (
+                <Text size="sm" c={color.textSecondary}>
+                  {amendBlock}
+                </Text>
+              )}
+            </Stack>
+          </>
+        )}
+
         {error && (
           <Text size="sm" c={color.error} role="alert">
             {error}
@@ -415,6 +483,26 @@ export function SectionDetailsModal({
               </Button>
             </Group>
           </Stack>
+        )}
+
+        {canAmend && (
+          <Group justify="flex-end">
+            <Button
+              loading={busy === 'amend'}
+              disabled={amendBlock !== null || busy !== null}
+              onClick={() => {
+                setNotice(null);
+                void run('amend', amendAll, { reload: 'all' }).then((ok) => {
+                  if (ok) {
+                    setNotice('Schedule changed. The students in this section were told.');
+                    setAmendReason('');
+                  }
+                });
+              }}
+            >
+              Change schedule
+            </Button>
+          </Group>
         )}
 
         {!rejecting && (canEditLoading || canSignOff || canApprove) && (

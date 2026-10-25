@@ -9,7 +9,7 @@
 // (step 7 decision C) and, under it, where their reschedule request stands
 // (step 12): none, waiting for the Registrar, or declined with the Registrar's
 // note. An approved request needs no line, the visit itself has moved. Students see their student number and any late item
-// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10) and their COR (step 11). Every other role has no card (kind 'staff'); their home
+// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10), their COR (step 11) and whether the schedule changed after the slip (step 16). Every other role has no card (kind 'staff'); their home
 // screen lists what is waiting (step 14).
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
@@ -36,6 +36,7 @@ export type NextStep =
       slip: { paymentRequired: boolean } | null;
       payment: 'pending' | 'cleared' | null; // null when payment is not required
       cor: { schoolYear: string; semester: string } | null; // set once the student is enrolled
+      scheduleChanged: boolean; // the schedule changed after the slip and the COR is not issued yet (step 16)
     }
   // Staff and Professors have no step of their own: their home screen lists what is waiting (step 14).
   | { kind: 'staff' };
@@ -94,6 +95,9 @@ async function getStudentStep(): Promise<NextStep> {
   const { data: corRow } = await supabase.from('cors').select('school_year, semester').maybeSingle();
   const cor = corRow as { school_year: string; semester: string } | null;
 
+  // A student cannot read subjects, rooms or professors, so a function compares the slip's saved schedule (step 16).
+  const { data: changed } = await supabase.rpc('my_schedule_changed');
+
   return {
     kind: 'student_waiting',
     studentNumber: student.student_number,
@@ -107,6 +111,7 @@ async function getStudentStep(): Promise<NextStep> {
     slip: slip ? { paymentRequired: slip.payment_required } : null,
     payment,
     cor: cor ? { schoolYear: cor.school_year, semester: cor.semester } : null,
+    scheduleChanged: changed === true,
   };
 }
 

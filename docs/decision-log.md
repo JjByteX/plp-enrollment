@@ -499,3 +499,40 @@ What becomes harder or easier because of this choice?
 
 **Consequences:** `blue` is gone from `styles/tokens.ts`; any later code uses `green`. A role with one or two pages (Professor, Finance, Dean) still gets a sidebar for a consistent shell. Collapsed, the sidebar shows icons only, each with a tooltip carrying its label. The dependency was added to `package.json` and `package-lock.json` by hand (version 2.2.0, integrity taken from the npm registry) because no install was run; the next `npm install` should leave the lockfile unchanged.
 
+
+---
+
+**#:** 28
+**Date:** 2026-10-25
+**Milestone:** Build step 16, changing an approved schedule
+
+**Context:** The assessment slip is the first schedule and the COR is the final one, as PLP has always worked. An approved schedule was locked completely (decision #18), so nothing could change after approval.
+
+**Options Considered:**
+- Option A: The College Secretary or the Dean of that college (and Admin) changes professor, room, day or time of an approved section directly, with a required reason. Audit-logged, students told, no re-approval.
+- Option B: Every change goes through Secretary, Dean and Registrar again (needs a change-request table and more screens).
+- Option C: Registrar-only changes.
+
+**Community Consensus:** Not searched. Option A needs no new role, page or sidebar item.
+
+**Decision:** Option A, with the section as the unit of change (not a single student) and a lock once any student of the section has a COR, so no section holds some CORs that are out of date. Done by `amend_schedule`; the trigger on `section_subjects` allows only an update of the five loading columns while that function runs. This is a deliberate exception to the three gates of decision #4 for changes after approval only; the first approval still needs all three. Decisions #18 and #19 are unchanged.
+
+**Consequences:** A student who pays late may find the section already locked. Per-student add and drop of subjects, an adjustment number and re-issuing a COR are not built. If PLP expects the Dean to sign off every professor change, this needs a change-request flow.
+
+---
+
+**#:** 29
+**Date:** 2026-10-25
+**Milestone:** Build step 16, what the slip and the COR keep
+
+**Context:** The slip and the COR read the live schedule, so a changed schedule would have changed an issued slip.
+
+**Options Considered:**
+- Option A: Each slip and each COR stores the schedule it was issued with (`schedule` column). The slip and COR functions read the stored copy.
+- Option B: Keep reading the live schedule and add a history table of changes.
+
+**Community Consensus:** Not searched. Option A is the same idea as the term on a COR (decision #21).
+
+**Decision:** Option A. One function, `student_schedule_json`, builds the schedule, and the slip gate and COR gate call it on insert. Existing rows were filled from the live schedule when the migration ran.
+
+**Consequences:** A schedule already edited by SQL before the migration cannot be recovered. An issued slip and an issued COR never change.

@@ -50,6 +50,11 @@ export function NextStepCard({ step }: { step: NextStep }) {
                           : 'Next, the Registrar issues your COR.'
                       }`}
               </Text>
+              {step.scheduleChanged && !step.cor && (
+                <Text size="sm" c={color.textSecondary}>
+                  Your schedule changed after your slip was issued. Your COR will show the final schedule.
+                </Text>
+              )}
               <Anchor href="/slip" size="sm">
                 View assessment slip
               </Anchor>

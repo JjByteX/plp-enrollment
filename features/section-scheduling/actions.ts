@@ -134,6 +134,36 @@ export async function saveLoading(input: LoadingInput): Promise<ScheduleActionRe
   return { ok: true, message: 'Loading saved.' };
 }
 
+// One subject of an APPROVED section, changed after the assessment slip
+// (step 16). The Secretary or Dean of that college (or Admin) gives a reason.
+// The database refuses it once a student of the section has a COR, and still
+// applies the clash rules; the students are told by the same function.
+export async function amendLoading(input: LoadingInput, reason: string): Promise<ScheduleActionResult> {
+  const actor = await requireRole(COLLEGE_STAFF);
+  if (!actor) return { error: 'Only the College Secretary or the Dean can change an approved schedule.' };
+
+  const parsed = parseLoadingInput(input);
+  if (!parsed.ok) return { error: parsed.reason };
+  const note = parseReason(reason);
+  if (!note.ok) return { error: note.reason };
+  const { sectionSubjectId, professorId, roomId, dayOfWeek, startTime, endTime } = parsed.value;
+
+  const supabase = createClient();
+  const { error } = await supabase.rpc('amend_schedule', {
+    p_section_subject: sectionSubjectId,
+    p_professor: professorId,
+    p_room: roomId,
+    p_day: dayOfWeek,
+    p_start: startTime,
+    p_end: endTime,
+    p_reason: note.value,
+  });
+  if (error) return failure(error, 'The schedule could not be changed.');
+
+  refresh();
+  return { ok: true, message: 'Schedule changed. The students in this section were told.' };
+}
+
 async function changeStatus(
   sectionId: string,
   status: 'pending_dean' | 'dean_signed' | 'approved',
