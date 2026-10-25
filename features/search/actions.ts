@@ -7,7 +7,8 @@
 // row level security still decides what each role can see (a Dean only gets
 // their college's sections, an Applicant gets nothing). Which kinds of record
 // are looked up per role below only avoids pointless queries; it is not the
-// security boundary. A result opens the page that lists the record.
+// security boundary. A result opens the page that lists the record, filtered to
+// it where that page supports a search (Documents does; the others open unfiltered).
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/session';
 import type { NavIconName } from '@/lib/nav';
@@ -61,7 +62,9 @@ export async function searchRecords(raw: string): Promise<RecordHit[]> {
 
   // Students, by number or by name.
   if (sees('registrar', 'finance', 'admin')) {
-    const href = role === 'finance' ? '/finance/payments' : '/registrar/cors';
+    // The Documents page can filter by student number, so Registrar and Admin land on that student.
+    const href = (studentNumber: string) =>
+      role === 'finance' ? '/finance/payments' : `/registrar/documents?tab=received&q=${encodeURIComponent(studentNumber)}`;
     const select = 'id, student_number, applicants!inner(programs(code), users!inner(full_name))';
     jobs.push(
       (async () => {
@@ -78,7 +81,7 @@ export async function searchRecords(raw: string): Promise<RecordHit[]> {
             key: `student-${row.id}`,
             label: row.applicants?.users?.full_name ?? row.student_number,
             detail: [row.student_number, row.applicants?.programs?.code].filter(Boolean).join(' · '),
-            href,
+            href: href(row.student_number),
             icon: 'accounts',
             kind: 'Student',
           });
@@ -105,7 +108,7 @@ export async function searchRecords(raw: string): Promise<RecordHit[]> {
             key: `applicant-${row.id}`,
             label: row.users?.full_name ?? row.applicant_ref,
             detail: [row.applicant_ref, row.programs?.code].filter(Boolean).join(' · '),
-            href: '/registrar/documents',
+            href: `/registrar/documents?q=${encodeURIComponent(row.applicant_ref)}`,
             icon: 'documents',
             kind: 'Applicant',
           });
