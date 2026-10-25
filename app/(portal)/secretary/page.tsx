@@ -1,14 +1,16 @@
-import { Anchor, Stack, Title } from '@mantine/core';
+import { Stack, Title } from '@mantine/core';
+import { WorkList } from '@/features/dashboards/WorkList';
+import { getCollegeItems } from '@/features/dashboards/queries';
 import { spacing } from '@/styles/tokens';
 
 export const metadata = { title: 'College Secretary | PLP Enrollment' };
 
-// Placeholder. The real home screen arrives in build step 14.
-export default function SecretaryPage() {
+// Counts cover the Secretary's own college only (row level security).
+export default async function SecretaryPage() {
   return (
-    <Stack gap={spacing.md}>
+    <Stack gap={spacing.lg}>
       <Title order={3}>College Secretary</Title>
-      <Anchor href="/secretary/schedule">Schedules</Anchor>
+      <WorkList items={await getCollegeItems('secretary')} />
     </Stack>
   );
 }

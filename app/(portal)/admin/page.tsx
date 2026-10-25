@@ -1,21 +1,20 @@
-import { Anchor, Stack, Title } from '@mantine/core';
+import { Divider, Stack, Title } from '@mantine/core';
+import { EnrollmentFunnel } from '@/features/dashboards/EnrollmentFunnel';
+import { WorkList } from '@/features/dashboards/WorkList';
+import { getAdminItems, getFunnel } from '@/features/dashboards/queries';
 import { spacing } from '@/styles/tokens';
 
 export const metadata = { title: 'Admin | PLP Enrollment' };
 
-// Placeholder home. The real home screen arrives in build step 14.
-export default function AdminPage() {
+// Admin does everything, so this lists every page with what waits on it.
+export default async function AdminPage() {
+  const [items, stages] = await Promise.all([getAdminItems(), getFunnel()]);
   return (
-    <Stack gap={spacing.md}>
+    <Stack gap={spacing.lg}>
       <Title order={3}>Admin</Title>
-      <Anchor href="/admin/accounts">Accounts</Anchor>
-      <Anchor href="/admin/admissions">Admissions</Anchor>
-      <Anchor href="/registrar/visits">Visits</Anchor>
-      <Anchor href="/registrar/documents">Documents</Anchor>
-      <Anchor href="/registrar/schedules">Schedules</Anchor>
-      <Anchor href="/registrar/slips">Slips</Anchor>
-      <Anchor href="/finance/payments">Payments</Anchor>
-      <Anchor href="/registrar/cors">COR</Anchor>
+      <WorkList items={items} />
+      <Divider />
+      <EnrollmentFunnel stages={stages} />
     </Stack>
   );
 }

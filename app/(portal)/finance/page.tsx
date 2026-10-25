@@ -1,14 +1,15 @@
-import { Anchor, Stack, Title } from '@mantine/core';
+import { Stack, Title } from '@mantine/core';
+import { WorkList } from '@/features/dashboards/WorkList';
+import { getFinanceItems } from '@/features/dashboards/queries';
 import { spacing } from '@/styles/tokens';
 
 export const metadata = { title: 'Finance | PLP Enrollment' };
 
-// Placeholder home. The real home screen arrives in build step 14.
-export default function FinancePage() {
+export default async function FinancePage() {
   return (
-    <Stack gap={spacing.md}>
+    <Stack gap={spacing.lg}>
       <Title order={3}>Finance</Title>
-      <Anchor href="/finance/payments">Payments</Anchor>
+      <WorkList items={await getFinanceItems()} />
     </Stack>
   );
 }

@@ -424,3 +424,39 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A, the AI's design for the human to veto. Only visits still marked booked move; attended and no show stay as they are. A person may have one waiting request per visit and may ask again after a decline. Declining does not offer a date, because the Registrar can approve with a chosen slot instead.
 
 **Consequences:** A mass reschedule on a busy day can leave people on the date being emptied until slots are added. A no show visit has no way to ask for a reschedule yet, because nothing in the system marks a no show.
+
+---
+
+**#:** 24
+**Date:** 2026-10-25
+**Milestone:** Build step 13, what the audit log page shows
+
+**Context:** The plan says the audit log records who, what, when (and why when given) and that Admin can see it. It does not say how Admin browses a table that only grows, whether the page can change or hide anything, or what to show for a system action.
+
+**Options Considered:**
+- Option A: A read only page, newest first, 50 per page, with filters for table and action kept in the URL. Each entry has a Details window showing the fields that changed, before and after. An entry with no signed-in person shows as "System". No new migration.
+- Option B: Add search by person or record, a date range and an export, with a database function to serve them.
+
+**Community Consensus:** Not searched. Option A needs nothing the database does not already hold: `audit_log` is append only, and only Admin can read it.
+
+**Decision:** Option A, the AI's design for the human to veto. The page has no edit or delete control of any kind. Names are looked up from `users` because `audit_log.actor_id` has no foreign key, so a removed account shows as "Unknown account" while its entries stay.
+
+**Consequences:** Finding one person's or one record's history means scrolling or filtering by table for now. The table filter is a fixed list in `features/audit-log/schema.ts`, so a newly audited table needs one line added there.
+
+---
+
+**#:** 25
+**Date:** 2026-10-25
+**Milestone:** Build step 14, what each home screen shows
+
+**Context:** The plan says every page ends with a "Your next step" card, but the card only has content for Applicants and Students. Staff saw "Nothing to do yet" above pages with work waiting. The guidelines ask for what needs action first, no stat cards without an action, and no repeated calls to action.
+
+**Options Considered:**
+- Option A: Applicant and Student get a stepper of their position and keep the card for details and actions. Staff get a list of their pages with a count of what waits on each, pages with work first, and the card is not shown to them. Registrar and Admin add an enrollment funnel. A Professor sees their load and class lists.
+- Option B: Keep the card for staff and fill it with the same counts, or show a row of stat cards on every home.
+
+**Community Consensus:** Not searched (no web search in the session). The guidelines' own dashboard and linear flow rules point to Option A.
+
+**Decision:** Option A, the AI's design for the human to veto. This changes the plan's "every page ends with a next step card" for staff and Professors only. The Payment step appears in the stepper only once the slip says it is required, because a student cannot read the program toggle. A Professor sees only subjects in approved schedules, so a draft loading is never shown. The Documents count is applicants whose visit date is today or earlier and who are not students yet.
+
+**Consequences:** A Finance home has one row until more pages exist. The counts read the same tables the pages read, so a count and its page can differ only by timing. No Professor class list exists for a subject until students are placed in its section.

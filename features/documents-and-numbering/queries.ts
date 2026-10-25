@@ -69,7 +69,7 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
 
-async function fetchAll<T>(run: (from: number, to: number) => PromiseLike<{ data: unknown }>): Promise<T[]> {
+export async function fetchAll<T>(run: (from: number, to: number) => PromiseLike<{ data: unknown }>): Promise<T[]> {
   const rows: T[] = [];
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const { data } = await run(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);

@@ -37,9 +37,11 @@ export function PortalShell({
       </AppShell.Header>
       <AppShell.Main>
         <Stack gap="md">
-          <Card withBorder radius="md" p="md" data-slot="next-step-card">
-            <NextStepCard step={nextStep} />
-          </Card>
+          {nextStep.kind !== 'staff' && (
+            <Card withBorder radius="md" p="md" data-slot="next-step-card">
+              <NextStepCard step={nextStep} />
+            </Card>
+          )}
           {children}
         </Stack>
       </AppShell.Main>

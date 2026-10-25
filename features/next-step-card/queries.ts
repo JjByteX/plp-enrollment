@@ -9,8 +9,9 @@
 // (step 7 decision C) and, under it, where their reschedule request stands
 // (step 12): none, waiting for the Registrar, or declined with the Registrar's
 // note. An approved request needs no line, the visit itself has moved. Students see their student number and any late item
-// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10) and their COR (step 11). Every other role keeps "Nothing to do yet" until the
-// dashboards in step 14.
+// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10) and their COR (step 11). Every other role has no card (kind 'staff'); their home
+// screen lists what is waiting (step 14).
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { CurrentUser } from '@/lib/auth/session';
 import { formatSlotDate, windowLabel } from '@/features/visit-scheduling/schema';
@@ -35,7 +36,9 @@ export type NextStep =
       slip: { paymentRequired: boolean } | null;
       payment: 'pending' | 'cleared' | null; // null when payment is not required
       cor: { schoolYear: string; semester: string } | null; // set once the student is enrolled
-    };
+    }
+  // Staff and Professors have no step of their own: their home screen lists what is waiting (step 14).
+  | { kind: 'staff' };
 
 // The applicant's latest reschedule request, as the card shows it.
 export type RescheduleState = { status: 'none' } | { status: 'pending' } | { status: 'declined'; note: string };
@@ -107,9 +110,11 @@ async function getStudentStep(): Promise<NextStep> {
   };
 }
 
-export async function getNextStep(user: CurrentUser): Promise<NextStep> {
+// Cached for the request, so the layout and a home page that shows the person's
+// progress (step 14) read it once.
+export const getNextStep = cache(async (user: CurrentUser): Promise<NextStep> => {
   if (user.role === 'student') return getStudentStep();
-  if (user.role !== 'applicant') return { kind: 'none' };
+  if (user.role !== 'applicant') return { kind: 'staff' };
 
   const supabase = createClient();
   const { data } = await supabase
@@ -156,4 +161,4 @@ export async function getNextStep(user: CurrentUser): Promise<NextStep> {
     whatToBring: joinWhatToBring(checklist, slot.what_to_bring),
     reschedule,
   };
-}
+});

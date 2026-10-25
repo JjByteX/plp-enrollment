@@ -1,19 +1,20 @@
-import { Anchor, Stack, Title } from '@mantine/core';
+import { Divider, Stack, Title } from '@mantine/core';
+import { EnrollmentFunnel } from '@/features/dashboards/EnrollmentFunnel';
+import { WorkList } from '@/features/dashboards/WorkList';
+import { getFunnel, getRegistrarItems } from '@/features/dashboards/queries';
 import { spacing } from '@/styles/tokens';
 
 export const metadata = { title: 'Registrar | PLP Enrollment' };
 
-// Placeholder home. The real home screen arrives in build step 14.
-export default function RegistrarPage() {
+// What waits first, then the whole enrollment at a glance.
+export default async function RegistrarPage() {
+  const [items, stages] = await Promise.all([getRegistrarItems(), getFunnel()]);
   return (
-    <Stack gap={spacing.md}>
+    <Stack gap={spacing.lg}>
       <Title order={3}>Registrar</Title>
-      <Anchor href="/registrar/visits">Visits</Anchor>
-      <Anchor href="/registrar/reschedules">Reschedules</Anchor>
-      <Anchor href="/registrar/documents">Documents</Anchor>
-      <Anchor href="/registrar/schedules">Schedules</Anchor>
-      <Anchor href="/registrar/slips">Slips</Anchor>
-      <Anchor href="/registrar/cors">COR</Anchor>
+      <WorkList items={items} />
+      <Divider />
+      <EnrollmentFunnel stages={stages} />
     </Stack>
   );
 }
