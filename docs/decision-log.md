@@ -460,3 +460,22 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A, the AI's design for the human to veto. This changes the plan's "every page ends with a next step card" for staff and Professors only. The Payment step appears in the stepper only once the slip says it is required, because a student cannot read the program toggle. A Professor sees only subjects in approved schedules, so a draft loading is never shown. The Documents count is applicants whose visit date is today or earlier and who are not students yet.
 
 **Consequences:** A Finance home has one row until more pages exist. The counts read the same tables the pages read, so a count and its page can differ only by timing. No Professor class list exists for a subject until students are placed in its section.
+
+---
+
+**#:** 26
+**Date:** 2026-10-25
+**Milestone:** Build step 15, how content gets into the system
+
+**Context:** The build order lists colleges, programs, subjects, rooms and staff accounts as one content task. Colleges, the 13 programs and the staff account form already exist. Subjects and rooms had no editor, and the school year and semester needed SQL before any COR could be issued.
+
+**Options Considered:**
+- Option A: Admin editor pages: subjects (one program at a time), rooms and the current term, all under one Content page. Colleges and programs stay as seeded. The real data is entered by Admin through the pages.
+- Option B: A seed migration or a CSV import with the real PLP curriculum, rooms and term.
+- Option C: Also add editors for colleges and programs.
+
+**Community Consensus:** Not searched. Option A needs no migration, because Admin already has write access to these tables and a database trigger fills sections from the subject catalog.
+
+**Decision:** Option A, the AI's design for the human to veto. Adding a subject needs its program and year level, and editing keeps both, because sections were filled from them. A subject or room that a section uses cannot be deleted (the database refuses it). Changing the term never alters an issued COR, because each COR keeps its own term. There is no program editor, because a program code must keep matching the course code in PLP Admissions, and a new course needs a change on both sides.
+
+**Consequences:** No real curriculum exists until someone enters it. A CSV import would be quicker for hundreds of subjects and can be added later as its own step. An issued subject cannot move to another program or year level; it must be deleted (when unused) and added again.

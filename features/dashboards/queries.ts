@@ -119,6 +119,7 @@ export async function getAdminItems(): Promise<WorkItem[]> {
   const [failed, registrar, pending] = await Promise.all([failedIntakes(), registrarItems(), listPayments('pending')]);
   return [
     { href: '/admin/accounts', label: 'Accounts', waiting: null },
+    { href: '/admin/content', label: 'Content', waiting: null },
     { href: '/admin/admissions', label: 'Admissions', waiting: failed },
     ...registrar,
     { href: '/finance/payments', label: 'Payments', waiting: pending.length },
