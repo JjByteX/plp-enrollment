@@ -1,5 +1,5 @@
 -- ============================================================
--- supabase/seed.sql
+-- supabase/seeders/01_staff_accounts.sql
 -- Demo accounts for PLP Enrollment (same idea as PLP Admissions' seed_users.sql).
 -- Runs automatically on `supabase db reset`. For a hosted project, paste it
 -- into the Supabase SQL editor once, after the migrations have been applied.
