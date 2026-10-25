@@ -15,9 +15,10 @@
 --   professor.<college>@plp.edu.ph -> Professor@123
 --   <college> = ccs, con, cba, coe, cas, cen, hm
 --
--- Safe to re-run: the seeded accounts are removed first (deleting the auth
--- user also removes its users row). Applicants and students are not seeded:
--- they come from the Admissions intake.
+-- Safe to re-run: an account that already exists is left alone (it may be
+-- referenced by students, schedules or the audit trail, so it is never
+-- deleted or reset). Applicants and students are not seeded: they come from
+-- the Admissions intake.
 -- ============================================================
 
 -- Colleges (already created by the migrations; this keeps the seed standalone)
@@ -30,33 +31,6 @@ INSERT INTO colleges (code, name) VALUES
     ('CEN', 'College of Engineering'),
     ('HM', 'College of Hospitality Management')
 ON CONFLICT (code) DO NOTHING;
-
-DELETE FROM auth.users WHERE email IN (
-    'admin@plp.edu.ph',
-    'registrar@plp.edu.ph',
-    'finance@plp.edu.ph',
-    'dean.ccs@plp.edu.ph',
-    'dean.con@plp.edu.ph',
-    'dean.cba@plp.edu.ph',
-    'dean.coe@plp.edu.ph',
-    'dean.cas@plp.edu.ph',
-    'dean.cen@plp.edu.ph',
-    'dean.hm@plp.edu.ph',
-    'secretary.ccs@plp.edu.ph',
-    'secretary.con@plp.edu.ph',
-    'secretary.cba@plp.edu.ph',
-    'secretary.coe@plp.edu.ph',
-    'secretary.cas@plp.edu.ph',
-    'secretary.cen@plp.edu.ph',
-    'secretary.hm@plp.edu.ph',
-    'professor.ccs@plp.edu.ph',
-    'professor.con@plp.edu.ph',
-    'professor.cba@plp.edu.ph',
-    'professor.coe@plp.edu.ph',
-    'professor.cas@plp.edu.ph',
-    'professor.cen@plp.edu.ph',
-    'professor.hm@plp.edu.ph'
-);
 
 -- Seeded accounts. Each row: email, full name, role, college code (blank = none), password.
 DO $$
@@ -91,6 +65,7 @@ BEGIN
     ('professor.hm@plp.edu.ph', 'HM Professor', 'professor', 'HM', 'Professor@123')
   ) AS v(email, full_name, role, college_code, password)
   LOOP
+    CONTINUE WHEN EXISTS (SELECT 1 FROM auth.users WHERE email = r.email);
     v_auth := gen_random_uuid();
 
     INSERT INTO auth.users (
