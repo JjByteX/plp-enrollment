@@ -34,11 +34,13 @@ What to build, in order. Each step assumes the ones before it exist. Tick a step
       Registrar issues it after the schedule is approved. Student can view and download it.
       Written, not yet run: migration `20261025080000_assessment_slip.sql`, checks in `supabase/gates_check.sql`, `features/assessment-slip/`, `/registrar/slips`, the student's `/slip` page, and the slip line in `features/next-step-card/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. The slip is the light version with the fields the plan names (student number, name, program, section, subjects with professor, room and time, payment required or not); open question #2 stays open for the COR in step 11. "Download" is the browser's print dialog, which saves a PDF; no PDF library was added.
 
-- [ ] 10. **Payment**
+- [x] 10. **Payment**
       Per-course toggle (Admin and Finance), Finance records payment. Skipped when the toggle is off.
+      Written, not yet run: migration `20261025100000_payment.sql` (`record_payment`, `payment_queue`, `my_payment_status`), checks in `supabase/gates_check.sql`, `features/payment/`, `/finance/payments` (tabs Pending, Cleared, Programs; the toggle lives on Programs), and the payment line in `features/next-step-card/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. No partial payments, and the toggle only affects slips issued afterwards (decision-log.md #22).
 
-- [ ] 11. **COR**
+- [x] 11. **COR**
       Registrar issues it after payment (or right after the slip when payment is not required). Student is enrolled.
+      Written, not yet run: migration `20261025110000_cor.sql` (`enrollment_term`, `issue_cor`, `issue_all_ready_cors`, `certificate_of_registration`), checks in `supabase/gates_check.sql` (the older COR fixtures now set the term first), `features/cor/`, `/registrar/cors`, the student's `/cor` print page, and the enrolled state in `features/next-step-card/`. Tick this step after `gates_check.sql`, lint, type check and the design gate pass. Admin must set the school year and semester by SQL before any COR can be issued: `INSERT INTO enrollment_term (school_year, semester) VALUES ('2026-2027','1st');`. The COR follows PLP's layout but has no fee breakdown or fields the system does not hold (decision-log.md #21). Open question #2 (COR layout) is settled by this.
 
 - [ ] 12. **Reschedules**
       Mass reschedule (Registrar or Admin) moves every affected student to the next available slot. Student request, Registrar approves or declines. Emails and next step cards.

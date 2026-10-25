@@ -7,7 +7,7 @@
 //
 // Applicants see their visit with the checklist for their admission type
 // (step 7 decision C). Students see their student number and any late item
-// still open, their section and whether its schedule is approved (step 8), and the assessment slip once issued (step 9). Every other role keeps "Nothing to do yet" until the
+// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10) and their COR (step 11). Every other role keeps "Nothing to do yet" until the
 // dashboards in step 14.
 import { createClient } from '@/lib/supabase/server';
 import type { CurrentUser } from '@/lib/auth/session';
@@ -24,6 +24,8 @@ export type NextStep =
       openLateItems: string[];
       section: { label: string; approved: boolean } | null;
       slip: { paymentRequired: boolean } | null;
+      payment: 'pending' | 'cleared' | null; // null when payment is not required
+      cor: { schoolYear: string; semester: string } | null; // set once the student is enrolled
     };
 
 type PlacementRow = {
@@ -69,6 +71,14 @@ async function getStudentStep(): Promise<NextStep> {
   const { data: slipRow } = await supabase.from('assessment_slips').select('payment_required').maybeSingle();
   const slip = slipRow as { payment_required: boolean } | null;
 
+  // A student cannot read payments, so a function answers for them (step 10).
+  const { data: paymentStatus } = await supabase.rpc('my_payment_status');
+  const payment = paymentStatus === 'pending' || paymentStatus === 'cleared' ? paymentStatus : null;
+
+  // A COR row means the student is enrolled; they read their own (step 11).
+  const { data: corRow } = await supabase.from('cors').select('school_year, semester').maybeSingle();
+  const cor = corRow as { school_year: string; semester: string } | null;
+
   return {
     kind: 'student_waiting',
     studentNumber: student.student_number,
@@ -80,6 +90,8 @@ async function getStudentStep(): Promise<NextStep> {
         }
       : null,
     slip: slip ? { paymentRequired: slip.payment_required } : null,
+    payment,
+    cor: cor ? { schoolYear: cor.school_year, semester: cor.semester } : null,
   };
 }
 

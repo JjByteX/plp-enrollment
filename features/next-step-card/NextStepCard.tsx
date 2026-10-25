@@ -5,6 +5,7 @@
 // No reschedule button yet; the reschedule request arrives in step 12.
 import { Anchor, Divider, Stack, Text } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
+import { termLabel } from '@/features/cor/schema';
 import type { NextStep } from './queries';
 
 export function NextStepCard({ step }: { step: NextStep }) {
@@ -37,14 +38,24 @@ export function NextStepCard({ step }: { step: NextStep }) {
           {step.slip && (
             <Stack gap={spacing.xs}>
               <Text size="sm">
-                Your assessment slip is ready.{' '}
-                {step.slip.paymentRequired
-                  ? 'Next, Finance clears your payment, then the Registrar issues your COR.'
-                  : 'Next, the Registrar issues your COR.'}
+                {step.cor
+                  ? `You are officially enrolled for ${termLabel(step.cor.schoolYear, step.cor.semester)}.`
+                  : step.slip.paymentRequired && step.payment === 'cleared'
+                    ? 'Your payment is cleared. Next, the Registrar issues your COR.'
+                    : `Your assessment slip is ready. ${
+                        step.slip.paymentRequired
+                          ? 'Next, Finance clears your payment, then the Registrar issues your COR.'
+                          : 'Next, the Registrar issues your COR.'
+                      }`}
               </Text>
               <Anchor href="/slip" size="sm">
                 View assessment slip
               </Anchor>
+              {step.cor && (
+                <Anchor href="/cor" size="sm">
+                  View COR
+                </Anchor>
+              )}
             </Stack>
           )}
           {step.openLateItems.length > 0 && (

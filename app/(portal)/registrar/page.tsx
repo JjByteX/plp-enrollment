@@ -12,6 +12,7 @@ export default function RegistrarPage() {
       <Anchor href="/registrar/documents">Documents</Anchor>
       <Anchor href="/registrar/schedules">Schedules</Anchor>
       <Anchor href="/registrar/slips">Slips</Anchor>
+      <Anchor href="/registrar/cors">COR</Anchor>
     </Stack>
   );
 }

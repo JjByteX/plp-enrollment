@@ -370,3 +370,39 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A. The human chose to allow lecture and laboratory rows per subject; filling them from a catalog flag is the AI's design and is open to change. New sections, and subjects added or flagged later, get a laboratory row automatically; the row carries no units, so units are counted once on the slip and the COR.
 
 **Consequences:** The catalog (step 15) must set `has_laboratory` correctly; until then Admin sets it directly. Rows already created for a subject are not removed if the flag is turned off.
+
+---
+
+**#:** 21
+**Date:** 2026-10-25
+**Milestone:** Build step 11, what the COR shows
+
+**Context:** PLP's COR carries a school year and semester and an itemized fee assessment, but nothing in the system stores a term or a fee schedule.
+
+**Options Considered:**
+- Option A: A one-row `enrollment_term` table set by Admin, copied onto each COR when it is issued; the COR shows Finance's recorded amounts instead of fee lines.
+- Option B: Add a fee schedule (tuition rate, miscellaneous, laboratory) and itemize the COR.
+
+**Community Consensus:** Not searched. This follows the data the system actually holds.
+
+**Decision:** Option A, the AI's design for the human to veto. Issuing a COR is refused until Admin sets the term, which is set by SQL until step 15. Fields with no data (enrollment number, adjustment number, curriculum, scholarship, old account, midterm and final due) are left off.
+
+**Consequences:** An old COR never changes when the term changes. Itemized fees need a fee schedule and a new decision.
+
+---
+
+**#:** 22
+**Date:** 2026-10-25
+**Milestone:** Build step 10, how a payment clears
+
+**Context:** Finance records what a student paid, and the COR waits on it. The plan did not say whether part of a fee counts.
+
+**Options Considered:**
+- Option A: A payment clears only when the amount paid covers the amount due.
+- Option B: Record partial payments and clear when the total is reached.
+
+**Community Consensus:** Not searched. Option A matches the existing `payments` table, which allows one row per student and a cleared check of paid at least due.
+
+**Decision:** Option A, the AI's design for the human to veto. The per-program toggle affects only slips issued afterwards, because each slip keeps its own snapshot.
+
+**Consequences:** An installment plan needs a payments ledger and a new decision. Switching a program's toggle does not reopen or skip anything for students who already have a slip.

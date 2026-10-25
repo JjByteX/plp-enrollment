@@ -78,7 +78,8 @@ SELECT 'section approved', schedule_status, dean_signed_by IS NOT NULL AS dean_s
 -- ST1 was promoted before section A existed; creating the section placed it automatically (step 8)
 SELECT 'ST1 placed by the new section', (SELECT section_id = md5('SEC')::uuid FROM student_sections WHERE student_id = md5('ST1')::uuid) AS in_sec;
 
--- slip, payment, COR (toggle on)
+-- slip, payment, COR (toggle on). A COR needs the term (step 11), so Admin sets it first.
+SELECT act('ad'); INSERT INTO enrollment_term (school_year, semester) VALUES ('2026-2027','1st');
 SELECT act('fn'); UPDATE program_payment_settings SET payment_required = true;
 SELECT act('rg');
 SELECT expect_fail('COR before slip', $$INSERT INTO cors (student_id,issued_by) VALUES (md5('ST1')::uuid, md5('rg')::uuid)$$);
@@ -698,6 +699,168 @@ SELECT expect_eq('slip lists lecture and laboratory rows', (SELECT jsonb_array_l
 SELECT expect_eq('slip units count once: 6 in total, laboratory rows 0',
   (SELECT (sum((e->>'units')::numeric) = 6)::text||'/'||count(*) FILTER (WHERE e->>'meeting' = 'laboratory' AND (e->>'units')::numeric = 0)::text
      FROM jsonb_array_elements(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Aw1')::uuid))->'subjects') e), 'true/2');
+
+-- ============================================================
+-- payment (step 10), 20261025100000_payment.sql. Own program BSV with the
+-- toggle on: three students get a slip and so a pending payment.
+-- ============================================================
+SELECT act('ad');
+INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000a6','BSV','Test Program V','00000000-0000-0000-0000-0000000000c1');
+INSERT INTO subjects (id,program_id,code,title,units,year_level) VALUES (md5('V1')::uuid,'00000000-0000-0000-0000-0000000000a6','V101','V one',3,1);
+SELECT mk_applicant('v1','00000000-0000-0000-0000-0000000000a6', mnl_today());
+SELECT mk_applicant('v2','00000000-0000-0000-0000-0000000000a6', mnl_today());
+SELECT mk_applicant('v3','00000000-0000-0000-0000-0000000000a6', mnl_today());
+UPDATE program_payment_settings SET payment_required = true WHERE program_id = '00000000-0000-0000-0000-0000000000a6';
+SELECT act('sc');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SVA')::uuid,'00000000-0000-0000-0000-0000000000a6','A',1,10);
+UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RM1')::uuid, day_of_week=2, start_time='08:00', end_time='09:00' WHERE section_id=md5('SVA')::uuid;
+UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SVA')::uuid;
+SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('SVA')::uuid;
+SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('SVA')::uuid;
+INSERT INTO students (applicant_id,student_number,documents_received_by) SELECT md5('Av'||n)::uuid,'x',md5('rg')::uuid FROM generate_series(1,3) n;
+SELECT expect_eq('three slips issued with payment required', (SELECT issued::text FROM issue_all_ready_slips() WHERE EXISTS (SELECT 1)), (SELECT count(*)::text FROM assessment_slips sl JOIN students st ON st.id = sl.student_id WHERE st.applicant_id IN (md5('Av1')::uuid, md5('Av2')::uuid, md5('Av3')::uuid) AND sl.payment_required));
+SELECT expect_eq('each slip opened a pending payment', (SELECT count(*)::text FROM payments WHERE status = 'pending' AND student_id IN (SELECT id FROM students WHERE applicant_id IN (md5('Av1')::uuid, md5('Av2')::uuid, md5('Av3')::uuid))), '3');
+
+-- who may call them: Finance and Admin only
+SELECT act('rg');
+SELECT expect_msg('registrar records a payment', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 1000, 'OR-1')$$, 'Only Finance or Admin');
+SELECT expect_msg('registrar reads the queue', $$SELECT * FROM payment_queue('pending')$$, 'Only Finance or Admin');
+SELECT act('ap2'); SELECT expect_msg('applicant records a payment', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 1000, 'OR-1')$$, 'Only Finance or Admin');
+SELECT act('sc'); SELECT expect_msg('secretary records a payment', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 1000, 'OR-1')$$, 'Only Finance or Admin');
+
+-- input rules, then clearing
+SELECT act('fn');
+SELECT expect_eq('pending queue lists the three, lowest number first',
+  (SELECT count(*)::text||'/'||bool_and(program_code = 'BSV')::text FROM payment_queue('pending') WHERE student_number IN (SELECT student_number FROM students WHERE applicant_id IN (md5('Av1')::uuid, md5('Av2')::uuid, md5('Av3')::uuid))), '3/true');
+SELECT expect_msg('partial payment', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 999.99, 'OR-1')$$, 'must cover the amount due');
+SELECT expect_msg('negative amount due', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), -1, 0, NULL)$$, 'Enter the amount due');
+SELECT expect_msg('paid without a receipt', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 1000, '  ')$$, 'receipt number');
+SELECT expect_msg('payment for a student with none', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Ae1')::uuid), 1000, 1000, 'OR-1')$$, 'no payment to record');
+SELECT expect_eq('refusals left everything pending', (SELECT count(*)::text FROM payments WHERE status = 'pending' AND student_id IN (SELECT id FROM students WHERE applicant_id IN (md5('Av1')::uuid, md5('Av2')::uuid, md5('Av3')::uuid))), '3');
+SELECT expect_msg('COR before payment is cleared', $$SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'Payment must be cleared');
+SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 1500.50, ' OR-1 ');
+SELECT expect_eq('cleared payment keeps amounts, trimmed receipt and the actor',
+  (SELECT amount_due::text||'/'||amount_paid::text||'/'||receipt_no||'/'||status||'/'||(recorded_by = md5('fn')::uuid)::text FROM payments WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)),
+  '1000.00/1500.50/OR-1/cleared/true');
+SELECT expect_eq('student was told once', (SELECT count(*)::text FROM notifications WHERE kind = 'payment_cleared' AND user_id = md5('v1')::uuid), '1');
+SELECT expect_msg('record the same payment again', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 1000, 'OR-2')$$, 'already recorded');
+SELECT expect_fail('edit a cleared payment', $$UPDATE payments SET amount_paid = 5 WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)$$);
+SELECT expect_eq('cleared queue has the cleared one', (SELECT count(*)::text FROM payment_queue('cleared') WHERE student_number = (SELECT student_number FROM students WHERE applicant_id = md5('Av1')::uuid)), '1');
+SELECT expect_msg('unknown queue status', $$SELECT * FROM payment_queue('paid')$$, 'Unknown payment status');
+-- zero due, zero paid, no receipt: clears (a fully waived fee)
+SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av2')::uuid), 0, 0, NULL);
+SELECT expect_eq('a zero payment clears without a receipt', (SELECT status||'/'||coalesce(receipt_no,'none') FROM payments WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av2')::uuid)), 'cleared/none');
+-- Admin may record too
+SELECT act('ad');
+SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av3')::uuid), 500, 500, 'OR-3');
+SELECT expect_eq('admin recorded a payment', (SELECT (recorded_by = md5('ad')::uuid)::text FROM payments WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av3')::uuid)), 'true');
+
+-- my_payment_status: a student sees only their own state
+SELECT act('v1'); SELECT expect_eq('v1 payment is cleared', my_payment_status(), 'cleared');
+SELECT act('e1'); SELECT expect_eq('a student with no payment gets null', coalesce(my_payment_status(), 'null'), 'null');
+SELECT act('fn'); SELECT expect_eq('finance gets null', coalesce(my_payment_status(), 'null'), 'null');
+
+-- the toggle: Finance changes it, the change is audited, old slips keep their snapshot
+SELECT act('fn');
+UPDATE program_payment_settings SET payment_required = false WHERE program_id = '00000000-0000-0000-0000-0000000000a6';
+SELECT expect_eq('toggle change audited with the finance actor',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'program_payment_settings' AND actor_id = md5('fn')::uuid AND new_data->>'program_id' = '00000000-0000-0000-0000-0000000000a6' AND new_data->>'payment_required' = 'false'), '1');
+SELECT expect_eq('issued slips keep the snapshot', (SELECT bool_and(sl.payment_required)::text FROM assessment_slips sl JOIN students st ON st.id = sl.student_id WHERE st.applicant_id IN (md5('Av1')::uuid, md5('Av2')::uuid, md5('Av3')::uuid)), 'true');
+
+-- payment row level security as the signed-in roles
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('v1');
+SELECT expect_eq('a student cannot read payments', (SELECT count(*)::text FROM payments), '0');
+SELECT act('rg');
+SELECT expect_fail('registrar changes the toggle', $$UPDATE program_payment_settings SET payment_required = true WHERE program_id = '00000000-0000-0000-0000-0000000000a6'$$);
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 10 row level security checks not run';
+\endif
+
+-- ============================================================
+-- COR (step 11), 20261025110000_cor.sql. Uses the step 10 students: v1 and
+-- v2 paid, v3 paid too; the toggle is off again, so a new student needs none.
+-- ============================================================
+-- the term: Admin only, shape checked, one row
+SELECT act('ad');
+SELECT expect_fail('term with non consecutive years', $$UPDATE enrollment_term SET school_year = '2026-2028'$$);
+SELECT expect_fail('term with a bad format', $$UPDATE enrollment_term SET school_year = '26-27'$$);
+SELECT expect_fail('unknown semester', $$UPDATE enrollment_term SET semester = '3rd'$$);
+SELECT expect_fail('second term row', $$INSERT INTO enrollment_term (id, school_year, semester) VALUES (false, '2027-2028', '2nd')$$);
+SELECT expect_eq('term row stamped with the actor', (SELECT (updated_by = md5('ad')::uuid)::text FROM enrollment_term), 'true');
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('rg');
+SELECT expect_eq('registrar cannot read the term', (SELECT count(*)::text FROM enrollment_term), '0');
+SELECT expect_fail('registrar sets the term', $$UPDATE enrollment_term SET semester = '2nd'$$);
+SELECT act('ad');
+UPDATE enrollment_term SET semester = '2nd';
+SELECT expect_eq('admin changes the term, audited', (SELECT count(*)::text FROM audit_log WHERE table_name = 'enrollment_term' AND action = 'UPDATE' AND new_data->>'semester' = '2nd'), '1');
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 11 row level security checks not run';
+\endif
+SELECT act('ad'); UPDATE enrollment_term SET semester = '1st';
+
+-- who may call them: Registrar and Admin only
+SELECT act('fn');
+SELECT expect_msg('finance issues a COR', $$SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'Only the Registrar or Admin');
+SELECT expect_msg('finance issues all', $$SELECT issue_all_ready_cors()$$, 'Only the Registrar or Admin');
+SELECT act('sc'); SELECT expect_msg('secretary issues a COR', $$SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'Only the Registrar or Admin');
+SELECT act('ap2'); SELECT expect_msg('applicant issues a COR', $$SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'Only the Registrar or Admin');
+
+-- the order is enforced
+SELECT act('rg');
+SELECT expect_msg('COR for nobody', $$SELECT issue_cor(md5('nobody')::uuid)$$, 'Student not found');
+SELECT expect_msg('COR before the slip', $$SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid))$$, 'assessment slip must be issued');
+
+-- no term, no COR (the term row is taken away for one check, as superuser)
+SELECT act('ad'); DELETE FROM enrollment_term;
+SELECT act('rg');
+SELECT expect_msg('COR without a term', $$SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'not set');
+SELECT expect_eq('the refusal left no COR', (SELECT count(*)::text FROM cors WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)), '0');
+SELECT act('ad'); INSERT INTO enrollment_term (school_year, semester) VALUES ('2026-2027','1st');
+
+-- issue one: stamped with the term, the actor and a notification
+SELECT act('rg');
+SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid));
+SELECT expect_eq('COR carries the term and the registrar',
+  (SELECT school_year||'/'||semester||'/'||(issued_by = md5('rg')::uuid)::text FROM cors WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)), '2026-2027/1st/true');
+SELECT expect_eq('student told once, with the term',
+  (SELECT count(*)::text||'/'||(min(message) LIKE '%1st semester%2026-2027%')::text FROM notifications WHERE kind = 'cor_issued' AND user_id = md5('v1')::uuid), '1/true');
+SELECT expect_msg('COR issued twice', $$SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'already issued');
+
+-- an old COR keeps its term when the term changes
+SELECT act('ad'); UPDATE enrollment_term SET semester = '2nd';
+SELECT expect_eq('old COR keeps the 1st semester', (SELECT semester FROM cors WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)), '1st');
+
+-- issue all ready: v2 and v3 are paid, with the new term; e1 to e3 have a slip and no payment required
+SELECT act('rg');
+SELECT expect_eq('issue all issued at least v2 and v3', ((SELECT issued FROM issue_all_ready_cors()) >= 2)::text, 'true');
+SELECT expect_eq('nobody ready is left without a COR',
+  (SELECT count(*)::text FROM assessment_slips sl WHERE NOT EXISTS (SELECT 1 FROM cors c WHERE c.student_id = sl.student_id)
+     AND (NOT sl.payment_required OR EXISTS (SELECT 1 FROM payments p WHERE p.student_id = sl.student_id AND p.status = 'cleared'))), '0');
+SELECT expect_eq('issue all again does nothing', (SELECT issued::text FROM issue_all_ready_cors()), '0');
+SELECT expect_eq('v2 got the new term', (SELECT semester FROM cors WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av2')::uuid)), '2nd');
+
+-- what the COR shows, and who may read it
+SELECT expect_eq('registrar reads a COR: term, section, 1 subject, payment shown',
+  (SELECT (c->>'schoolYear')||'/'||(c->>'semester')||'/'||(c->>'section')||'/'||jsonb_array_length(c->'subjects')::text||'/'||(c->>'amountPaid')||'/'||(c->>'receiptNo')||'/'||(c->>'collegeName')
+     FROM (SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)) c) t),
+  '2026-2027/1st/BSV Year 1 - A/1/1500.50/OR-1/College of Ed');
+SELECT expect_eq('COR names the issuer and the student type',
+  (SELECT (c->>'issuedByName')||'/'||(c->>'issuedByRole')||'/'||(c->>'admissionType')||'/'||(c->>'yearLevel')
+     FROM (SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)) c) t), 'rg/registrar/new/1');
+SELECT expect_eq('COR without an issue is null', coalesce(certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Ae4')::uuid))::text, 'null'), 'null');
+SELECT act('v1');
+SELECT expect_eq('a student reads their own COR', (certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)) IS NOT NULL)::text, 'true');
+SELECT expect_msg('a student reads another COR', $$SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av2')::uuid))$$, 'only view your own');
+SELECT act('fn');
+SELECT expect_msg('finance reads a COR', $$SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'only view your own');
+SELECT act('ap2');
+SELECT expect_msg('an applicant reads a COR', $$SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'only view your own');
 
 -- audit
 SELECT 'audit rows', count(*), count(DISTINCT table_name) AS tables FROM audit_log;

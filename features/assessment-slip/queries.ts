@@ -27,7 +27,7 @@ type RawPlacement = { sections: { name: string; year_level: number; schedule_sta
 
 // PostgREST returns an array for one to many and an object (or null) for one
 // to one, so accept both.
-function first<T>(value: unknown): T | null {
+export function first<T>(value: unknown): T | null {
   if (Array.isArray(value)) return (value[0] as T | undefined) ?? null;
   return (value as T | null) ?? null;
 }
@@ -60,12 +60,19 @@ export async function listReadyStudents(): Promise<ReadyStudent[]> {
   });
 }
 
-// The signed-in student's own slip, or null when none was issued.
-export async function getMySlip(): Promise<SlipData | null> {
+// The signed-in student's own id (row level security shows a student only
+// their own row), or null for anyone else. The COR reads use it too.
+export async function getMyStudentId(): Promise<string | null> {
   const supabase = createClient();
   const { data: student } = await supabase.from('students').select('id').maybeSingle();
-  const id = (student as { id: string } | null)?.id;
+  return (student as { id: string } | null)?.id ?? null;
+}
+
+// The signed-in student's own slip, or null when none was issued.
+export async function getMySlip(): Promise<SlipData | null> {
+  const id = await getMyStudentId();
   if (!id) return null;
+  const supabase = createClient();
 
   const { data } = await supabase.rpc('assessment_slip', { p_student: id });
   return (data as SlipData | null) ?? null;

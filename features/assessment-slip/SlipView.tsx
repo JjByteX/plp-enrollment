@@ -4,11 +4,7 @@
 // the content comes from assessment_slip() in the database.
 import { Divider, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
-import { DAY_LABEL, formatIssuedDate, subjectName, totalUnits, windowLabel, type SlipData } from './schema';
-
-function timeText(day: number | null, start: string | null, end: string | null): string {
-  return day !== null && start && end ? `${DAY_LABEL[day]}, ${windowLabel(start, end)}` : '';
-}
+import { formatIssuedDate, scheduleText, subjectName, totalUnits, type SlipData } from './schema';
 
 export function SlipView({ slip }: { slip: SlipData }) {
   return (
@@ -60,7 +56,7 @@ export function SlipView({ slip }: { slip: SlipData }) {
                 <Table.Td>{subject.units}</Table.Td>
                 <Table.Td>{subject.professor ?? ''}</Table.Td>
                 <Table.Td>{subject.room ?? ''}</Table.Td>
-                <Table.Td>{timeText(subject.day, subject.start, subject.end)}</Table.Td>
+                <Table.Td>{scheduleText(subject.day, subject.start, subject.end)}</Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>

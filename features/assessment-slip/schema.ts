@@ -5,7 +5,7 @@
 
 export { UUID } from '@/features/visit-scheduling/schema';
 export { DAY_LABEL, subjectName, windowLabel } from '@/features/section-scheduling/schema';
-import type { Meeting } from '@/features/section-scheduling/schema';
+import { DAY_LABEL, windowLabel, type Meeting } from '@/features/section-scheduling/schema';
 
 export type SlipSubject = {
   code: string;
@@ -38,6 +38,12 @@ export function formatIssuedDate(value: string): string {
     day: 'numeric',
     timeZone: 'Asia/Manila',
   }).format(new Date(value));
+}
+
+// "Monday, 8:00 AM to 10:00 AM", or empty when the subject has no time yet.
+// The slip and the COR both print it.
+export function scheduleText(day: number | null, start: string | null, end: string | null): string {
+  return day !== null && start && end ? `${DAY_LABEL[day]}, ${windowLabel(start, end)}` : '';
 }
 
 export function totalUnits(subjects: SlipSubject[]): number {
