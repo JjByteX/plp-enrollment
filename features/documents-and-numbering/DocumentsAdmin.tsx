@@ -5,7 +5,9 @@
 // Fewer than 5 rows render as a list, 5 or more as a table
 // (ux-ui-guidelines.md). The checklist opens as a centered modal. All changes
 // go through ./actions. Each Waiting and Received row has a Withdraw button
-// (step 17); the Withdrawn tab lists who withdrew, who did it and why.
+// (step 17); the Withdrawn tab lists who withdrew, who did it and why. Each
+// Received row also has a Correct button for a name or email fixed after
+// promotion (features/correct-student-details).
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput } from '@mantine/core';
@@ -13,6 +15,7 @@ import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { formatSlotDate } from '@/features/visit-scheduling/schema';
+import { CorrectDetailsButton } from '@/features/correct-student-details/CorrectDetailsButton';
 import { WithdrawApplicantButton } from '@/features/withdraw-enrollment/WithdrawApplicantButton';
 import { ChecklistModal } from './ChecklistModal';
 import type { PendingApplicant, ReceivedStudent, WithdrawnApplicant } from './queries';
@@ -243,7 +246,15 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
                   </Text>
                 )}
               </Stack>
-              <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.studentNumber} />
+              <Group gap={spacing.sm} wrap="nowrap">
+                <CorrectDetailsButton
+                  applicantId={row.applicantId}
+                  studentNumber={row.studentNumber}
+                  fullName={row.fullName}
+                  email={row.email}
+                />
+                <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.studentNumber} />
+              </Group>
             </Group>
           </Stack>
         ))}
@@ -275,7 +286,13 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
               <Table.Td>{row.receivedByName ?? ''}</Table.Td>
               <Table.Td>{row.openLateItems.join('; ')}</Table.Td>
               <Table.Td>
-                <Group justify="flex-end">
+                <Group justify="flex-end" gap={spacing.sm} wrap="nowrap">
+                  <CorrectDetailsButton
+                    applicantId={row.applicantId}
+                    studentNumber={row.studentNumber}
+                    fullName={row.fullName}
+                    email={row.email}
+                  />
                   <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.studentNumber} />
                 </Group>
               </Table.Td>

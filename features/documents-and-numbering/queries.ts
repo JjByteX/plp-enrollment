@@ -56,6 +56,7 @@ export type ReceivedStudent = {
   applicantId: string;
   applicantRef: string;
   fullName: string;
+  email: string;
   programCode: string;
   admissionType: AdmissionType;
   receivedAt: string;
@@ -194,7 +195,7 @@ type RawStudent = {
     program_id: string;
     withdrawn_at: string | null;
     admission_type: string;
-    users: { full_name: string } | null;
+    users: { full_name: string; email: string } | null;
     programs: { code: string } | null;
     documents: RawDocument[] | null;
   } | null;
@@ -211,7 +212,7 @@ export async function listReceivedStudents(
       .from('students')
       .select(
         'id, student_number, applicant_id, documents_received_at, users(full_name), ' +
-          'applicants(applicant_ref, program_id, withdrawn_at, admission_type, users(full_name), programs(code), documents(doc_type, note, received_at))'
+          'applicants(applicant_ref, program_id, withdrawn_at, admission_type, users(full_name, email), programs(code), documents(doc_type, note, received_at))'
       )
       .order('documents_received_at', { ascending: false })
       .order('id')
@@ -235,6 +236,7 @@ export async function listReceivedStudents(
       applicantId: row.applicant_id,
       applicantRef: applicant.applicant_ref,
       fullName,
+      email: applicant.users?.email ?? '',
       programCode: applicant.programs?.code ?? '',
       admissionType: applicant.admission_type,
       receivedAt: row.documents_received_at,
