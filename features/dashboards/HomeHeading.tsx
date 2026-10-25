@@ -3,7 +3,7 @@
 // warning with the link that fixes it.
 import Link from 'next/link';
 import { Anchor, Group, Stack, Text } from '@mantine/core';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { PageHeading } from '@/components/PageHeading';
 import { color, layout, spacing } from '@/styles/tokens';
 

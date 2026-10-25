@@ -5,7 +5,7 @@
 // Opened from the profile menu. Two controls: a font size slider (scales the
 // whole app, since Mantine sizes are rem-based) and a theme switch
 // (Light / Dark / Match device). Both apply immediately and persist.
-import { ComputerDesktopIcon, MoonIcon, SunIcon } from '@heroicons/react/24/solid';
+import { ComputerDesktopIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 import { Divider, Group, Modal, SegmentedControl, Slider, Stack, Text } from '@mantine/core';
 import { color, fontWeight, layout, padding, spacing } from '@/styles/tokens';
 import { FONT_SCALE_MARKS, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP, useSettings } from './SettingsContext';

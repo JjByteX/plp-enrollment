@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Box, Button, Card, Divider, Group, Menu, NavLink, Stack, Text, Tooltip, UnstyledButton, useComputedColorScheme } from '@mantine/core';
-import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, Cog6ToothIcon } from '@heroicons/react/24/solid';
+import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { signOut } from '@/lib/auth/actions';
 import { SIDEBAR_COOKIE, flattenNav, isActive, type NavGroup } from '@/lib/nav';
 import { NAV_ICONS } from '@/components/NavIcons';
@@ -78,14 +78,66 @@ export function PortalShell({
     </Link>
   );
 
+  const profileMenu = (
+      <Menu position="bottom-end">
+        <Menu.Target>
+          <UnstyledButton aria-label="Profile menu">
+            <Group gap={spacing.sm} wrap="nowrap">
+              <Box
+                bg={color.accentSubtleBg}
+                c={green[7]}
+                fw={fontWeight.semibold}
+                style={{
+                  width: layout.avatarSize,
+                  height: layout.avatarSize,
+                  borderRadius: radius.default,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {initials(userName)}
+              </Box>
+              <Text size="sm" fw={fontWeight.semibold} c={textPrimary}>
+                {userName}
+              </Text>
+            </Group>
+          </UnstyledButton>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Label>{roleLabel}</Menu.Label>
+          <Menu.Item leftSection={<Cog6ToothIcon width={layout.iconSize} height={layout.iconSize} />} onClick={() => setSettingsOpen(true)}>
+            Settings
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item onClick={() => signOut()}>Sign out</Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
+  );
+
   return (
     <SettingsProvider>
-      <Box style={{ display: 'flex', height: '100dvh', background: chromeBg }}>
+      <Box style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: chromeBg }}>
+        <Box
+          component="header"
+          h={layout.headerHeight}
+          px={spacing.sm}
+          style={{ flex: 'none', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', columnGap: spacing.md }}
+        >
+          <Box pl={spacing.sm} style={{ flex: 'none', justifySelf: 'start' }}>
+            {brand}
+          </Box>
+          <Box style={{ minWidth: 0 }}>{searchItems.length > 0 && <CommandSearch items={searchItems} />}</Box>
+          <Box style={{ justifySelf: 'end' }}>{profileMenu}</Box>
+        </Box>
+
+        <Box style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {hasSidebar && (
           <Box
             component="nav"
             aria-label="Main"
-            p={spacing.sm}
+            px={spacing.sm}
+            pb={spacing.sm}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -96,10 +148,6 @@ export function PortalShell({
               overflowX: 'hidden',
             }}
           >
-            <Box p={spacing.sm} mb={spacing.md} style={{ display: 'flex', justifyContent: 'flex-start' }}>
-              {brand}
-            </Box>
-
             <Stack gap={spacing.md} style={{ flex: 1 }}>
               {nav.map((group, index) => (
                 <Stack key={group.label ?? `group-${index}`} gap={spacing.xs}>
@@ -167,47 +215,6 @@ export function PortalShell({
         )}
 
         <Box style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }} pr={spacing.sm} pb={spacing.sm} pl={hasSidebar ? 0 : spacing.sm}>
-          <Group h={layout.headerHeight} justify="space-between" wrap="nowrap" gap={spacing.md} style={{ flex: 'none' }}>
-            {!hasSidebar && <Box pl={spacing.sm}>{brand}</Box>}
-            <Box style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-              {searchItems.length > 0 && <CommandSearch items={searchItems} />}
-            </Box>
-            <Menu position="bottom-end">
-              <Menu.Target>
-                <UnstyledButton aria-label="Profile menu">
-                  <Group gap={spacing.sm} wrap="nowrap">
-                    <Box
-                      bg={color.accentSubtleBg}
-                      c={green[7]}
-                      fw={fontWeight.semibold}
-                      style={{
-                        width: layout.avatarSize,
-                        height: layout.avatarSize,
-                        borderRadius: radius.default,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {initials(userName)}
-                    </Box>
-                    <Text size="sm" fw={fontWeight.semibold} c={textPrimary}>
-                      {userName}
-                    </Text>
-                  </Group>
-                </UnstyledButton>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Label>{roleLabel}</Menu.Label>
-                <Menu.Item leftSection={<Cog6ToothIcon width={layout.iconSize} height={layout.iconSize} />} onClick={() => setSettingsOpen(true)}>
-                  Settings
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item onClick={() => signOut()}>Sign out</Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-
           {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
 
           <Box
@@ -231,6 +238,7 @@ export function PortalShell({
               {children}
             </Stack>
           </Box>
+        </Box>
         </Box>
       </Box>
     </SettingsProvider>

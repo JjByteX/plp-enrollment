@@ -3,7 +3,7 @@
 // the one thing here that needs the Registrar to act (add a slot).
 import Link from 'next/link';
 import { Anchor, Group, Progress, Stack, Text } from '@mantine/core';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { color, fontWeight, layout, spacing } from '@/styles/tokens';
 import { plural, type VisitCapacityData } from './schema';
 

@@ -11,7 +11,7 @@
 // before. A subpage (e.g. /registrar/visits) renders <PageHeading title="Visits"
 // parent={{ label: 'Registrar', href: '/registrar' }} /> instead.
 import Link from 'next/link';
-import { ChevronRightIcon } from '@heroicons/react/24/solid';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Group, Title } from '@mantine/core';
 import { color, fontSize, fontWeight, layout, spacing } from '@/styles/tokens';
 
