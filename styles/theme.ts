@@ -1,6 +1,6 @@
 // styles/theme.ts
 import { createTheme, type MantineColorsTuple } from '@mantine/core';
-import { gray, blue, fontFamily, fontWeight, radius } from './tokens';
+import { gray, green, fontFamily, fontWeight, radius } from './tokens';
 
 // Mantine requires a 10-shade tuple per color. Primer's scales are 11/10
 // steps; we map them onto Mantine's 0(lightest)-9(darkest) ordering.
@@ -17,25 +17,25 @@ const primerGray: MantineColorsTuple = [
   gray[900],
 ];
 
-const primerBlue: MantineColorsTuple = [
-  blue[0],
-  blue[1],
-  blue[2],
-  blue[3],
-  blue[4],
-  blue[5],
-  blue[6],
-  blue[7],
-  blue[8],
-  blue[9],
+const primerGreen: MantineColorsTuple = [
+  green[0],
+  green[1],
+  green[2],
+  green[3],
+  green[4],
+  green[5],
+  green[6],
+  green[7],
+  green[8],
+  green[9],
 ];
 
 export const theme = createTheme({
   colors: {
     gray: primerGray,
-    blue: primerBlue,
+    green: primerGreen,
   },
-  primaryColor: 'blue',
+  primaryColor: 'green',
   primaryShade: 5,
   fontFamily: fontFamily.body,
   headings: {

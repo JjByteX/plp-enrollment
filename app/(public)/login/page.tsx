@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { Box, Paper, Stack, Text, Title } from '@mantine/core';
 import { getCurrentUser } from '@/lib/auth/session';
 import { homePath } from '@/lib/auth/roles';
-import { blue, color, fontSize, gray, padding, radius, spacing } from '@/styles/tokens';
+import { color, fontSize, gray, green, padding, radius, spacing } from '@/styles/tokens';
 import { LoginForm } from './LoginForm';
 
 export const metadata = { title: 'Sign in | PLP Enrollment' };
@@ -41,7 +41,7 @@ export default async function LoginPage() {
         }}
       />
       {/* Blue tint so the white text stays readable on any photo */}
-      <Box aria-hidden pos="absolute" bg={blue[9]} style={{ inset: 0, opacity: TINT_OPACITY }} />
+      <Box aria-hidden pos="absolute" bg={green[8]} style={{ inset: 0, opacity: TINT_OPACITY }} />
 
       <Stack
         gap={spacing.lg}

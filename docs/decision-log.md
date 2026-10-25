@@ -479,3 +479,23 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A, the AI's design for the human to veto. Adding a subject needs its program and year level, and editing keeps both, because sections were filled from them. A subject or room that a section uses cannot be deleted (the database refuses it). Changing the term never alters an issued COR, because each COR keeps its own term. There is no program editor, because a program code must keep matching the course code in PLP Admissions, and a new course needs a change on both sides.
 
 **Consequences:** No real curriculum exists until someone enters it. A CSV import would be quicker for hundreds of subjects and can be added later as its own step. An issued subject cannot move to another program or year level; it must be deleted (when unused) and added again.
+
+---
+
+**#:** 27
+**Date:** 2026-10-25
+**Milestone:** Portal look: brand color and sidebar shell
+
+**Context:** The portal was a plain white page with a header and no navigation, and the login was a bare card. The human asked for a GitLab-style shell with a collapsible sidebar and rounded panels, and for green branding built on an established public color scale.
+
+**Options Considered:**
+- Option A: Keep GitHub Primer (decision #7) and swap its blue accent for Primer's own green scale. The grey scale, spacing, radius and type tokens stay as they are.
+- Option B: Switch to another palette, such as Tailwind green.
+- Option C: Keep blue and only add the sidebar.
+
+**Community Consensus:** Not searched. Primer is already the token source, and its green scale is published with the same 0 to 9 steps, so Option A changes one scale and nothing else.
+
+**Decision:** Option A, the AI's design for the human to veto. The accent is Primer green 5 (white text on it passes AA contrast). The frame around the page (sidebar and top bar) is flat grey and the page sits on one rounded panel, so the 60/30/10 split holds and no gradients or shadows are used. The sidebar lists each staff role's pages, collapses to a narrow rail with its state kept in a cookie, and holds no account items (those stay in the profile menu). Applicants and Students get no sidebar, because their path is one linear flow shown by the next step card (ux-ui-guidelines.md, layout pattern rules). The sidebar icons come from Heroicons (`@heroicons/react`, 24 outline set), chosen by the human, one icon per concept, mapped in `components/NavIcons.tsx`; none is hand-drawn. The login uses the Admissions campus photo, blurred, with the PLP seal.
+
+**Consequences:** `blue` is gone from `styles/tokens.ts`; any later code uses `green`. A role with one or two pages (Professor, Finance, Dean) still gets a sidebar for a consistent shell. Collapsed, the sidebar shows icons only, each with a tooltip carrying its label. The dependency was added to `package.json` and `package-lock.json` by hand (version 2.2.0, integrity taken from the npm registry) because no install was run; the next `npm install` should leave the lockfile unchanged.
+

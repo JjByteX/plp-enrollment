@@ -1,9 +1,9 @@
 // styles/tokens.ts
 //
 // Design tokens for the PLP Enrollment system.
-// Source: GitHub Primer's published color primitives (gray + blue scales).
+// Source: GitHub Primer's published color primitives (gray + green scales).
 // See decision-log.md, entry #7, for why Primer was chosen over Tailwind
-// Slate/Blue — the other option presented to the human.
+// Slate/Blue, and entry #27 for the change of brand color from blue to green.
 //
 // Per ux-ui-guidelines.md: every color, spacing, radius, and padding value
 // used more than once must be a token referenced from here. Never hardcode
@@ -27,18 +27,18 @@ export const gray = {
   1000: '#1F2328',
 } as const;
 
-// GitHub Primer accent (blue) scale, 0 (lightest) to 9 (darkest)
-export const blue = {
-  0: '#DDF4FF',
-  1: '#B6E3FF',
-  2: '#80CCFF',
-  3: '#54AEFF',
-  4: '#218BFF',
-  5: '#0969DA', // accent — primary interactive color
-  6: '#0550AE',
-  7: '#033D8B',
-  8: '#0A3069',
-  9: '#002155',
+// GitHub Primer accent (green) scale, 0 (lightest) to 9 (darkest)
+export const green = {
+  0: '#DAFBE1',
+  1: '#ACEEBB',
+  2: '#6FDD8B',
+  3: '#4AC26B',
+  4: '#2DA44E',
+  5: '#1A7F37', // accent: primary interactive color (white text on it passes AA)
+  6: '#116329',
+  7: '#044F1E',
+  8: '#003D16',
+  9: '#002D11',
 } as const;
 
 // ---------------------------------------------------------------
@@ -47,6 +47,7 @@ export const blue = {
 export const color = {
   // 60% — dominant surface: page backgrounds
   surfacePage: gray[0],
+  surfaceChrome: gray[100], // the frame around the page: sidebar and top bar
   surfacePageDark: gray[1000],
 
   // 30% — secondary surface: cards, panels, sidebars, containers
@@ -56,9 +57,9 @@ export const color = {
   borderDark: gray[700],
 
   // 10% — accent: buttons, active states, highlights, badges
-  accent: blue[5],
-  accentHover: blue[6],
-  accentSubtleBg: blue[0], // pill/badge backgrounds
+  accent: green[5],
+  accentHover: green[6],
+  accentSubtleBg: green[0], // pill/badge backgrounds, active nav item
 
   // text
   textPrimary: gray[900],
@@ -69,7 +70,7 @@ export const color = {
 
   // semantic (reserve: pull from Primer's green/yellow/red scales when needed,
   // do not invent new hues — see decision-log.md entry #7)
-  success: '#1A7F37',
+  success: green[5],
   warning: '#9A6700',
   error: '#CF222E',
 } as const;
@@ -145,4 +146,7 @@ export const fontSize = {
 export const layout = {
   headerHeight: 64,
   sidebarWidth: 240,
+  sidebarCollapsedWidth: 72,
+  avatarSize: 32,
+  iconSize: 20,
 } as const;
