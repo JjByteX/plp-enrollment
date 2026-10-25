@@ -5,7 +5,20 @@
 // certification, signatures and the "officially enrolled" stamp. Presentational
 // only: the content comes from certificate_of_registration() in the database.
 // There is no fee schedule, so the payment block shows what Finance recorded.
-import { Divider, Group, Stack, Table, Text, Title } from '@mantine/core';
+import {
+  Divider,
+  Group,
+  Stack,
+  Table,
+  TableScrollContainer,
+  TableTbody,
+  TableTd,
+  TableTh,
+  TableThead,
+  TableTr,
+  Text,
+  Title,
+} from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { formatPeso } from '@/features/payment/schema';
 import {
@@ -76,32 +89,32 @@ export function CorView({ cor }: { cor: CorData }) {
       <Divider />
 
       <Title order={4}>Class schedule</Title>
-      <Table.ScrollContainer minWidth={720}>
+      <TableScrollContainer minWidth={720}>
         <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Subject</Table.Th>
-              <Table.Th>Description</Table.Th>
-              <Table.Th>Section</Table.Th>
-              <Table.Th>Units</Table.Th>
-              <Table.Th>Room</Table.Th>
-              <Table.Th>Schedule</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
+          <TableThead>
+            <TableTr>
+              <TableTh>Subject</TableTh>
+              <TableTh>Description</TableTh>
+              <TableTh>Section</TableTh>
+              <TableTh>Units</TableTh>
+              <TableTh>Room</TableTh>
+              <TableTh>Schedule</TableTh>
+            </TableTr>
+          </TableThead>
+          <TableTbody>
             {cor.subjects.map((subject) => (
-              <Table.Tr key={`${subject.code}-${subject.meeting}`}>
-                <Table.Td>{subjectName(subject.code, subject.meeting)}</Table.Td>
-                <Table.Td>{subject.title}</Table.Td>
-                <Table.Td>{cor.section}</Table.Td>
-                <Table.Td>{Number(subject.units).toFixed(2)}</Table.Td>
-                <Table.Td>{subject.room ?? ''}</Table.Td>
-                <Table.Td>{scheduleText(subject.day, subject.start, subject.end)}</Table.Td>
-              </Table.Tr>
+              <TableTr key={`${subject.code}-${subject.meeting}`}>
+                <TableTd>{subjectName(subject.code, subject.meeting)}</TableTd>
+                <TableTd>{subject.title}</TableTd>
+                <TableTd>{cor.section}</TableTd>
+                <TableTd>{Number(subject.units).toFixed(2)}</TableTd>
+                <TableTd>{subject.room ?? ''}</TableTd>
+                <TableTd>{scheduleText(subject.day, subject.start, subject.end)}</TableTd>
+              </TableTr>
             ))}
-          </Table.Tbody>
+          </TableTbody>
         </Table>
-      </Table.ScrollContainer>
+      </TableScrollContainer>
       <Text fw={fontWeight.semibold}>Total units: {totalUnits(cor.subjects).toFixed(2)}</Text>
 
       <Divider />

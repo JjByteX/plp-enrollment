@@ -2,7 +2,20 @@
 //
 // The assessment slip as the student reads and prints it. Presentational only:
 // the content comes from assessment_slip() in the database.
-import { Divider, Group, Stack, Table, Text, Title } from '@mantine/core';
+import {
+  Divider,
+  Group,
+  Stack,
+  Table,
+  TableScrollContainer,
+  TableTbody,
+  TableTd,
+  TableTh,
+  TableThead,
+  TableTr,
+  Text,
+  Title,
+} from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { formatIssuedDate, scheduleText, subjectName, totalUnits, type SlipData } from './schema';
 
@@ -36,32 +49,32 @@ export function SlipView({ slip }: { slip: SlipData }) {
 
       <Divider />
 
-      <Table.ScrollContainer minWidth={640}>
+      <TableScrollContainer minWidth={640}>
         <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Subject</Table.Th>
-              <Table.Th>Units</Table.Th>
-              <Table.Th>Professor</Table.Th>
-              <Table.Th>Room</Table.Th>
-              <Table.Th>Schedule</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
+          <TableThead>
+            <TableTr>
+              <TableTh>Subject</TableTh>
+              <TableTh>Units</TableTh>
+              <TableTh>Professor</TableTh>
+              <TableTh>Room</TableTh>
+              <TableTh>Schedule</TableTh>
+            </TableTr>
+          </TableThead>
+          <TableTbody>
             {slip.subjects.map((subject) => (
-              <Table.Tr key={`${subject.code}-${subject.meeting}`}>
-                <Table.Td>
+              <TableTr key={`${subject.code}-${subject.meeting}`}>
+                <TableTd>
                   {subjectName(subject.code, subject.meeting)}, {subject.title}
-                </Table.Td>
-                <Table.Td>{subject.units}</Table.Td>
-                <Table.Td>{subject.professor ?? ''}</Table.Td>
-                <Table.Td>{subject.room ?? ''}</Table.Td>
-                <Table.Td>{scheduleText(subject.day, subject.start, subject.end)}</Table.Td>
-              </Table.Tr>
+                </TableTd>
+                <TableTd>{subject.units}</TableTd>
+                <TableTd>{subject.professor ?? ''}</TableTd>
+                <TableTd>{subject.room ?? ''}</TableTd>
+                <TableTd>{scheduleText(subject.day, subject.start, subject.end)}</TableTd>
+              </TableTr>
             ))}
-          </Table.Tbody>
+          </TableTbody>
         </Table>
-      </Table.ScrollContainer>
+      </TableScrollContainer>
 
       <Text fw={fontWeight.semibold}>Total units: {totalUnits(slip.subjects)}</Text>
       <Text size="sm" c={color.textSecondary}>
