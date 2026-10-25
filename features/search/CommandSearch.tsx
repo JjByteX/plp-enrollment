@@ -10,7 +10,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Fuse from 'fuse.js';
-import { ActionIcon, Box, Group, Kbd, Paper, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
+import { Box, Group, Kbd, Paper, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { useHotkeys, useClickOutside } from '@mantine/hooks';
 import { color, fontWeight, layout, radius, shadow, spacing } from '@/styles/tokens';

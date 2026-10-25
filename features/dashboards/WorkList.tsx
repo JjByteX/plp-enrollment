@@ -42,6 +42,9 @@ export function WorkList({ items }: { items: WorkItem[] }) {
     (item, index) =>
       (item.waiting === null || item.waiting === 0) && items.findIndex((other) => other.href === item.href) === index
   );
+  // A lone shortcut is just the sidebar link repeated (Dean, Secretary, Finance
+  // have one destination), so the block is only worth showing for two or more.
+  const showShortcuts = shortcuts.length > 1;
 
   return (
     <Stack gap={spacing.lg}>
@@ -63,7 +66,7 @@ export function WorkList({ items }: { items: WorkItem[] }) {
         </Group>
       )}
 
-      {shortcuts.length > 0 && (
+      {showShortcuts && (
         <Stack gap={spacing.md}>
           <Text fw={fontWeight.semibold}>Shortcuts</Text>
           <Group gap={spacing.lg}>
