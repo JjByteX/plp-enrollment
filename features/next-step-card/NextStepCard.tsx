@@ -21,6 +21,24 @@ export function NextStepCard({ step }: { step: NextStep }) {
         </Text>
       )}
 
+      {step.kind === 'withdrawn' && (
+        <Stack gap={spacing.xs}>
+          <Text size="sm">
+            {step.byStaff
+              ? `The Registrar withdrew your enrollment on ${step.date}.`
+              : `You withdrew your enrollment on ${step.date}.`}
+          </Text>
+          {step.byStaff && (
+            <Text size="sm" c={color.textSecondary} style={{ whiteSpace: 'pre-line' }}>
+              Reason: {step.reason}
+            </Text>
+          )}
+          <Text size="sm" c={color.textSecondary}>
+            There is nothing more to do here. To come back, contact the Registrar.
+          </Text>
+        </Stack>
+      )}
+
       {step.kind === 'waiting' && (
         <Text size="sm" c={color.textSecondary}>
           Waiting for your visit schedule. The Registrar will assign a date and you will see it here.

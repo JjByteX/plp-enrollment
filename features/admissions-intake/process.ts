@@ -32,6 +32,7 @@ type ApplicantRow = {
   admission_date: string;
   admission_type: string;
   admissions_verified_docs: string[] | null;
+  withdrawn_at: string | null;
 };
 type UserRow = { id: string; auth_id: string; role: string; email: string; full_name: string };
 
@@ -51,7 +52,7 @@ async function apply(admin: SupabaseClient, input: IntakePayload): Promise<Appli
 
   const { data: existingRow, error: existingError } = await admin
     .from('applicants')
-    .select('id, user_id, program_id, admission_date, admission_type, admissions_verified_docs')
+    .select('id, user_id, program_id, admission_date, admission_type, admissions_verified_docs, withdrawn_at')
     .eq('applicant_ref', input.applicant_ref)
     .maybeSingle();
   if (existingError) return reject(500, 'Could not look up the applicant.');
@@ -91,8 +92,11 @@ async function autoAssignVisit(admin: SupabaseClient, applicantId: string): Prom
 }
 
 // Same applicant sent again: details refresh while they are still an
-// Applicant. Once they are a Student nothing changes.
+// Applicant. Once they are a Student nothing changes. Someone who withdrew
+// (step 17) stays withdrawn: a resend changes nothing and books no visit.
 async function refresh(admin: SupabaseClient, existing: ApplicantRow, input: IntakePayload, programId: string): Promise<Applied> {
+  if (existing.withdrawn_at) return { ok: true, result: 'unchanged', applicantId: existing.id };
+
   const { data: userData, error: userError } = await admin
     .from('users')
     .select('id, auth_id, role, email, full_name')

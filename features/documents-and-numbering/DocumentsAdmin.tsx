@@ -4,7 +4,8 @@
 // applicants waiting to submit documents (or the students already received).
 // Fewer than 5 rows render as a list, 5 or more as a table
 // (ux-ui-guidelines.md). The checklist opens as a centered modal. All changes
-// go through ./actions.
+// go through ./actions. Each Waiting and Received row has a Withdraw button
+// (step 17); the Withdrawn tab lists who withdrew, who did it and why.
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput } from '@mantine/core';
@@ -12,8 +13,9 @@ import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { formatSlotDate } from '@/features/visit-scheduling/schema';
+import { WithdrawApplicantButton } from '@/features/withdraw-enrollment/WithdrawApplicantButton';
 import { ChecklistModal } from './ChecklistModal';
-import type { PendingApplicant, ReceivedStudent } from './queries';
+import type { PendingApplicant, ReceivedStudent, WithdrawnApplicant } from './queries';
 import {
   ADMISSION_TYPE_LABEL,
   MAX_SEARCH,
@@ -37,12 +39,14 @@ export function DocumentsAdmin({
   requirements,
   pending,
   received,
+  withdrawn,
 }: {
   filter: DocumentsFilter;
   programs: ProgramOption[];
   requirements: Requirement[];
   pending: PendingApplicant[];
   received: ReceivedStudent[];
+  withdrawn: WithdrawnApplicant[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState(filter.q);
@@ -78,17 +82,18 @@ export function DocumentsAdmin({
     <Stack gap={spacing.md}>
       <PageHeading title="Documents" parent={{ label: 'Registrar', href: '/registrar' }} />
 
-      <Tabs value={filter.tab} onChange={(value) => setFilter({ tab: value === 'received' ? 'received' : 'pending' })}>
+      <Tabs value={filter.tab} onChange={(value) => setFilter({ tab: value === 'received' || value === 'withdrawn' ? value : 'pending' })}>
         <Tabs.List>
           <Tabs.Tab value="pending">Waiting</Tabs.Tab>
           <Tabs.Tab value="received">Received</Tabs.Tab>
+          <Tabs.Tab value="withdrawn">Withdrawn</Tabs.Tab>
         </Tabs.List>
       </Tabs>
 
       <Group gap={spacing.md} align="flex-end">
         <TextInput
           label="Search"
-          placeholder={filter.tab === 'received' ? 'Name, reference or student number' : 'Name, reference or email'}
+          placeholder={filter.tab === 'pending' ? 'Name, reference or email' : 'Name, reference or student number'}
           maxLength={MAX_SEARCH}
           value={search}
           onChange={(event) => onSearch(event.currentTarget.value)}
@@ -108,8 +113,10 @@ export function DocumentsAdmin({
 
       {filter.tab === 'pending' ? (
         <PendingRows rows={pending} filtered={filtered} onOpen={setOpen} />
-      ) : (
+      ) : filter.tab === 'received' ? (
         <ReceivedRows rows={received} filtered={filtered} />
+      ) : (
+        <WithdrawnRows rows={withdrawn} filtered={filtered} />
       )}
 
       {open && (
@@ -158,9 +165,12 @@ function PendingRows({
                   Required documents: {progressLabel(row.progress)}
                 </Text>
               </Stack>
-              <Button variant="default" onClick={() => onOpen(row)}>
-                Open
-              </Button>
+              <Group gap={spacing.sm} wrap="nowrap">
+                <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.applicantRef} />
+                <Button variant="default" onClick={() => onOpen(row)}>
+                  Open
+                </Button>
+              </Group>
             </Group>
           </Stack>
         ))}
@@ -192,7 +202,8 @@ function PendingRows({
               <Table.Td>{visitText(row.visitDate)}</Table.Td>
               <Table.Td>{progressLabel(row.progress)}</Table.Td>
               <Table.Td>
-                <Group justify="flex-end">
+                <Group justify="flex-end" gap={spacing.sm} wrap="nowrap">
+                  <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.applicantRef} />
                   <Button variant="default" size="xs" onClick={() => onOpen(row)}>
                     Open
                   </Button>
@@ -217,18 +228,23 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
         {rows.map((row, index) => (
           <Stack key={row.studentId} gap={spacing.xs}>
             {index > 0 && <Divider />}
-            <Text fw={fontWeight.semibold}>
-              {row.studentNumber}, {row.fullName}
-            </Text>
-            <Text size="sm" c={color.textSecondary}>
-              {row.programCode}, {ADMISSION_TYPE_LABEL[row.admissionType]}, received {formatReceivedDate(row.receivedAt)}
-              {row.receivedByName ? ` by ${row.receivedByName}` : ''}
-            </Text>
-            {row.openLateItems.length > 0 && (
-              <Text size="sm" c={color.warning}>
-                Still to submit: {row.openLateItems.join('; ')}
-              </Text>
-            )}
+            <Group justify="space-between" wrap="nowrap">
+              <Stack gap={spacing.xs}>
+                <Text fw={fontWeight.semibold}>
+                  {row.studentNumber}, {row.fullName}
+                </Text>
+                <Text size="sm" c={color.textSecondary}>
+                  {row.programCode}, {ADMISSION_TYPE_LABEL[row.admissionType]}, received {formatReceivedDate(row.receivedAt)}
+                  {row.receivedByName ? ` by ${row.receivedByName}` : ''}
+                </Text>
+                {row.openLateItems.length > 0 && (
+                  <Text size="sm" c={color.warning}>
+                    Still to submit: {row.openLateItems.join('; ')}
+                  </Text>
+                )}
+              </Stack>
+              <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.studentNumber} />
+            </Group>
           </Stack>
         ))}
       </Stack>
@@ -246,6 +262,7 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
             <Table.Th>Received</Table.Th>
             <Table.Th>Received by</Table.Th>
             <Table.Th>Still to submit</Table.Th>
+            <Table.Th />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -257,6 +274,67 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
               <Table.Td>{formatReceivedDate(row.receivedAt)}</Table.Td>
               <Table.Td>{row.receivedByName ?? ''}</Table.Td>
               <Table.Td>{row.openLateItems.join('; ')}</Table.Td>
+              <Table.Td>
+                <Group justify="flex-end">
+                  <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.studentNumber} />
+                </Group>
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Table.ScrollContainer>
+  );
+}
+
+function WithdrawnRows({ rows, filtered }: { rows: WithdrawnApplicant[]; filtered: boolean }) {
+  if (rows.length === 0) {
+    return <Text c={color.textSecondary}>{filtered ? 'No one matches.' : 'Nobody has withdrawn.'}</Text>;
+  }
+
+  if (rows.length < LIST_LIMIT) {
+    return (
+      <Stack gap={spacing.md}>
+        {rows.map((row, index) => (
+          <Stack key={row.applicantId} gap={spacing.xs}>
+            {index > 0 && <Divider />}
+            <Text fw={fontWeight.semibold}>
+              {row.studentNumber ?? row.applicantRef}, {row.fullName}
+            </Text>
+            <Text size="sm" c={color.textSecondary}>
+              {row.programCode}, {row.byStaff ? 'withdrawn by the Registrar' : 'withdrew themselves'} on {row.withdrawnOn}
+            </Text>
+            <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+              Reason: {row.reason}
+            </Text>
+          </Stack>
+        ))}
+      </Stack>
+    );
+  }
+
+  return (
+    <Table.ScrollContainer minWidth={900}>
+      <Table>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Person</Table.Th>
+            <Table.Th>Number</Table.Th>
+            <Table.Th>Program</Table.Th>
+            <Table.Th>Withdrawn</Table.Th>
+            <Table.Th>By</Table.Th>
+            <Table.Th>Reason</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {rows.map((row) => (
+            <Table.Tr key={row.applicantId}>
+              <Table.Td>{row.fullName}</Table.Td>
+              <Table.Td>{row.studentNumber ?? row.applicantRef}</Table.Td>
+              <Table.Td>{row.programCode}</Table.Td>
+              <Table.Td>{row.withdrawnOn}</Table.Td>
+              <Table.Td>{row.byStaff ? 'Registrar' : 'Themselves'}</Table.Td>
+              <Table.Td style={{ whiteSpace: 'pre-line' }}>{row.reason}</Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>

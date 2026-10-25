@@ -52,7 +52,7 @@ type ApplicantCounts = { unassigned: number; atDocuments: number };
 
 // Applicants who are not students yet: those with no visit, and those whose
 // visit date has come (today or earlier), who wait for the Registrar to
-// receive their documents.
+// receive their documents. Someone who withdrew (step 17) is not counted.
 async function applicantCounts(): Promise<ApplicantCounts> {
   const supabase = createClient();
   const today = manilaToday();
@@ -60,6 +60,7 @@ async function applicantCounts(): Promise<ApplicantCounts> {
     supabase
       .from('applicants')
       .select('id, visit_bookings(visit_slots(slot_date)), students(id)')
+      .is('withdrawn_at', null)
       .order('id')
       .range(from, to)
   );
@@ -199,10 +200,16 @@ const FILL_LIMIT = 6;
 
 type RawWaitingStudent = { id: string; student_sections: unknown };
 
+// A student who withdrew (step 17) is not waiting for a seat.
 async function studentsWithoutSection(): Promise<number> {
   const supabase = createClient();
   const rows = await fetchAll<RawWaitingStudent>((from, to) =>
-    supabase.from('students').select('id, student_sections(student_id)').order('id').range(from, to)
+    supabase
+      .from('students')
+      .select('id, student_sections(student_id), applicants!inner(withdrawn_at)')
+      .is('applicants.withdrawn_at', null)
+      .order('id')
+      .range(from, to)
   );
   return rows.filter((row) => first(row.student_sections) === null).length;
 }
@@ -346,16 +353,31 @@ export async function getAdminHome(): Promise<{
 
 // How far this year's applicants have come, from the live tables. Each stage
 // counts people who reached it, so a stage never exceeds the one before it.
+// Someone who withdrew (step 17) is left out of every stage, so the funnel shows
+// who is still in the process.
 export async function getFunnel(): Promise<FunnelStage[]> {
   const supabase = createClient();
-  const count = (table: string) =>
-    headCount(supabase.from(table).select('id', { count: 'exact', head: true }));
   const [admitted, received, placed, slips, enrolled] = await Promise.all([
-    count('applicants'),
-    count('students'),
+    headCount(supabase.from('applicants').select('id', { count: 'exact', head: true }).is('withdrawn_at', null)),
+    headCount(
+      supabase
+        .from('students')
+        .select('id, applicants!inner(withdrawn_at)', { count: 'exact', head: true })
+        .is('applicants.withdrawn_at', null)
+    ),
     headCount(supabase.from('student_sections').select('student_id', { count: 'exact', head: true })),
-    count('assessment_slips'),
-    count('cors'),
+    headCount(
+      supabase
+        .from('assessment_slips')
+        .select('id, students!inner(applicants!inner(withdrawn_at))', { count: 'exact', head: true })
+        .is('students.applicants.withdrawn_at', null)
+    ),
+    headCount(
+      supabase
+        .from('cors')
+        .select('id, students!inner(applicants!inner(withdrawn_at))', { count: 'exact', head: true })
+        .is('students.applicants.withdrawn_at', null)
+    ),
   ]);
   return [
     { label: 'Admitted', count: admitted },

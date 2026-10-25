@@ -12,7 +12,7 @@ import type { CorData } from './schema';
 type RawStudent = {
   id: string;
   student_number: string;
-  applicants: { programs: { code: string } | null; users: { full_name: string } | null } | null;
+  applicants: { withdrawn_at: string | null; programs: { code: string } | null; users: { full_name: string } | null } | null;
   student_sections: unknown;
   assessment_slips: unknown;
   payments: unknown;
@@ -23,13 +23,14 @@ type RawPlacement = { sections: { name: string; year_level: number } | null };
 
 // Students whose slip is issued, whose payment is cleared (or was never
 // required) and who have no COR yet, lowest student number first (the order
-// "Issue all" uses). Same row shape as the slips page.
+// "Issue all" uses). Same row shape as the slips page. A student who withdrew
+// (step 17) is not listed.
 export async function listReadyForCor(): Promise<ReadyStudent[]> {
   const supabase = createClient();
   const { data } = await supabase
     .from('students')
     .select(
-      'id, student_number, applicants(programs(code), users(full_name)), ' +
+      'id, student_number, applicants(withdrawn_at, programs(code), users(full_name)), ' +
         'student_sections(sections(name, year_level)), assessment_slips(payment_required), payments(status), cors(id)'
     )
     .order('student_number');
@@ -37,6 +38,7 @@ export async function listReadyForCor(): Promise<ReadyStudent[]> {
   return ((data ?? []) as unknown as RawStudent[]).flatMap((row) => {
     const slip = first<{ payment_required: boolean }>(row.assessment_slips);
     if (!slip || first(row.cors)) return [];
+    if (row.applicants?.withdrawn_at) return [];
     if (slip.payment_required && first<{ status: string }>(row.payments)?.status !== 'cleared') return [];
 
     const section = first<RawPlacement>(row.student_sections)?.sections ?? null;

@@ -100,7 +100,12 @@ type RawStudent = {
 type RawWaiting = {
   id: string;
   student_number: string;
-  applicants: { program_id: string; programs: { code: string } | null; users: { full_name: string } | null } | null;
+  applicants: {
+    program_id: string;
+    withdrawn_at: string | null;
+    programs: { code: string } | null;
+    users: { full_name: string } | null;
+  } | null;
   student_sections: unknown;
 };
 
@@ -241,15 +246,16 @@ function hasAny(value: unknown): boolean {
 
 // Students with no section: no section existed, or every seat was taken when
 // they were promoted. They are placed by themselves once a section appears or
-// a capacity goes up; the Secretary or Dean can also place one by hand.
+// a capacity goes up; the Secretary or Dean can also place one by hand. A
+// student who withdrew (step 17) is not waiting for a seat.
 async function listWaiting(): Promise<WaitingStudent[]> {
   const supabase = createClient();
   const { data } = await supabase
     .from('students')
-    .select('id, student_number, applicants(program_id, programs(code), users(full_name)), student_sections(student_id)')
+    .select('id, student_number, applicants(program_id, withdrawn_at, programs(code), users(full_name)), student_sections(student_id)')
     .order('student_number');
   return ((data ?? []) as unknown as RawWaiting[])
-    .filter((row) => !hasAny(row.student_sections) && row.applicants)
+    .filter((row) => !hasAny(row.student_sections) && row.applicants && row.applicants.withdrawn_at === null)
     .map((row) => ({
       studentId: row.id,
       studentNumber: row.student_number,

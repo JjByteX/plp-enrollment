@@ -126,13 +126,15 @@ function hasAny(value: unknown): boolean {
 }
 
 // Applicants of one program with no visit and not yet a student, in the order
-// "Assign all unassigned" uses: admission date, then when they arrived.
+// "Assign all unassigned" uses: admission date, then when they arrived. Someone
+// who withdrew (step 17) is not listed.
 export async function listUnassigned(programId: string): Promise<UnassignedApplicant[]> {
   const supabase = createClient();
   const { data } = await supabase
     .from('applicants')
     .select('id, applicant_ref, admission_date, users(full_name), visit_bookings(id), students(id)')
     .eq('program_id', programId)
+    .is('withdrawn_at', null)
     .order('admission_date')
     .order('created_at')
     .order('id');

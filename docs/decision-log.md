@@ -536,3 +536,22 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A. One function, `student_schedule_json`, builds the schedule, and the slip gate and COR gate call it on insert. Existing rows were filled from the live schedule when the migration ran.
 
 **Consequences:** A schedule already edited by SQL before the migration cannot be recovered. An issued slip and an issued COR never change.
+
+---
+
+**#:** 30
+**Date:** 2026-10-26
+**Milestone:** Build step 17, withdrawn applicants and students
+
+**Context:** Nobody could leave. A withdrawn applicant kept a visit slot, a withdrawn student kept a section seat and a pending payment, and both stayed in every queue. The Admissions resend would also have refreshed them and booked a new visit.
+
+**Options Considered:**
+- Option A: A withdrawal is recorded on the applicant (`withdrawn_at`, `withdrawn_by`, `withdrawn_reason`). One database function releases everything in one transaction: the booked visit (with its reschedule requests), the section seat (the next waiting student is seated), a pending payment. The student number, slip, COR and cleared payments stay as history. The person is told. An Applicant or Student withdraws themselves from the profile menu until a COR is issued; the Registrar or Admin withdraws anyone, at any stage, from the Documents page. Both confirm by typing: the person types `withdraw`, the Registrar types the person's student number or applicant reference.
+- Option B: A `cancelled` status on visit bookings and seats, kept as rows. History stays in the tables, but every place that counts bookings or seats (four database functions and several queries) would have to learn to ignore them.
+- Option C: Staff only, no self-service. Safer, but a student who has left has to ask the Registrar to record it.
+
+**Community Consensus:** Not searched. Typing a name or word to confirm a destructive action is the common pattern in admin tools.
+
+**Decision:** Option A. After a COR the enrollment is official, so only the Registrar or Admin can record the withdrawal (answered by the project owner). The audit log keeps every deleted row with the reason. The three columns change only inside the withdraw function (a trigger refuses any other write, Admin included). `withdrawn_by` has no foreign key to `users`, like `audit_log.actor_id`, because a second link from `applicants` to `users` would make every `users(...)` embed in the app ambiguous. Functions that could hand a withdrawn person a slot, a seat or a COR each got one guard. The dashboard funnel leaves withdrawn people out of every stage.
+
+**Consequences:** A withdrawal cannot be undone from the app. Reversing one needs SQL, and the seat may already be taken. Reinstatement was left out on purpose: it needs its own decisions (restoring a slip and a payment, what if the seat is gone). A cleared payment stays and nothing tells Finance to refund it. A withdrawn person's slip and COR pages show nothing, because their section is gone, but the records stay. Admissions is not told about withdrawals (it has no such status), and a withdrawn applicant sent again from Admissions is ignored, so re-admitting someone needs a decision.

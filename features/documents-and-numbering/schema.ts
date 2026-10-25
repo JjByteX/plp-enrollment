@@ -112,7 +112,7 @@ export function matchesSearch(query: string, ...fields: (string | null | undefin
   return fields.some((field) => (field ?? '').toLowerCase().includes(needle));
 }
 
-export type DocumentsTab = 'pending' | 'received';
+export type DocumentsTab = 'pending' | 'received' | 'withdrawn';
 
 export type DocumentsFilter = {
   q: string;
@@ -132,7 +132,7 @@ export function parseFilter(raw: Record<string, unknown>): DocumentsFilter {
   return {
     q: typeof q === 'string' ? q.trim().slice(0, MAX_SEARCH) : '',
     programId: typeof program === 'string' && UUID.test(program) ? program : undefined,
-    tab: tab === 'received' ? 'received' : 'pending',
+    tab: tab === 'received' || tab === 'withdrawn' ? tab : 'pending',
   };
 }
 

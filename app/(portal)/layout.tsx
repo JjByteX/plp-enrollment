@@ -9,10 +9,16 @@ import { getNextStep } from '@/features/next-step-card/queries';
 // Each role area checks its own role in its layout (requireArea).
 // The "Your next step" card is loaded here so it appears on every page.
 // The sidebar state comes from a cookie so the first paint is already right.
+// An Applicant or Student can withdraw themselves until a COR is issued, and not
+// again once they have withdrawn (step 17).
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const nextStep = await getNextStep(user);
   const collapsed = cookies().get(SIDEBAR_COOKIE)?.value === 'collapsed';
+  const canWithdraw =
+    (user.role === 'applicant' || user.role === 'student') &&
+    nextStep.kind !== 'withdrawn' &&
+    !(nextStep.kind === 'student_waiting' && nextStep.cor !== null);
 
   return (
     <PortalShell
@@ -22,6 +28,7 @@ export default async function PortalLayout({ children }: { children: React.React
       nav={navFor(user.role)}
       defaultCollapsed={collapsed}
       nextStep={nextStep}
+      canWithdraw={canWithdraw}
     >
       {children}
     </PortalShell>

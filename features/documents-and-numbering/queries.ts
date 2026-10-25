@@ -7,7 +7,11 @@
 //
 // The Registrar cannot read other staff accounts, so "received by" has a
 // name only when the person who did it is readable; otherwise it is null.
+//
+// Someone who withdrew (step 17) leaves the Waiting and Received lists and
+// appears only on the Withdrawn list, with who withdrew them and why.
 import { createClient } from '@/lib/supabase/server';
+import { formatWithdrawnDate } from '@/features/withdraw-enrollment/schema';
 import {
   buildChecklist,
   checklistProgress,
@@ -33,6 +37,17 @@ export type PendingApplicant = {
   progress: ChecklistProgress;
   documents: ReceivedDocument[];
   verifiedDocs: string[]; // doc types Admissions already approved (information only)
+};
+
+export type WithdrawnApplicant = {
+  applicantId: string;
+  applicantRef: string;
+  studentNumber: string | null; // null when they withdrew before documents were received
+  fullName: string;
+  programCode: string;
+  withdrawnOn: string; // "Oct 25, 2026"
+  byStaff: boolean; // false when they withdrew themselves
+  reason: string;
 };
 
 export type ReceivedStudent = {
@@ -114,6 +129,7 @@ type RawApplicant = {
   students: unknown;
   documents: RawDocument[] | null;
   admissions_verified_docs: string[] | null;
+  withdrawn_at: string | null;
 };
 
 // Applicants who are not students yet, in the order they were admitted, with
@@ -128,7 +144,7 @@ export async function listPendingApplicants(
     let query = supabase
       .from('applicants')
       .select(
-        'id, applicant_ref, program_id, admission_type, admissions_verified_docs, users(full_name, email), programs(code), ' +
+        'id, applicant_ref, program_id, admission_type, admissions_verified_docs, withdrawn_at, users(full_name, email), programs(code), ' +
           'visit_bookings(visit_slots(slot_date)), students(id), documents(doc_type, note, received_at)'
       )
       .order('admission_date')
@@ -142,6 +158,7 @@ export async function listPendingApplicants(
   const result: PendingApplicant[] = [];
   for (const row of rows) {
     if (first(row.students as { id: string } | { id: string }[] | null) !== null) continue;
+    if (row.withdrawn_at !== null) continue;
     if (!isAdmissionType(row.admission_type)) continue;
 
     const fullName = row.users?.full_name ?? '';
@@ -175,6 +192,7 @@ type RawStudent = {
   applicants: {
     applicant_ref: string;
     program_id: string;
+    withdrawn_at: string | null;
     admission_type: string;
     users: { full_name: string } | null;
     programs: { code: string } | null;
@@ -193,7 +211,7 @@ export async function listReceivedStudents(
       .from('students')
       .select(
         'id, student_number, applicant_id, documents_received_at, users(full_name), ' +
-          'applicants(applicant_ref, program_id, admission_type, users(full_name), programs(code), documents(doc_type, note, received_at))'
+          'applicants(applicant_ref, program_id, withdrawn_at, admission_type, users(full_name), programs(code), documents(doc_type, note, received_at))'
       )
       .order('documents_received_at', { ascending: false })
       .order('id')
@@ -204,6 +222,7 @@ export async function listReceivedStudents(
   for (const row of rows) {
     const applicant = row.applicants;
     if (!applicant || !isAdmissionType(applicant.admission_type)) continue;
+    if (applicant.withdrawn_at !== null) continue;
     if (filter.programId && applicant.program_id !== filter.programId) continue;
 
     const fullName = applicant.users?.full_name ?? '';
@@ -221,6 +240,55 @@ export async function listReceivedStudents(
       receivedAt: row.documents_received_at,
       receivedByName: row.users?.full_name ?? null,
       openLateItems: openLateItems(items),
+    });
+  }
+  return result;
+}
+
+type RawWithdrawn = {
+  id: string;
+  applicant_ref: string;
+  user_id: string;
+  withdrawn_at: string;
+  withdrawn_by: string | null;
+  withdrawn_reason: string | null;
+  users: { full_name: string } | null;
+  programs: { code: string } | null;
+  students: { student_number: string } | { student_number: string }[] | null;
+};
+
+// Everyone who withdrew, newest first. Search matches name, applicant ref and
+// student number.
+export async function listWithdrawn(filter: Pick<DocumentsFilter, 'q' | 'programId'>): Promise<WithdrawnApplicant[]> {
+  const supabase = createClient();
+  const rows = await fetchAll<RawWithdrawn>((from, to) => {
+    let query = supabase
+      .from('applicants')
+      .select(
+        'id, applicant_ref, user_id, withdrawn_at, withdrawn_by, withdrawn_reason, users(full_name), programs(code), students(student_number)'
+      )
+      .not('withdrawn_at', 'is', null)
+      .order('withdrawn_at', { ascending: false })
+      .order('id')
+      .range(from, to);
+    if (filter.programId) query = query.eq('program_id', filter.programId);
+    return query;
+  });
+
+  const result: WithdrawnApplicant[] = [];
+  for (const row of rows) {
+    const fullName = row.users?.full_name ?? '';
+    const studentNumber = first(row.students)?.student_number ?? null;
+    if (!matchesSearch(filter.q, fullName, row.applicant_ref, studentNumber)) continue;
+    result.push({
+      applicantId: row.id,
+      applicantRef: row.applicant_ref,
+      studentNumber,
+      fullName,
+      programCode: row.programs?.code ?? '',
+      withdrawnOn: formatWithdrawnDate(row.withdrawn_at),
+      byStaff: row.withdrawn_by !== row.user_id,
+      reason: row.withdrawn_reason ?? '',
     });
   }
   return result;

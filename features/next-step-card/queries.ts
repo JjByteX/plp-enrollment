@@ -11,15 +11,21 @@
 // note. An approved request needs no line, the visit itself has moved. Students see their student number and any late item
 // still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10), their COR (step 11) and whether the schedule changed after the slip (step 16). Every other role has no card (kind 'staff'); their home
 // screen lists what is waiting (step 14).
+//
+// A person who withdrew (step 17) sees that and nothing else, whatever stage they
+// had reached: the card says when, who did it and, for the Registrar, why.
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { CurrentUser } from '@/lib/auth/session';
 import { formatSlotDate, windowLabel } from '@/features/visit-scheduling/schema';
 import { sectionLabel } from '@/features/section-scheduling/schema';
+import { formatWithdrawnDate } from '@/features/withdraw-enrollment/schema';
 
 export type NextStep =
   | { kind: 'none' }
   | { kind: 'waiting' }
+  // The applicant or student withdrew, or the Registrar withdrew them (step 17).
+  | { kind: 'withdrawn'; date: string; byStaff: boolean; reason: string }
   | {
       kind: 'visit';
       date: string;
@@ -66,6 +72,29 @@ function joinWhatToBring(checklist: string | null, slotNotes: string | null): st
   const list = (checklist ?? '').trim();
   if (list && notes) return `${list}\n\n${notes}`;
   return list || notes || null;
+}
+
+// Row level security lets an applicant or student read only their own row, so
+// no id is needed. Null means they have not withdrawn.
+async function getWithdrawnStep(): Promise<NextStep | null> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('applicants')
+    .select('user_id, withdrawn_at, withdrawn_by, withdrawn_reason')
+    .maybeSingle();
+  const row = data as {
+    user_id: string;
+    withdrawn_at: string | null;
+    withdrawn_by: string | null;
+    withdrawn_reason: string | null;
+  } | null;
+  if (!row || !row.withdrawn_at) return null;
+  return {
+    kind: 'withdrawn',
+    date: formatWithdrawnDate(row.withdrawn_at),
+    byStaff: row.withdrawn_by !== row.user_id,
+    reason: row.withdrawn_reason ?? '',
+  };
 }
 
 async function getStudentStep(): Promise<NextStep> {
@@ -118,8 +147,12 @@ async function getStudentStep(): Promise<NextStep> {
 // Cached for the request, so the layout and a home page that shows the person's
 // progress (step 14) read it once.
 export const getNextStep = cache(async (user: CurrentUser): Promise<NextStep> => {
+  if (user.role !== 'student' && user.role !== 'applicant') return { kind: 'staff' };
+
+  const withdrawn = await getWithdrawnStep();
+  if (withdrawn) return withdrawn;
+
   if (user.role === 'student') return getStudentStep();
-  if (user.role !== 'applicant') return { kind: 'staff' };
 
   const supabase = createClient();
   const { data } = await supabase

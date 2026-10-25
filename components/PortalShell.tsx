@@ -14,6 +14,7 @@ import type { NextStep } from '@/features/next-step-card/queries';
 import { CommandSearch } from '@/features/search/CommandSearch';
 import { SettingsModal } from '@/features/settings/SettingsModal';
 import { SettingsProvider } from '@/features/settings/SettingsContext';
+import { WithdrawMyEnrollmentModal } from '@/features/withdraw-enrollment/WithdrawMyEnrollmentModal';
 import { color, fontWeight, green, layout, padding, radius, spacing } from '@/styles/tokens';
 
 const LOGO_SIZE = 32;
@@ -30,7 +31,8 @@ function initials(name: string): string {
 // sits on one rounded white panel. The sidebar collapses to a narrow rail and
 // the choice is kept in a cookie so the server renders it the same way next time.
 // Roles with no nav groups (Applicant, Student) get no sidebar: their flow is
-// one linear path, shown by the next step card.
+// one linear path, shown by the next step card. An Applicant or Student who has not
+// been issued a COR also gets "Withdraw enrollment" in the profile menu (step 17).
 export function PortalShell({
   userName,
   roleLabel,
@@ -38,6 +40,7 @@ export function PortalShell({
   nav,
   defaultCollapsed,
   nextStep,
+  canWithdraw,
   children,
 }: {
   userName: string;
@@ -46,11 +49,13 @@ export function PortalShell({
   nav: NavGroup[];
   defaultCollapsed: boolean;
   nextStep: NextStep;
+  canWithdraw: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
   const hasSidebar = nav.length > 0;
   const searchItems = flattenNav(nav);
   const scheme = useComputedColorScheme('light');
@@ -189,6 +194,11 @@ export function PortalShell({
           <Menu.Item leftSection={<Cog6ToothIcon width={layout.iconSize} height={layout.iconSize} />} onClick={() => setSettingsOpen(true)}>
             Settings
           </Menu.Item>
+          {canWithdraw && (
+            <Menu.Item color={color.error} onClick={() => setWithdrawOpen(true)}>
+              Withdraw enrollment
+            </Menu.Item>
+          )}
           <Menu.Divider />
           <Menu.Item onClick={() => signOut()}>Sign out</Menu.Item>
         </Menu.Dropdown>
@@ -266,6 +276,7 @@ export function PortalShell({
 
         <Box style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }} pr={spacing.sm} pb={spacing.sm} pl={hasSidebar ? 0 : spacing.sm}>
           {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+          {canWithdraw && <WithdrawMyEnrollmentModal opened={withdrawOpen} onClose={() => setWithdrawOpen(false)} />}
 
           <Box
             component="main"

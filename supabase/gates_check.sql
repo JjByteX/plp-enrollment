@@ -26,6 +26,10 @@
 -- Blocked actions print 'ok   blocked'. Any 'FAIL' line is a broken rule.
 \set ON_ERROR_STOP on
 SET search_path = public, extensions;
+-- The migrations seed the 7 colleges and 13 programs; the fixtures below need those codes free.
+-- Local only: run `npm run db:reset` again afterward to get the seeded rows back.
+DELETE FROM programs;
+DELETE FROM colleges;
 -- fixtures (superuser, no actor)
 INSERT INTO colleges (id,name,code) VALUES ('00000000-0000-0000-0000-0000000000c1','College of Ed','COE');
 INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000a1','BSED','Bachelor of Ed','00000000-0000-0000-0000-0000000000c1');
@@ -108,9 +112,10 @@ SELECT act('rg'); INSERT INTO mass_reschedules (affected_date,reason,triggered_b
 -- visit scheduling (step 6). Own program BSX so earlier fixtures
 -- cannot change the order. Dates are Manila based, like the functions.
 -- ============================================================
-CREATE OR REPLACE FUNCTION expect_eq(label text, actual text, expected text) RETURNS void LANGUAGE plpgsql AS $$
+-- actual may be text, boolean or integer: Postgres has no implicit cast of those to text, so it is polymorphic.
+CREATE OR REPLACE FUNCTION expect_eq(label text, actual anyelement, expected text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
-  IF actual IS NOT DISTINCT FROM expected THEN RAISE NOTICE 'ok   %: %', label, actual;
+  IF actual::text IS NOT DISTINCT FROM expected THEN RAISE NOTICE 'ok   %: %', label, actual;
   ELSE RAISE NOTICE 'FAIL %: got %, expected %', label, actual, expected; END IF;
 END $$;
 CREATE OR REPLACE FUNCTION mnl_today() RETURNS date LANGUAGE sql AS $$ SELECT (now() AT TIME ZONE 'Asia/Manila')::date $$;
@@ -409,10 +414,12 @@ SELECT 'skipped: no authenticated role, row level security checks not run';
 \endif
 -- catalog and checklist changes are audited with the actor
 SELECT expect_eq('catalog write audited', (SELECT count(*)::text FROM audit_log WHERE table_name='document_requirements' AND action='INSERT' AND actor_id=md5('ad')::uuid AND new_data->>'doc_type'='x_doc'), CASE WHEN :'has_auth' = 't' THEN '1' ELSE '0' END);
+-- the fixture is a late item: remove it so it does not count as an open late item below
+DELETE FROM document_requirements WHERE doc_type = 'x_doc';
 
 -- my_open_late_items (20261025060000): a student sees only their own open late items
 SELECT act('d1');
-SELECT expect_eq('d1 sees Form 137 as open', (SELECT (array_length(my_open_late_items(), 1) = 1 AND my_open_late_items()[1] LIKE '%Form 137%')::text), 'true');
+SELECT expect_eq('d1 sees Form 137 as open', (SELECT (array_length(my_open_late_items(), 1) = 1 AND (my_open_late_items())[1] LIKE '%Form 137%')::text), 'true');
 SELECT act('d3');
 SELECT expect_eq('d3 (transferee) has no late items', (SELECT cardinality(my_open_late_items())::text), '0');
 SELECT act('rg');
@@ -725,7 +732,7 @@ UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SVA')::uuid
 SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('SVA')::uuid;
 SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('SVA')::uuid;
 INSERT INTO students (applicant_id,student_number,documents_received_by) SELECT md5('Av'||n)::uuid,'x',md5('rg')::uuid FROM generate_series(1,3) n;
-SELECT expect_eq('three slips issued with payment required', (SELECT issued::text FROM issue_all_ready_slips() WHERE EXISTS (SELECT 1)), (SELECT count(*)::text FROM assessment_slips sl JOIN students st ON st.id = sl.student_id WHERE st.applicant_id IN (md5('Av1')::uuid, md5('Av2')::uuid, md5('Av3')::uuid) AND sl.payment_required));
+SELECT expect_eq('three slips issued with payment required', (SELECT issued::text FROM issue_all_ready_slips() WHERE EXISTS (SELECT 1)), '3');
 SELECT expect_eq('each slip opened a pending payment', (SELECT count(*)::text FROM payments WHERE status = 'pending' AND student_id IN (SELECT id FROM students WHERE applicant_id IN (md5('Av1')::uuid, md5('Av2')::uuid, md5('Av3')::uuid))), '3');
 
 -- who may call them: Finance and Admin only
@@ -744,7 +751,9 @@ SELECT expect_msg('negative amount due', $$SELECT record_payment((SELECT id FROM
 SELECT expect_msg('paid without a receipt', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 1000, '  ')$$, 'receipt number');
 SELECT expect_msg('payment for a student with none', $$SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Ae1')::uuid), 1000, 1000, 'OR-1')$$, 'no payment to record');
 SELECT expect_eq('refusals left everything pending', (SELECT count(*)::text FROM payments WHERE status = 'pending' AND student_id IN (SELECT id FROM students WHERE applicant_id IN (md5('Av1')::uuid, md5('Av2')::uuid, md5('Av3')::uuid))), '3');
+SELECT act('rg');
 SELECT expect_msg('COR before payment is cleared', $$SELECT issue_cor((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'Payment must be cleared');
+SELECT act('fn');
 SELECT record_payment((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid), 1000, 1500.50, ' OR-1 ');
 SELECT expect_eq('cleared payment keeps amounts, trimmed receipt and the actor',
   (SELECT amount_due::text||'/'||amount_paid::text||'/'||receipt_no||'/'||status||'/'||(recorded_by = md5('fn')::uuid)::text FROM payments WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)),
@@ -780,7 +789,12 @@ SET ROLE authenticated;
 SELECT act('v1');
 SELECT expect_eq('a student cannot read payments', (SELECT count(*)::text FROM payments), '0');
 SELECT act('rg');
-SELECT expect_fail('registrar changes the toggle', $$UPDATE program_payment_settings SET payment_required = true WHERE program_id = '00000000-0000-0000-0000-0000000000a6'$$);
+DO $$ DECLARE n integer; BEGIN
+  UPDATE program_payment_settings SET payment_required = NOT payment_required WHERE program_id = '00000000-0000-0000-0000-0000000000a6';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n = 0 THEN RAISE NOTICE 'ok   blocked: registrar changes the toggle -> row level security hides the row';
+  ELSE RAISE NOTICE 'FAIL (should not change): registrar changes the toggle'; END IF;
+END $$;
 RESET ROLE;
 \else
 SELECT 'skipped: no authenticated role, step 10 row level security checks not run';
@@ -801,7 +815,12 @@ SELECT expect_eq('term row stamped with the actor', (SELECT (updated_by = md5('a
 SET ROLE authenticated;
 SELECT act('rg');
 SELECT expect_eq('registrar cannot read the term', (SELECT count(*)::text FROM enrollment_term), '0');
-SELECT expect_fail('registrar sets the term', $$UPDATE enrollment_term SET semester = '2nd'$$);
+DO $$ DECLARE n integer; BEGIN
+  UPDATE enrollment_term SET semester = '2nd';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n = 0 THEN RAISE NOTICE 'ok   blocked: registrar sets the term -> row level security hides the row';
+  ELSE RAISE NOTICE 'FAIL (should not change): registrar sets the term'; END IF;
+END $$;
 SELECT act('ad');
 UPDATE enrollment_term SET semester = '2nd';
 SELECT expect_eq('admin changes the term, audited', (SELECT count(*)::text FROM audit_log WHERE table_name = 'enrollment_term' AND action = 'UPDATE' AND new_data->>'semester' = '2nd'), '1');
@@ -1092,7 +1111,7 @@ SELECT expect_eq('declined: audited as a decline by the registrar',
 
 -- after a decline the person may ask again
 SELECT act('q3'); SELECT request_reschedule('second try');
-SELECT expect_eq('q3 has two requests, one waiting', (SELECT count(*)::text||'/'||count(*) FILTER (WHERE status = 'pending')::text FROM reschedule_requests rr JOIN visit_bookings b ON b.id = rr.booking_id WHERE b.applicant_id = md5('Aq3')::uuid), '2/1');
+SELECT expect_eq('q3 has two requests, one waiting', (SELECT count(*)::text||'/'||count(*) FILTER (WHERE rr.status = 'pending')::text FROM reschedule_requests rr JOIN visit_bookings b ON b.id = rr.booking_id WHERE b.applicant_id = md5('Aq3')::uuid), '2/1');
 
 -- approve with nothing open on another date: refused with a clear message, still waiting
 SELECT act('rg');
@@ -1133,12 +1152,13 @@ SELECT 'skipped: no authenticated role, step 12 row level security checks not ru
 -- Dean of college 2 for the "another college" refusal. The term is set by now.
 -- ============================================================
 SELECT act('ad');
-INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000f1','BSQ','Test Program Q','00000000-0000-0000-0000-0000000000c1');
+INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000f1','BSS16','Test Program S16','00000000-0000-0000-0000-0000000000c1');
 INSERT INTO subjects (id,program_id,code,title,units,year_level) VALUES (md5('Q1')::uuid,'00000000-0000-0000-0000-0000000000f1','Q101','Q one',3,1);
 INSERT INTO rooms (id,name,college_id) VALUES (md5('RMQ1')::uuid,'Room Q1',NULL),(md5('RMQ2')::uuid,'Room Q2',NULL);
-INSERT INTO auth.users (id,email) VALUES (md5('pf3')::uuid,'pf3@x.ph'),(md5('dn2')::uuid,'dn2@x.ph');
+INSERT INTO auth.users (id,email) VALUES (md5('pf3')::uuid,'pf3@x.ph'),(md5('pf4')::uuid,'pf4@x.ph'),(md5('dn2')::uuid,'dn2@x.ph');
 INSERT INTO users (id,auth_id,full_name,email,role,college_id) VALUES
   (md5('pf3')::uuid, md5('pf3')::uuid,'pf3','pf3@x.ph','professor',NULL),
+  (md5('pf4')::uuid, md5('pf4')::uuid,'pf4','pf4@x.ph','professor',NULL),
   (md5('dn2')::uuid, md5('dn2')::uuid,'dn2','dn2@x.ph','dean','00000000-0000-0000-0000-0000000000c2');
 SELECT mk_applicant('k1','00000000-0000-0000-0000-0000000000f1', mnl_today());
 SELECT mk_applicant('k2','00000000-0000-0000-0000-0000000000f1', mnl_today());
@@ -1146,7 +1166,7 @@ SELECT act('sc');
 INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES
   (md5('SQA')::uuid,'00000000-0000-0000-0000-0000000000f1','A',1,10),
   (md5('SQD')::uuid,'00000000-0000-0000-0000-0000000000f1','D',1,10);
-UPDATE section_subjects SET professor_id=md5('pf2')::uuid, room_id=md5('RMQ1')::uuid, day_of_week=1, start_time='08:00', end_time='09:00' WHERE section_id=md5('SQA')::uuid;
+UPDATE section_subjects SET professor_id=md5('pf4')::uuid, room_id=md5('RMQ1')::uuid, day_of_week=1, start_time='08:00', end_time='09:00' WHERE section_id=md5('SQA')::uuid;
 UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('SQA')::uuid;
 SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('SQA')::uuid;
 SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('SQA')::uuid;
@@ -1175,7 +1195,7 @@ SELECT act('k1'); SELECT expect_msg('student', format($$SELECT amend_schedule(%L
 SELECT act('sc');
 SELECT expect_msg('not a professor', format($$SELECT amend_schedule(%L, %L, %L, 2::smallint, '09:00', '10:00', 'x')$$, :'q_row', md5('rg')::uuid, md5('RMQ2')::uuid), 'not an active Professor');
 SELECT expect_eq('refusals changed nothing',
-  (SELECT day_of_week::text||'/'||(professor_id = md5('pf2')::uuid)::text FROM section_subjects WHERE id = :'q_row'), '1/true');
+  (SELECT day_of_week::text||'/'||(professor_id = md5('pf4')::uuid)::text FROM section_subjects WHERE id = :'q_row'), '1/true');
 SELECT expect_eq('refusals told nobody', (SELECT count(*)::text FROM notifications WHERE kind = 'schedule_changed'), '0');
 
 -- a clash is still refused: pf3 teaches the draft section on Wednesday 10:00 to 11:00
@@ -1191,7 +1211,7 @@ SELECT expect_eq('the section row has the new loading',
 SELECT expect_eq('the section stays approved', (SELECT schedule_status FROM sections WHERE id = md5('SQA')::uuid), 'approved');
 SELECT act('rg');
 SELECT expect_eq('the slip still shows the first schedule',
-  (SELECT (assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'day')||'/'||(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'start')||'/'||(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'professor')), '1/08:00/pf2');
+  (SELECT (assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'day')||'/'||(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'start')||'/'||(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ak1')::uuid))->'subjects'->0->>'professor')), '1/08:00/pf4');
 SELECT expect_eq('each placed student was told once',
   (SELECT count(*)::text||'/'||count(DISTINCT user_id)::text||'/'||min(email_status) FROM notifications WHERE kind = 'schedule_changed'), '2/2/pending');
 SELECT expect_eq('the audit log has who and why',
@@ -1231,6 +1251,142 @@ SELECT expect_msg('authenticated secretary reaches amend_schedule (refused by th
 RESET ROLE;
 \else
 SELECT 'skipped: no authenticated role, step 16 grant checks not run';
+\endif
+
+-- ============================================================
+-- withdrawals (step 17), 20261025190000_withdrawals.sql.
+-- Visit slots and seats are released, a withdrawn person is left alone by every
+-- function that hands out a slot, a seat or a COR, and the columns cannot be
+-- written any other way.
+-- ============================================================
+SELECT act('ad');
+INSERT INTO visit_slots (id,program_id,slot_date,start_time,end_time,capacity,office_name,what_to_bring)
+  VALUES (md5('WS1')::uuid,'00000000-0000-0000-0000-0000000000f1',mnl_today()+9,'09:00','10:00',1,'Registrar Office W','x');
+SELECT mk_applicant('wd1','00000000-0000-0000-0000-0000000000f1', mnl_today());
+SELECT mk_applicant('wd2','00000000-0000-0000-0000-0000000000f1', mnl_today());
+SELECT mk_applicant('wd3','00000000-0000-0000-0000-0000000000f1', mnl_today());
+SELECT mk_applicant('wd4','00000000-0000-0000-0000-0000000000f1', mnl_today());
+SELECT act('rg');
+SELECT assign_visit_slot(md5('Awd1')::uuid, md5('WS1')::uuid);
+SELECT expect_fail('the one-seat slot is full for w2', format($$SELECT assign_visit_slot(%L, %L)$$, md5('Awd2')::uuid, md5('WS1')::uuid));
+
+-- an applicant withdraws: the visit slot opens
+SELECT act('wd1');
+SELECT expect_msg('empty reason', $$SELECT withdraw_my_enrollment('   ')$$, 'Enter the reason');
+SELECT expect_msg('reason over 500 characters', format($$SELECT withdraw_my_enrollment(%L)$$, repeat('x', 501)), 'longer than 500');
+SELECT withdraw_my_enrollment('Enrolling somewhere else');
+SELECT expect_eq('w1 is marked withdrawn', (SELECT (withdrawn_at IS NOT NULL AND withdrawn_by = md5('wd1')::uuid)::text FROM applicants WHERE id = md5('Awd1')::uuid), 'true');
+SELECT expect_eq('w1 reason stored', (SELECT withdrawn_reason FROM applicants WHERE id = md5('Awd1')::uuid), 'Enrolling somewhere else');
+SELECT expect_eq('w1 booking is gone', (SELECT count(*)::text FROM visit_bookings WHERE applicant_id = md5('Awd1')::uuid), '0');
+SELECT expect_eq('slot has no bookings left', (SELECT count(*)::text FROM visit_bookings WHERE slot_id = md5('WS1')::uuid), '0');
+SELECT expect_eq('w1 was told', (SELECT count(*)::text FROM notifications WHERE user_id = md5('wd1')::uuid AND kind = 'withdrawn' AND message LIKE 'You withdrew%'), '1');
+SELECT expect_eq('the withdrawal is audited with the reason', (SELECT count(*)::text FROM audit_log WHERE table_name = 'applicants' AND action = 'UPDATE' AND record_id = md5('Awd1')::uuid::text AND reason = 'Enrolling somewhere else' AND actor_id = md5('wd1')::uuid), '1');
+SELECT expect_eq('the booking delete is audited with the reason', (SELECT count(*)::text FROM audit_log WHERE table_name = 'visit_bookings' AND action = 'DELETE' AND reason = 'Enrolling somewhere else'), '1');
+SELECT expect_msg('already withdrawn', $$SELECT withdraw_my_enrollment('again')$$, 'already withdrawn');
+
+-- the freed slot can be used, and the withdrawn applicant is skipped everywhere
+SELECT act('rg');
+SELECT assign_visit_slot(md5('Awd2')::uuid, md5('WS1')::uuid);
+SELECT expect_eq('w2 took the freed slot', (SELECT count(*)::text FROM visit_bookings WHERE slot_id = md5('WS1')::uuid AND applicant_id = md5('Awd2')::uuid), '1');
+SELECT expect_msg('assign a slot to a withdrawn applicant', format($$SELECT assign_visit_slot(%L, %L)$$, md5('Awd1')::uuid, md5('WS1')::uuid), 'has withdrawn');
+SELECT expect_eq('automatic assignment skips a withdrawn applicant', (SELECT (auto_assign_visit(md5('Awd1')::uuid) IS NULL)::text), 'true');
+SELECT act('ad');
+INSERT INTO visit_slots (id,program_id,slot_date,start_time,end_time,capacity,office_name,what_to_bring)
+  VALUES (md5('WS2')::uuid,'00000000-0000-0000-0000-0000000000f1',mnl_today()+9,'10:00','11:00',5,'Registrar Office W2','x');
+SELECT act('rg');
+SELECT expect_eq('bulk assignment books w3 and w4, not w1', (SELECT assigned::text FROM assign_unassigned_visits('00000000-0000-0000-0000-0000000000f1')), '2');
+SELECT expect_eq('w1 still has no booking', (SELECT count(*)::text FROM visit_bookings WHERE applicant_id = md5('Awd1')::uuid), '0');
+SELECT expect_eq('nobody is left over', (SELECT left_over::text FROM assign_unassigned_visits('00000000-0000-0000-0000-0000000000f1')), '0');
+SELECT expect_msg('promote a withdrawn applicant', format($$SELECT mark_documents_received(%L)$$, md5('Awd1')::uuid), 'has withdrawn');
+
+-- the columns cannot be written any other way (Admin and superuser included)
+SELECT expect_msg('set withdrawn directly', format($$UPDATE applicants SET withdrawn_at = now(), withdrawn_by = %L, withdrawn_reason = 'x' WHERE id = %L$$, md5('rg')::uuid, md5('Awd3')::uuid), 'Use the withdraw action');
+SELECT expect_msg('undo a withdrawal directly', format($$UPDATE applicants SET withdrawn_at = NULL, withdrawn_by = NULL, withdrawn_reason = NULL WHERE id = %L$$, md5('Awd1')::uuid), 'Use the withdraw action');
+SELECT expect_fail('half a withdrawal', format($$SELECT set_config('app.withdrawing','on',false); UPDATE applicants SET withdrawn_at = now() WHERE id = %L$$, md5('Awd3')::uuid));
+SELECT set_config('app.withdrawing', '', false);
+
+-- who may withdraw whom
+SELECT act('pf3'); SELECT expect_msg('professor withdraws herself', $$SELECT withdraw_my_enrollment('x')$$, 'Only an applicant or student');
+SELECT act('wd3'); SELECT expect_msg('applicant withdraws someone else', format($$SELECT withdraw_applicant(%L, 'x')$$, md5('Awd4')::uuid), 'Only the Registrar or Admin');
+SELECT act('fn'); SELECT expect_msg('finance withdraws', format($$SELECT withdraw_applicant(%L, 'x')$$, md5('Awd4')::uuid), 'Only the Registrar or Admin');
+SELECT act('rg'); SELECT expect_msg('unknown applicant', format($$SELECT withdraw_applicant(%L, 'x')$$, md5('nobody')::uuid), 'Applicant not found');
+SELECT expect_msg('staff needs a reason too', format($$SELECT withdraw_applicant(%L, '')$$, md5('Awd4')::uuid), 'Enter the reason');
+
+-- a pending reschedule request goes with the booking
+SELECT act('wd4'); SELECT request_reschedule('Cannot make it that day');
+SELECT expect_eq('w4 has a pending request', (SELECT count(*)::text FROM reschedule_requests rr JOIN visit_bookings b ON b.id = rr.booking_id WHERE b.applicant_id = md5('Awd4')::uuid AND rr.status = 'pending'), '1');
+SELECT act('rg'); SELECT withdraw_applicant(md5('Awd4')::uuid, 'No answer after three calls');
+SELECT expect_eq('w4 booking and request are gone', (SELECT (SELECT count(*) FROM visit_bookings WHERE applicant_id = md5('Awd4')::uuid)::text || '/' || (SELECT count(*) FROM reschedule_requests WHERE reason = 'Cannot make it that day')::text), '0/0');
+SELECT expect_eq('w4 is told it was the Registrar', (SELECT count(*)::text FROM notifications WHERE user_id = md5('wd4')::uuid AND kind = 'withdrawn' AND message LIKE 'The Registrar withdrew%No answer%'), '1');
+SELECT expect_eq('w4 was withdrawn by the registrar', (SELECT (withdrawn_by = md5('rg')::uuid)::text FROM applicants WHERE id = md5('Awd4')::uuid), 'true');
+
+-- seats: a one-seat section, one student in it, two waiting
+SELECT act('ad');
+INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000f7','BSW17','Test Program W17','00000000-0000-0000-0000-0000000000c1');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SWX')::uuid,'00000000-0000-0000-0000-0000000000f7','A',1,1);
+SELECT mk_applicant('wx1','00000000-0000-0000-0000-0000000000f7', mnl_today());
+SELECT mk_applicant('wx2','00000000-0000-0000-0000-0000000000f7', mnl_today());
+SELECT mk_applicant('wx3','00000000-0000-0000-0000-0000000000f7', mnl_today());
+SELECT act('rg');
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Awx1')::uuid,'x',md5('rg')::uuid);
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Awx2')::uuid,'x',md5('rg')::uuid);
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Awx3')::uuid,'x',md5('rg')::uuid);
+SELECT expect_eq('x1 holds the only seat', (SELECT st.applicant_id::text FROM student_sections ss JOIN students st ON st.id = ss.student_id WHERE ss.section_id = md5('SWX')::uuid), md5('Awx1')::uuid::text);
+-- x1 has a pending payment, x3 has a cleared one
+INSERT INTO payments (student_id) SELECT id FROM students WHERE applicant_id = md5('Awx1')::uuid;
+INSERT INTO payments (student_id, amount_due, amount_paid, receipt_no, status, recorded_by, cleared_at)
+  SELECT id, 100, 100, 'R-W17', 'cleared', md5('fn')::uuid, now() FROM students WHERE applicant_id = md5('Awx3')::uuid;
+
+-- a waiting student withdraws: no seat to release, nobody else moves
+SELECT withdraw_applicant(md5('Awx3')::uuid, 'Moved abroad');
+SELECT expect_eq('x3 (waiting) withdrawn, x1 keeps the seat', (SELECT st.applicant_id::text FROM student_sections ss JOIN students st ON st.id = ss.student_id WHERE ss.section_id = md5('SWX')::uuid), md5('Awx1')::uuid::text);
+SELECT expect_eq('x3 cleared payment stays', (SELECT count(*)::text FROM payments p JOIN students st ON st.id = p.student_id WHERE st.applicant_id = md5('Awx3')::uuid AND p.status = 'cleared'), '1');
+SELECT expect_eq('x3 student number is kept', (SELECT count(*)::text FROM students WHERE applicant_id = md5('Awx3')::uuid AND student_number IS NOT NULL AND student_number <> 'x'), '1');
+
+-- the seated student withdraws: seat released, the next waiting student (x2, not x3) takes it
+SELECT act('wx1');
+SELECT withdraw_my_enrollment('Changed my mind');
+SELECT expect_eq('x1 no longer has a seat', (SELECT count(*)::text FROM student_sections ss JOIN students st ON st.id = ss.student_id WHERE st.applicant_id = md5('Awx1')::uuid), '0');
+SELECT expect_eq('x2 was seated on the freed seat', (SELECT st.applicant_id::text FROM student_sections ss JOIN students st ON st.id = ss.student_id WHERE ss.section_id = md5('SWX')::uuid), md5('Awx2')::uuid::text);
+SELECT expect_eq('x2 was told about the section', (SELECT count(*)::text FROM notifications WHERE user_id = md5('wx2')::uuid AND kind = 'section_placed'), '1');
+SELECT expect_eq('x1 pending payment is gone', (SELECT count(*)::text FROM payments p JOIN students st ON st.id = p.student_id WHERE st.applicant_id = md5('Awx1')::uuid), '0');
+SELECT expect_eq('x1 student row stays', (SELECT count(*)::text FROM students WHERE applicant_id = md5('Awx1')::uuid), '1');
+
+-- more seats open: the withdrawn x3 and x1 are still not seated
+SELECT act('sc');
+UPDATE sections SET capacity = 5 WHERE id = md5('SWX')::uuid;
+SELECT expect_eq('withdrawn students are not seated when capacity grows', (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SWX')::uuid), '1');
+SELECT expect_msg('move a withdrawn student into a section', format($$SELECT move_student_section((SELECT id FROM students WHERE applicant_id = md5('Awx3')::uuid), %L)$$, md5('SWX')::uuid), 'has withdrawn');
+
+-- a COR holder: the student cannot withdraw alone, the Registrar can
+SELECT act('k1');
+SELECT expect_msg('student with a COR withdraws herself', $$SELECT withdraw_my_enrollment('x')$$, 'already enrolled');
+SELECT act('rg');
+SELECT expect_eq('Ak2 has a COR and a seat before', (SELECT (SELECT count(*) FROM cors c JOIN students st ON st.id = c.student_id WHERE st.applicant_id = md5('Ak2')::uuid)::text || '/' || (SELECT count(*) FROM student_sections ss JOIN students st ON st.id = ss.student_id WHERE st.applicant_id = md5('Ak2')::uuid)::text), '1/1');
+SELECT withdraw_applicant(md5('Ak2')::uuid, 'Transferred to another school');
+SELECT expect_eq('Ak2 COR stays as history, the seat is gone', (SELECT (SELECT count(*) FROM cors c JOIN students st ON st.id = c.student_id WHERE st.applicant_id = md5('Ak2')::uuid)::text || '/' || (SELECT count(*) FROM student_sections ss JOIN students st ON st.id = ss.student_id WHERE st.applicant_id = md5('Ak2')::uuid)::text), '1/0');
+
+-- the bulk COR issue skips a withdrawn student with a slip instead of stopping
+SELECT act('ad');
+SELECT mk_applicant('wk3','00000000-0000-0000-0000-0000000000f1', mnl_today());
+SELECT act('rg');
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Awk3')::uuid,'x',md5('rg')::uuid);
+SELECT issue_assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Awk3')::uuid));
+SELECT withdraw_applicant(md5('Awk3')::uuid, 'Did not pay');
+SELECT expect_msg('COR for a withdrawn student', format($$SELECT issue_cor(%L)$$, (SELECT id FROM students WHERE applicant_id = md5('Awk3')::uuid)), 'has withdrawn');
+SELECT expect_eq('issue_all_ready_cors does not stop on a withdrawn student', (SELECT (issued >= 0)::text FROM issue_all_ready_cors()), 'true');
+SELECT expect_eq('Ak3 still has no COR', (SELECT count(*)::text FROM cors c JOIN students st ON st.id = c.student_id WHERE st.applicant_id = md5('Awk3')::uuid), '0');
+
+-- row level security: the signed-in role can call the two entry points but not the core
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('wd3');
+SELECT withdraw_my_enrollment('Authenticated call works');
+SELECT expect_eq('authenticated applicant withdrew', (SELECT (withdrawn_at IS NOT NULL)::text FROM applicants WHERE id = md5('Awd3')::uuid), 'true');
+SELECT expect_fail('authenticated calls the core', format($$SELECT withdraw_enrollment_core(%L, 'x')$$, md5('Ak1')::uuid));
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 17 grant checks not run';
 \endif
 
 -- audit

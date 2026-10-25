@@ -3,6 +3,7 @@ import {
   listPendingApplicants,
   listReceivedStudents,
   listRequirements,
+  listWithdrawn,
 } from '@/features/documents-and-numbering/queries';
 import { parseFilter } from '@/features/documents-and-numbering/schema';
 import { catchUpAdmissionsStatus } from '@/features/admissions-callback/send';
@@ -25,6 +26,7 @@ export default async function DocumentsPage({
   const [programs, requirements] = await Promise.all([listPrograms(), listRequirements()]);
   const pending = filter.tab === 'pending' ? await listPendingApplicants(filter, requirements) : [];
   const received = filter.tab === 'received' ? await listReceivedStudents(filter, requirements) : [];
+  const withdrawn = filter.tab === 'withdrawn' ? await listWithdrawn(filter) : [];
 
   return (
     <DocumentsAdmin
@@ -33,6 +35,7 @@ export default async function DocumentsPage({
       requirements={requirements}
       pending={pending}
       received={received}
+      withdrawn={withdrawn}
     />
   );
 }
