@@ -1,8 +1,10 @@
 // Where the sections stand in the approval chain (Secretary, Dean, Registrar):
 // one bar split by step, with each step's count beside its name. The color is
 // never the only signal, the legend carries the numbers. Flat colors from the
-// gray and green scales.
-import { Box, Group, Progress, Stack, Text } from '@mantine/core';
+// gray and green scales. This is a server component, so it uses the named
+// ProgressRoot / ProgressSection exports: dotted names (Progress.Root) cannot
+// be read from a client module on the server and crash the page.
+import { Box, Group, ProgressRoot, ProgressSection, Stack, Text } from '@mantine/core';
 import { color, fontWeight, gray, green, layout, spacing } from '@/styles/tokens';
 import type { ScheduleStatus } from '@/features/section-scheduling/schema';
 import type { PipelineStage } from './schema';
@@ -24,13 +26,13 @@ export function PipelineBar({ stages }: { stages: PipelineStage[] }) {
         <Text c={color.textSecondary}>No sections yet.</Text>
       ) : (
         <>
-          <Progress.Root size={layout.barHeight} aria-label="Sections by approval step">
+          <ProgressRoot size={layout.barHeight} aria-label="Sections by approval step">
             {stages
               .filter((stage) => stage.count > 0)
               .map((stage) => (
-                <Progress.Section key={stage.status} value={(stage.count / total) * 100} color={STEP_COLOR[stage.status]} />
+                <ProgressSection key={stage.status} value={(stage.count / total) * 100} color={STEP_COLOR[stage.status]} />
               ))}
-          </Progress.Root>
+          </ProgressRoot>
           <Group gap={spacing.lg}>
             {stages.map((stage) => (
               <Group key={stage.status} gap={spacing.sm} wrap="nowrap">
