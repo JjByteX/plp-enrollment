@@ -16,7 +16,16 @@ export type NavIconName =
 // `keywords` are extra search-only terms (abbreviations, synonyms, the full
 // name behind an acronym) that feed the top-bar search alongside the label,
 // so a near-miss or shorthand still finds the right area.
-export type NavItem = { label: string; href: string; icon: NavIconName; exact?: boolean; keywords?: string[] };
+// `children` are the item's own subpages (Admin's sidebar nests each staff
+// area's pages under it). The item itself stays a link to that area's home.
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: NavIconName;
+  exact?: boolean;
+  keywords?: string[];
+  children?: NavItem[];
+};
 export type NavGroup = { label: string | null; items: NavItem[] };
 
 const REGISTRAR: NavItem[] = [
@@ -27,6 +36,19 @@ const REGISTRAR: NavItem[] = [
   { label: 'Slips', href: '/registrar/slips', icon: 'slips', keywords: ['assessment slip', 'fees', 'tuition'] },
   { label: 'COR', href: '/registrar/cors', icon: 'cor', keywords: ['certificate of registration', 'registration'] },
 ];
+
+const SECRETARY_SCHEDULES: NavItem = {
+  label: 'Schedules',
+  href: '/secretary/schedule',
+  icon: 'schedules',
+  keywords: ['sections', 'classes', 'timetable'],
+};
+const FINANCE_PAYMENTS: NavItem = {
+  label: 'Payments',
+  href: '/finance/payments',
+  icon: 'payments',
+  keywords: ['pay', 'tuition', 'fees', 'billing'],
+};
 
 export function navFor(role: Role): NavGroup[] {
   switch (role) {
@@ -79,10 +101,10 @@ export function navFor(role: Role): NavGroup[] {
         {
           label: null,
           items: [
-            { label: 'Registrar', href: '/registrar', icon: 'registrar', keywords: ['visits', 'documents', 'cor', 'slips'] },
-            { label: 'Finance', href: '/finance', icon: 'finance', keywords: ['payments', 'billing', 'tuition'] },
+            { label: 'Registrar', href: '/registrar', icon: 'registrar', keywords: ['visits', 'documents', 'cor', 'slips'], children: REGISTRAR },
+            { label: 'Finance', href: '/finance', icon: 'finance', keywords: ['payments', 'billing', 'tuition'], children: [FINANCE_PAYMENTS] },
             { label: 'Dean', href: '/dean', icon: 'dean', keywords: ['college', 'approval'] },
-            { label: 'College Secretary', href: '/secretary', icon: 'secretary', keywords: ['secretary', 'college', 'schedules'] },
+            { label: 'College Secretary', href: '/secretary', icon: 'secretary', keywords: ['secretary', 'college', 'schedules'], children: [SECRETARY_SCHEDULES] },
             { label: 'Professor', href: '/professor', icon: 'professor', keywords: ['faculty', 'teacher', 'instructor'] },
           ],
         },
@@ -103,5 +125,5 @@ export function isActive(pathname: string, item: NavItem): boolean {
 // search: only areas the signed-in user is actually recommended/allowed to
 // open (the same groups rendered in the sidebar), never the full site map.
 export function flattenNav(nav: NavGroup[]): NavItem[] {
-  return nav.flatMap((group) => group.items);
+  return nav.flatMap((group) => group.items.flatMap((item) => [item, ...(item.children ?? [])]));
 }

@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { Box, Button, Card, Divider, Group, Menu, NavLink, Stack, Text, Tooltip, UnstyledButton, useComputedColorScheme } from '@mantine/core';
 import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { signOut } from '@/lib/auth/actions';
-import { SIDEBAR_COOKIE, flattenNav, isActive, type NavGroup } from '@/lib/nav';
+import { SIDEBAR_COOKIE, flattenNav, isActive, type NavGroup, type NavItem } from '@/lib/nav';
 import { NAV_ICONS } from '@/components/NavIcons';
 import { NextStepCard } from '@/features/next-step-card/NextStepCard';
 import type { NextStep } from '@/features/next-step-card/queries';
@@ -77,6 +77,84 @@ export function PortalShell({
       </Group>
     </Link>
   );
+
+  // One sidebar entry. An entry with subpages (Admin's staff areas) expands to
+  // show them; on the collapsed rail it opens a small menu beside the icon.
+  function renderItem(item: NavItem) {
+    const Icon = NAV_ICONS[item.icon];
+    const children = item.children ?? [];
+    const active = children.length > 0 ? pathname === item.href : isActive(pathname, item);
+    const styles = {
+      root: { justifyContent: collapsed ? 'center' : undefined },
+      section: { marginInlineEnd: collapsed ? 'unset' : undefined },
+      label: { color: active ? green[7] : textPrimary },
+    };
+
+    if (children.length > 0 && collapsed) {
+      return (
+        <Menu key={item.href} position="right-start" offset={spacing.sm} withinPortal>
+          <Menu.Target>
+            <NavLink
+              aria-label={item.label}
+              leftSection={<Icon width={layout.iconSize} height={layout.iconSize} />}
+              active={isActive(pathname, item)}
+              variant="light"
+              color="green"
+              style={{ borderRadius: radius.default }}
+              styles={styles}
+            />
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>{item.label}</Menu.Label>
+            <Menu.Item component={Link} href={item.href}>
+              Home
+            </Menu.Item>
+            {children.map((child) => {
+              const ChildIcon = NAV_ICONS[child.icon];
+              return (
+                <Menu.Item
+                  key={child.href}
+                  component={Link}
+                  href={child.href}
+                  leftSection={<ChildIcon width={layout.iconSize} height={layout.iconSize} />}
+                >
+                  {child.label}
+                </Menu.Item>
+              );
+            })}
+          </Menu.Dropdown>
+        </Menu>
+      );
+    }
+
+    const link = (
+      <NavLink
+        key={item.href}
+        component={Link}
+        href={item.href}
+        label={collapsed ? undefined : item.label}
+        aria-label={item.label}
+        leftSection={<Icon width={layout.iconSize} height={layout.iconSize} />}
+        active={active}
+        defaultOpened={children.length > 0 && isActive(pathname, item)}
+        childrenOffset={spacing.lg}
+        variant="light"
+        color="green"
+        fw={fontWeight.regular}
+        style={{ borderRadius: radius.default }}
+        styles={styles}
+      >
+        {children.map((child) => renderItem(child))}
+      </NavLink>
+    );
+    return collapsed ? (
+      <Tooltip key={item.href} label={item.label} position="right">
+        {link}
+      </Tooltip>
+    ) : (
+      link
+    );
+  }
 
   const profileMenu = (
       <Menu position="bottom-end">
@@ -157,37 +235,7 @@ export function PortalShell({
                       {group.label}
                     </Text>
                   )}
-                  {group.items.map((item) => {
-                    const Icon = NAV_ICONS[item.icon];
-                    const active = isActive(pathname, item);
-                    const link = (
-                      <NavLink
-                        key={item.href}
-                        component={Link}
-                        href={item.href}
-                        label={collapsed ? undefined : item.label}
-                        aria-label={item.label}
-                        leftSection={<Icon width={layout.iconSize} height={layout.iconSize} />}
-                        active={active}
-                        variant="light"
-                        color="green"
-                        fw={fontWeight.regular}
-                        style={{ borderRadius: radius.default }}
-                        styles={{
-                          root: { justifyContent: collapsed ? 'center' : undefined },
-                          section: { marginInlineEnd: collapsed ? 'unset' : undefined },
-                          label: { color: active ? green[7] : textPrimary },
-                        }}
-                      />
-                    );
-                    return collapsed ? (
-                      <Tooltip key={item.href} label={item.label} position="right">
-                        {link}
-                      </Tooltip>
-                    ) : (
-                      link
-                    );
-                  })}
+                  {group.items.map((item) => renderItem(item))}
                 </Stack>
               ))}
             </Stack>
