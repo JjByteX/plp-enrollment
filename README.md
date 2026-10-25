@@ -4,8 +4,6 @@ Enrollment system for newly admitted PLP students. It picks up where the separat
 
 It is its own system with its own hosting, database and logins. The only link to PLP Admissions is one secure HTTPS call from Admissions to Enrollment.
 
-**Status:** foundation stage. The database schema, CI/CD pipeline and design tokens exist. The Next.js app itself is not scaffolded yet. See `docs/build-order.md`.
-
 ## Stack
 
 - Next.js (App Router), React, Mantine UI
