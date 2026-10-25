@@ -5,7 +5,7 @@
 // centered modals. All changes go through ./actions.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput } from '@mantine/core';
+import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, padding, spacing } from '@/styles/tokens';
 import {
