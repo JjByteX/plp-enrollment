@@ -16,6 +16,10 @@
 -- notification, payment snapshot), issue all ready, and who may read a slip's content.
 -- Also checks the laboratory meetings in 20261025090000_laboratory_meetings.sql: a lecture and a
 -- laboratory row per subject, filled automatically, and units counted once on the slip.
+-- Also checks step 12 in 20261025120000_reschedules.sql: next open slot with an excluded date and
+-- office, the mass reschedule (role refusal, input refusals, one office, a whole date, run again after
+-- adding slots, attended and no show left alone), the applicant request, and the Registrar's approve
+-- or decline (notifications, audit, rolled back refusals, row level security).
 -- Blocked actions print 'ok   blocked'. Any 'FAIL' line is a broken rule.
 \set ON_ERROR_STOP on
 SET search_path = public, extensions;
@@ -861,6 +865,264 @@ SELECT act('fn');
 SELECT expect_msg('finance reads a COR', $$SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'only view your own');
 SELECT act('ap2');
 SELECT expect_msg('an applicant reads a COR', $$SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid))$$, 'only view your own');
+
+-- ============================================================
+-- reschedules (step 12), 20261025120000_reschedules.sql. Own programs BSR
+-- (mass reschedule) and BSQ (requests) on dates 40 to 47 days out, so earlier
+-- fixtures cannot change the order. A reschedule moves the visit only: the
+-- student count is compared at the end.
+-- ============================================================
+CREATE TEMP TABLE snap12 AS SELECT count(*)::text AS students FROM students;
+CREATE OR REPLACE FUNCTION req_id(k text, st text) RETURNS uuid LANGUAGE sql AS $$
+  SELECT rr.id FROM reschedule_requests rr JOIN visit_bookings b ON b.id = rr.booking_id
+   WHERE b.applicant_id = md5('A'||k)::uuid AND rr.status = st ORDER BY rr.created_at DESC LIMIT 1
+$$;
+
+SELECT act('ad');
+INSERT INTO programs (id,code,name,college_id) VALUES
+  ('00000000-0000-0000-0000-0000000000a7','BSR','Test Program R','00000000-0000-0000-0000-0000000000c1'),
+  ('00000000-0000-0000-0000-0000000000a8','BSQ','Test Program Q','00000000-0000-0000-0000-0000000000c1');
+-- r1 to r6 in BSR, admitted oldest first. q1 to q5 in BSQ.
+SELECT mk_applicant('r1','00000000-0000-0000-0000-0000000000a7', mnl_today()-5);
+SELECT mk_applicant('r2','00000000-0000-0000-0000-0000000000a7', mnl_today()-4);
+SELECT mk_applicant('r3','00000000-0000-0000-0000-0000000000a7', mnl_today()-3);
+SELECT mk_applicant('r4','00000000-0000-0000-0000-0000000000a7', mnl_today()-2);
+SELECT mk_applicant('r5','00000000-0000-0000-0000-0000000000a7', mnl_today()-1);
+SELECT mk_applicant('r6','00000000-0000-0000-0000-0000000000a7', mnl_today()-1);
+SELECT mk_applicant('q1','00000000-0000-0000-0000-0000000000a8', mnl_today()-5);
+SELECT mk_applicant('q2','00000000-0000-0000-0000-0000000000a8', mnl_today()-4);
+SELECT mk_applicant('q3','00000000-0000-0000-0000-0000000000a8', mnl_today()-3);
+SELECT mk_applicant('q4','00000000-0000-0000-0000-0000000000a8', mnl_today()-2);
+SELECT mk_applicant('q5','00000000-0000-0000-0000-0000000000a8', mnl_today()-1);
+
+-- BSR: the affected date is +40. SR1 and SR2 are full once r1 to r4 are in; SRD still has seats.
+SELECT act('rg');
+INSERT INTO visit_slots (id,program_id,slot_date,start_time,end_time,capacity,office_name,what_to_bring,status) VALUES
+  (md5('SR1')::uuid,'00000000-0000-0000-0000-0000000000a7',mnl_today()+40,'09:00','10:00',2,'Registrar Office','x','open'),
+  (md5('SR2')::uuid,'00000000-0000-0000-0000-0000000000a7',mnl_today()+40,'10:00','11:00',2,'Cashier','x','open'),
+  (md5('SRD')::uuid,'00000000-0000-0000-0000-0000000000a7',mnl_today()+40,'11:00','12:00',5,'Registrar Office','x','open'),
+  (md5('SR3')::uuid,'00000000-0000-0000-0000-0000000000a7',mnl_today()+41,'09:00','10:00',1,'Registrar Office','x','open'),
+  (md5('SR4')::uuid,'00000000-0000-0000-0000-0000000000a7',mnl_today()+41,'10:00','11:00',1,'Registrar Office','x','open'),
+  (md5('SRC')::uuid,'00000000-0000-0000-0000-0000000000a7',mnl_today()+42,'08:00','09:00',5,'Registrar Office','x','closed');
+INSERT INTO visit_bookings (applicant_id,slot_id) VALUES
+  (md5('Ar1')::uuid, md5('SR1')::uuid), (md5('Ar2')::uuid, md5('SR1')::uuid),
+  (md5('Ar3')::uuid, md5('SR2')::uuid), (md5('Ar4')::uuid, md5('SR2')::uuid);
+-- an attended and a no show visit on the same date: a reschedule never moves them
+INSERT INTO visit_bookings (applicant_id,slot_id,status) VALUES
+  (md5('Ar5')::uuid, md5('SRD')::uuid, 'attended'), (md5('Ar6')::uuid, md5('SRD')::uuid, 'no_show');
+
+-- next_open_slot with the two optional arguments (the one argument call is checked in step 6)
+SELECT expect_eq('next open slot, no exclusion, is the seat on the busy date', next_open_slot('00000000-0000-0000-0000-0000000000a7')::text, md5('SRD')::uuid::text);
+SELECT expect_eq('next open slot skips the excluded date', next_open_slot('00000000-0000-0000-0000-0000000000a7', mnl_today()+40)::text, md5('SR3')::uuid::text);
+SELECT expect_eq('excluding one office keeps the other offices on that date',
+  next_open_slot('00000000-0000-0000-0000-0000000000a7', mnl_today()+40, 'Cashier')::text, md5('SRD')::uuid::text);
+SELECT expect_eq('excluding an office that is not on the date excludes nothing',
+  next_open_slot('00000000-0000-0000-0000-0000000000a7', mnl_today()+40, 'Elsewhere')::text, md5('SRD')::uuid::text);
+
+-- who may set a mass reschedule: Registrar and Admin only
+SELECT act('ap2'); SELECT expect_msg('applicant sets a mass reschedule', $$SELECT mass_reschedule(mnl_today()+40, NULL, NULL, 'x')$$, 'Only the Registrar or Admin');
+SELECT act('ap');  SELECT expect_msg('student sets a mass reschedule', $$SELECT mass_reschedule(mnl_today()+40, NULL, NULL, 'x')$$, 'Only the Registrar or Admin');
+SELECT act('fn');  SELECT expect_msg('finance sets a mass reschedule', $$SELECT mass_reschedule(mnl_today()+40, NULL, NULL, 'x')$$, 'Only the Registrar or Admin');
+SELECT act('sc');  SELECT expect_msg('secretary sets a mass reschedule', $$SELECT mass_reschedule(mnl_today()+40, NULL, NULL, 'x')$$, 'Only the Registrar or Admin');
+SELECT act('dn');  SELECT expect_msg('dean sets a mass reschedule', $$SELECT mass_reschedule(mnl_today()+40, NULL, NULL, 'x')$$, 'Only the Registrar or Admin');
+SELECT act('pf');  SELECT expect_msg('professor sets a mass reschedule', $$SELECT mass_reschedule(mnl_today()+40, NULL, NULL, 'x')$$, 'Only the Registrar or Admin');
+
+-- input refusals leave no record and move nobody
+SELECT act('rg');
+SELECT expect_msg('mass reschedule without a date', $$SELECT mass_reschedule(NULL, NULL, NULL, 'x')$$, 'Choose the affected date');
+SELECT expect_msg('mass reschedule for a past date', $$SELECT mass_reschedule(mnl_today()-1, NULL, NULL, 'x')$$, 'cannot be in the past');
+SELECT expect_msg('mass reschedule without a reason', $$SELECT mass_reschedule(mnl_today()+40, NULL, NULL, '   ')$$, 'Enter the reason');
+SELECT expect_msg('mass reschedule with a 501 character reason', $$SELECT mass_reschedule(mnl_today()+40, NULL, NULL, repeat('x', 501))$$, 'longer than 500');
+SELECT expect_msg('mass reschedule on a date with no booked visit', $$SELECT mass_reschedule(mnl_today()+20, NULL, NULL, 'x')$$, 'No booked visit falls on that date');
+SELECT expect_msg('mass reschedule for a program with nobody that day', $$SELECT mass_reschedule(mnl_today()+40, '00000000-0000-0000-0000-0000000000a1', NULL, 'x')$$, 'No booked visit falls on that date');
+SELECT expect_msg('mass reschedule for an office with nobody that day', $$SELECT mass_reschedule(mnl_today()+40, NULL, 'Elsewhere', 'x')$$, 'No booked visit falls on that date');
+SELECT expect_eq('refusals left no record and moved nobody',
+  (SELECT count(*)::text FROM mass_reschedules WHERE affected_date = mnl_today()+40)||'/'||
+  (SELECT count(*)::text FROM visit_bookings WHERE slot_id IN (md5('SR1')::uuid, md5('SR2')::uuid)), '0/4');
+
+-- run 1: one office. r3 and r4 (Cashier) go to the seat at the other office on the same date; r1 and r2 stay.
+SELECT expect_eq('office run: moved / left over',
+  (SELECT moved||'/'||left_over FROM mass_reschedule(mnl_today()+40, '00000000-0000-0000-0000-0000000000a7', 'Cashier', 'typhoon')), '2/0');
+SELECT expect_eq('office run: r3 and r4 are in SRD, r1 and r2 stay in SR1',
+  (SELECT count(*)::text FROM visit_bookings WHERE applicant_id IN (md5('Ar3')::uuid, md5('Ar4')::uuid) AND slot_id = md5('SRD')::uuid)||'/'||
+  (SELECT count(*)::text FROM visit_bookings WHERE applicant_id IN (md5('Ar1')::uuid, md5('Ar2')::uuid) AND slot_id = md5('SR1')::uuid), '2/2');
+SELECT expect_eq('office run: the event is recorded with its filters, the actor and no target slot',
+  (SELECT office_name||'/'||reason||'/'||(program_id = '00000000-0000-0000-0000-0000000000a7')::text||'/'||(triggered_by = md5('rg')::uuid)::text||'/'||(target_slot_id IS NULL)::text
+     FROM mass_reschedules WHERE affected_date = mnl_today()+40), 'Cashier/typhoon/true/true/true');
+SELECT expect_eq('office run: r3 was told once, email pending',
+  (SELECT count(*)::text||'/'||min(email_status) FROM notifications WHERE user_id = md5('r3')::uuid AND kind = 'visit_moved'), '1/pending');
+SELECT expect_eq('office run: audit has the reason and the registrar',
+  (SELECT reason||'/'||(actor_id = md5('rg')::uuid)::text FROM audit_log
+    WHERE table_name = 'visit_bookings' AND action = 'UPDATE' AND new_data->>'applicant_id' = md5('Ar3')::uuid::text AND new_data->>'slot_id' = md5('SRD')::uuid::text),
+  'Mass reschedule: typhoon/true');
+SELECT expect_eq('office run: r1 and r2 were not told', (SELECT count(*)::text FROM notifications WHERE user_id IN (md5('r1')::uuid, md5('r2')::uuid)), '0');
+
+-- run 2: the whole date, by Admin. The emptied date is never chosen, so r3 and r4 (now in SRD on that date) do not fit and stay.
+SELECT act('ad');
+SELECT expect_eq('date run: moved / left over',
+  (SELECT moved||'/'||left_over FROM mass_reschedule(mnl_today()+40, '00000000-0000-0000-0000-0000000000a7', NULL, 'closure')), '2/2');
+SELECT expect_eq('date run: admission order, r1 in SR3 and r2 in SR4',
+  (SELECT slot_id::text FROM visit_bookings WHERE applicant_id = md5('Ar1')::uuid)||'/'||(SELECT slot_id::text FROM visit_bookings WHERE applicant_id = md5('Ar2')::uuid),
+  md5('SR3')::uuid::text||'/'||md5('SR4')::uuid::text);
+SELECT expect_eq('date run: the free seat on the emptied date was not used, r3 and r4 stay',
+  (SELECT count(*)::text FROM visit_bookings WHERE applicant_id IN (md5('Ar3')::uuid, md5('Ar4')::uuid) AND slot_id = md5('SRD')::uuid), '2');
+SELECT expect_eq('date run: attended and no show stay as they are',
+  (SELECT status FROM visit_bookings WHERE applicant_id = md5('Ar5')::uuid)||'/'||(SELECT status FROM visit_bookings WHERE applicant_id = md5('Ar6')::uuid)||'/'||
+  (SELECT count(*)::text FROM visit_bookings WHERE applicant_id IN (md5('Ar5')::uuid, md5('Ar6')::uuid) AND slot_id = md5('SRD')::uuid), 'attended/no_show/2');
+SELECT expect_eq('date run: audit has the reason and the admin',
+  (SELECT reason||'/'||(actor_id = md5('ad')::uuid)::text FROM audit_log
+    WHERE table_name = 'visit_bookings' AND action = 'UPDATE' AND new_data->>'applicant_id' = md5('Ar1')::uuid::text AND new_data->>'slot_id' = md5('SR3')::uuid::text),
+  'Mass reschedule: closure/true');
+SELECT expect_eq('date run: the event is audited with the admin',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'mass_reschedules' AND action = 'INSERT' AND actor_id = md5('ad')::uuid AND new_data->>'reason' = 'closure'), '1');
+SELECT expect_eq('every BSR slot is within capacity',
+  (SELECT bool_and(c <= capacity)::text FROM (SELECT s.capacity, count(b.id) c FROM visit_slots s LEFT JOIN visit_bookings b ON b.slot_id = s.id
+     WHERE s.program_id = '00000000-0000-0000-0000-0000000000a7' GROUP BY s.id, s.capacity) t), 'true');
+
+-- run 3: after the Registrar adds a slot, running it again moves the two who stayed
+SELECT act('rg');
+INSERT INTO visit_slots (id,program_id,slot_date,start_time,end_time,capacity,office_name,what_to_bring,status)
+  VALUES (md5('SRG')::uuid,'00000000-0000-0000-0000-0000000000a7',mnl_today()+42,'09:00','10:00',5,'Registrar Office','x','open');
+SELECT expect_eq('run again: moved / left over',
+  (SELECT moved||'/'||left_over FROM mass_reschedule(mnl_today()+40, '00000000-0000-0000-0000-0000000000a7', NULL, 'closure, second run')), '2/0');
+SELECT expect_eq('run again: r3 and r4 are in the new slot',
+  (SELECT count(*)::text FROM visit_bookings WHERE applicant_id IN (md5('Ar3')::uuid, md5('Ar4')::uuid) AND slot_id = md5('SRG')::uuid), '2');
+SELECT expect_msg('run again with nobody booked on the date', $$SELECT mass_reschedule(mnl_today()+40, '00000000-0000-0000-0000-0000000000a7', NULL, 'x')$$, 'No booked visit falls on that date');
+SELECT expect_eq('three runs, three records', (SELECT count(*)::text FROM mass_reschedules WHERE affected_date = mnl_today()+40), '3');
+
+-- BSQ: q1 to q3 booked in QF1 (+45). QF2 and QF3 hold one seat each. QC is closed.
+INSERT INTO visit_slots (id,program_id,slot_date,start_time,end_time,capacity,office_name,what_to_bring,status) VALUES
+  (md5('QF1')::uuid,'00000000-0000-0000-0000-0000000000a8',mnl_today()+45,'09:00','10:00',5,'Registrar Office','x','open'),
+  (md5('QF2')::uuid,'00000000-0000-0000-0000-0000000000a8',mnl_today()+46,'09:00','10:00',1,'Registrar Office','x','open'),
+  (md5('QF3')::uuid,'00000000-0000-0000-0000-0000000000a8',mnl_today()+47,'09:00','10:00',1,'Registrar Office','x','open'),
+  (md5('QC')::uuid, '00000000-0000-0000-0000-0000000000a8',mnl_today()+44,'09:00','10:00',5,'Registrar Office','x','closed');
+INSERT INTO visit_bookings (applicant_id,slot_id) VALUES
+  (md5('Aq1')::uuid, md5('QF1')::uuid), (md5('Aq2')::uuid, md5('QF1')::uuid), (md5('Aq3')::uuid, md5('QF1')::uuid);
+INSERT INTO visit_bookings (applicant_id,slot_id,status) VALUES (md5('Aq5')::uuid, md5('QF1')::uuid, 'attended');
+
+-- who may ask: applicants and students only, with a booked visit and a reason
+SELECT act('rg'); SELECT expect_msg('registrar requests a reschedule', $$SELECT request_reschedule('x')$$, 'Only an applicant or student');
+SELECT act('fn'); SELECT expect_msg('finance requests a reschedule', $$SELECT request_reschedule('x')$$, 'Only an applicant or student');
+SELECT act('q1');
+SELECT expect_msg('request without a reason', $$SELECT request_reschedule('   ')$$, 'Enter the reason');
+SELECT expect_msg('request with a 501 character reason', $$SELECT request_reschedule(repeat('x', 501))$$, 'longer than 500');
+SELECT act('q4'); SELECT expect_msg('request without a visit', $$SELECT request_reschedule('sick')$$, 'no booked visit');
+SELECT act('q5'); SELECT expect_msg('request for an attended visit', $$SELECT request_reschedule('sick')$$, 'no booked visit');
+SELECT act('ap'); SELECT expect_msg('a student with a request waiting asks again', $$SELECT request_reschedule('again')$$, 'already have a reschedule request');
+SELECT act('q1');
+SELECT request_reschedule('  family emergency  ');
+SELECT expect_eq('request is pending, trimmed, and stamped with the asker',
+  (SELECT status||'/'||reason||'/'||(requested_by = md5('q1')::uuid)::text||'/'||coalesce(decision_note, 'none') FROM reschedule_requests WHERE id = req_id('q1', 'pending')),
+  'pending/family emergency/true/none');
+SELECT expect_eq('a request does not move the visit', (SELECT slot_id::text FROM visit_bookings WHERE applicant_id = md5('Aq1')::uuid), md5('QF1')::uuid::text);
+SELECT expect_msg('a second request while one is waiting', $$SELECT request_reschedule('again')$$, 'already have a reschedule request');
+SELECT expect_eq('the request is audited with the asker',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'reschedule_requests' AND action = 'INSERT' AND actor_id = md5('q1')::uuid), '1');
+SELECT act('q2'); SELECT request_reschedule('exam that day');
+SELECT act('q3'); SELECT request_reschedule('sick');
+
+-- who may answer: Registrar and Admin only
+SELECT act('fn'); SELECT expect_msg('finance answers a request', $$SELECT decide_reschedule(req_id('q1','pending'), true, NULL, NULL)$$, 'Only the Registrar or Admin');
+SELECT act('sc'); SELECT expect_msg('secretary answers a request', $$SELECT decide_reschedule(req_id('q1','pending'), true, NULL, NULL)$$, 'Only the Registrar or Admin');
+SELECT act('q1'); SELECT expect_msg('the asker answers their own request', $$SELECT decide_reschedule(req_id('q1','pending'), true, NULL, NULL)$$, 'Only the Registrar or Admin');
+SELECT expect_eq('refused answers changed nothing', (SELECT status FROM reschedule_requests WHERE id = req_id('q1','pending')), 'pending');
+
+-- input refusals on q3's request leave it waiting
+SELECT act('rg');
+SELECT expect_msg('answer without a choice', $$SELECT decide_reschedule(req_id('q3','pending'), NULL, NULL, NULL)$$, 'Approve or decline');
+SELECT expect_msg('answer a request that does not exist', $$SELECT decide_reschedule(md5('nobody')::uuid, true, NULL, NULL)$$, 'Request not found');
+SELECT expect_msg('decline without a note', $$SELECT decide_reschedule(req_id('q3','pending'), false, NULL, NULL)$$, 'Enter the reason for declining');
+SELECT expect_msg('decline with a blank note', $$SELECT decide_reschedule(req_id('q3','pending'), false, NULL, '   ')$$, 'Enter the reason for declining');
+SELECT expect_msg('note of 501 characters', $$SELECT decide_reschedule(req_id('q3','pending'), false, NULL, repeat('x', 501))$$, 'longer than 500');
+SELECT expect_fail('approve into a slot of another program', $$SELECT decide_reschedule(req_id('q3','pending'), true, md5('SR3')::uuid, NULL)$$);
+SELECT expect_eq('input refusals left q3 waiting', (SELECT status FROM reschedule_requests WHERE id = req_id('q3','pending')), 'pending');
+
+-- approve with no slot chosen: the next open slot on another date, and the note goes to the audit log
+SELECT decide_reschedule(req_id('q1','pending'), true, NULL, 'ok to move');
+SELECT expect_eq('approved: row, slot given, decider and note',
+  (SELECT status||'/'||new_slot_id::text||'/'||(decided_by = md5('rg')::uuid)::text||'/'||(decided_at IS NOT NULL)::text||'/'||decision_note FROM reschedule_requests WHERE id = req_id('q1','approved')),
+  'approved/'||md5('QF2')::uuid::text||'/true/true/ok to move');
+SELECT expect_eq('approved: the visit moved to the next date, same booking row',
+  (SELECT slot_id::text FROM visit_bookings WHERE applicant_id = md5('Aq1')::uuid)||'/'||(SELECT count(*)::text FROM visit_bookings WHERE applicant_id = md5('Aq1')::uuid),
+  md5('QF2')::uuid::text||'/1');
+SELECT expect_eq('approved: q1 was told once, with the visit moved notification',
+  (SELECT count(*)::text||'/'||min(email_status) FROM notifications WHERE user_id = md5('q1')::uuid AND kind = 'visit_moved'), '1/pending');
+SELECT expect_eq('approved: audit reason carries the note',
+  (SELECT reason FROM audit_log WHERE table_name = 'visit_bookings' AND action = 'UPDATE'
+     AND new_data->>'applicant_id' = md5('Aq1')::uuid::text AND new_data->>'slot_id' = md5('QF2')::uuid::text),
+  'Reschedule request approved: ok to move');
+SELECT expect_msg('answer the same request twice', $$SELECT decide_reschedule(req_id('q1','approved'), false, NULL, 'no')$$, 'already been decided');
+SELECT expect_eq('the decision is audited with the registrar',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'reschedule_requests' AND action = 'UPDATE' AND actor_id = md5('rg')::uuid AND new_data->>'status' = 'approved'), '1');
+
+-- approve into a chosen slot, by Admin, no note
+SELECT act('ad');
+SELECT decide_reschedule(req_id('q2','pending'), true, md5('QF3')::uuid, NULL);
+SELECT expect_eq('chosen slot: q2 is in QF3, decided by admin',
+  (SELECT slot_id::text FROM visit_bookings WHERE applicant_id = md5('Aq2')::uuid)||'/'||(SELECT (decided_by = md5('ad')::uuid)::text FROM reschedule_requests WHERE id = req_id('q2','approved')),
+  md5('QF3')::uuid::text||'/true');
+SELECT expect_eq('chosen slot without a note: audit reason has no colon',
+  (SELECT reason FROM audit_log WHERE table_name = 'visit_bookings' AND action = 'UPDATE'
+     AND new_data->>'applicant_id' = md5('Aq2')::uuid::text AND new_data->>'slot_id' = md5('QF3')::uuid::text),
+  'Reschedule request approved');
+
+-- a refused move rolls everything back: q3 into the full QF3
+SELECT act('rg');
+SELECT expect_fail('approve into a full slot', $$SELECT decide_reschedule(req_id('q3','pending'), true, md5('QF3')::uuid, NULL)$$);
+SELECT expect_eq('refused move: request waiting, visit unchanged, nobody told',
+  (SELECT count(*)::text FROM reschedule_requests WHERE booking_id = (SELECT id FROM visit_bookings WHERE applicant_id = md5('Aq3')::uuid) AND status = 'pending')||'/'||
+  (SELECT slot_id::text FROM visit_bookings WHERE applicant_id = md5('Aq3')::uuid)||'/'||
+  (SELECT count(*)::text FROM notifications WHERE user_id = md5('q3')::uuid), '1/'||md5('QF1')::uuid::text||'/0');
+
+-- decline: note required, the visit stays, the person is told
+SELECT decide_reschedule(req_id('q3','pending'), false, NULL, 'No seats left that week');
+SELECT expect_eq('declined: row, decider and note, no new slot',
+  (SELECT status||'/'||(decided_by = md5('rg')::uuid)::text||'/'||(decided_at IS NOT NULL)::text||'/'||decision_note||'/'||(new_slot_id IS NULL)::text FROM reschedule_requests WHERE id = req_id('q3','declined')),
+  'declined/true/true/No seats left that week/true');
+SELECT expect_eq('declined: the visit did not move and no visit moved notification was written',
+  (SELECT slot_id::text FROM visit_bookings WHERE applicant_id = md5('Aq3')::uuid)||'/'||
+  (SELECT count(*)::text FROM notifications WHERE user_id = md5('q3')::uuid AND kind = 'visit_moved'), md5('QF1')::uuid::text||'/0');
+SELECT expect_eq('declined: q3 was told once, with the note',
+  (SELECT count(*)::text||'/'||(min(message) LIKE '%No seats left that week%')::text||'/'||min(email_status) FROM notifications WHERE user_id = md5('q3')::uuid AND kind = 'reschedule_declined'), '1/true/pending');
+SELECT expect_eq('declined: audited as a decline by the registrar',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'reschedule_requests' AND action = 'UPDATE' AND actor_id = md5('rg')::uuid AND new_data->>'status' = 'declined'), '1');
+
+-- after a decline the person may ask again
+SELECT act('q3'); SELECT request_reschedule('second try');
+SELECT expect_eq('q3 has two requests, one waiting', (SELECT count(*)::text||'/'||count(*) FILTER (WHERE status = 'pending')::text FROM reschedule_requests rr JOIN visit_bookings b ON b.id = rr.booking_id WHERE b.applicant_id = md5('Aq3')::uuid), '2/1');
+
+-- approve with nothing open on another date: refused with a clear message, still waiting
+SELECT act('rg');
+SELECT expect_msg('approve with no open slot on another date', $$SELECT decide_reschedule(req_id('q3','pending'), true, NULL, NULL)$$, 'No open slot');
+SELECT expect_eq('no slot: request still waiting', (SELECT count(*)::text FROM reschedule_requests WHERE id = req_id('q3','pending') AND status = 'pending'), '1');
+
+-- approve after the visit was marked attended: refused
+UPDATE visit_bookings SET status = 'attended' WHERE applicant_id = md5('Aq3')::uuid;
+SELECT expect_msg('approve a visit already marked attended', $$SELECT decide_reschedule(req_id('q3','pending'), true, md5('QF2')::uuid, NULL)$$, 'already marked attended');
+
+-- a reschedule moved visits only
+SELECT expect_eq('student count unchanged by every reschedule', (SELECT count(*)::text FROM students), (SELECT students FROM snap12));
+
+-- row level security as the signed-in roles
+SELECT id AS q1_booking FROM visit_bookings WHERE applicant_id = md5('Aq1')::uuid \gset
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('q3'); SELECT expect_eq('an applicant reads only their own requests', (SELECT count(*)::text FROM reschedule_requests), '2');
+SELECT act('q1'); SELECT expect_eq('another applicant reads only theirs', (SELECT count(*)::text FROM reschedule_requests), '1');
+SELECT act('q4'); SELECT expect_eq('an applicant with no request reads none', (SELECT count(*)::text FROM reschedule_requests), '0');
+SELECT act('fn'); SELECT expect_eq('finance reads no request', (SELECT count(*)::text FROM reschedule_requests), '0');
+SELECT act('sc'); SELECT expect_eq('secretary reads no request', (SELECT count(*)::text FROM reschedule_requests), '0');
+SELECT act('rg'); SELECT expect_eq('registrar reads requests', ((SELECT count(*) FROM reschedule_requests) > 0)::text, 'true');
+SELECT act('ad'); SELECT expect_eq('admin reads requests', ((SELECT count(*) FROM reschedule_requests) > 0)::text, 'true');
+SELECT act('rg'); SELECT expect_eq('registrar reads the mass reschedule record', ((SELECT count(*) FROM mass_reschedules) > 0)::text, 'true');
+SELECT act('q1'); SELECT expect_eq('an applicant reads no mass reschedule record', (SELECT count(*)::text FROM mass_reschedules), '0');
+SELECT act('q4');
+SELECT expect_fail('an applicant files a request for another applicant visit',
+  format('INSERT INTO reschedule_requests (booking_id, requested_by, reason) VALUES (%L, %L, %L)', :'q1_booking', md5('q4')::uuid, 'x'));
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 12 row level security checks not run';
+\endif
 
 -- audit
 SELECT 'audit rows', count(*), count(DISTINCT table_name) AS tables FROM audit_log;

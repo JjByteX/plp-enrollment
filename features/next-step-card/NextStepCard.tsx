@@ -2,10 +2,12 @@
 //
 // The persistent "Your next step" card, shown by the portal shell on every
 // page. Presentational only: the data comes from ./queries through the layout.
-// No reschedule button yet; the reschedule request arrives in step 12.
-import { Anchor, Divider, Stack, Text } from '@mantine/core';
+// An applicant with a booked visit can request a reschedule (step 12); they
+// send a reason and never pick the new date.
+import { Anchor, Divider, Group, Stack, Text } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { termLabel } from '@/features/cor/schema';
+import { RequestRescheduleButton } from '@/features/reschedule-request/RequestRescheduleButton';
 import type { NextStep } from './queries';
 
 export function NextStepCard({ step }: { step: NextStep }) {
@@ -84,6 +86,22 @@ export function NextStepCard({ step }: { step: NextStep }) {
                 {step.whatToBring}
               </Text>
             </>
+          )}
+          <Divider />
+          {step.reschedule.status === 'pending' && (
+            <Text size="sm" c={color.textSecondary}>
+              Your reschedule request is waiting for the Registrar.
+            </Text>
+          )}
+          {step.reschedule.status === 'declined' && (
+            <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+              The Registrar declined your reschedule request: {step.reschedule.note}
+            </Text>
+          )}
+          {step.reschedule.status !== 'pending' && (
+            <Group>
+              <RequestRescheduleButton />
+            </Group>
           )}
         </Stack>
       )}

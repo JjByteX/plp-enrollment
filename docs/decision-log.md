@@ -406,3 +406,21 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A, the AI's design for the human to veto. The per-program toggle affects only slips issued afterwards, because each slip keeps its own snapshot.
 
 **Consequences:** An installment plan needs a payments ledger and a new decision. Switching a program's toggle does not reopen or skip anything for students who already have a slip.
+
+---
+
+**#:** 23
+**Date:** 2026-10-25
+**Milestone:** Build step 12, how reschedules choose and answer
+
+**Context:** The plan lets staff move a date by a mass reschedule "to the next available slot, or to a new date that staff set", and lets the Registrar answer a request by approving, declining, or "offering the next available date". It does not say what happens to a person who does not fit, whether staff may pick the target, or how a declined person sees the answer.
+
+**Options Considered:**
+- Option A: A mass reschedule always moves to the next open slot of the person's program, never onto the date being emptied (and never onto the office being emptied when one office is chosen). Staff do not pick a target. Someone who does not fit stays where they are and is counted, so the Registrar adds slots and runs it again. Approving a request takes an optional slot, or the next open slot on another date. Declining needs a note, shown on the person's card and sent as a notification.
+- Option B: Let staff pick a target slot, or park people with no booking until a slot exists.
+
+**Community Consensus:** Not searched. Option A follows what the database already holds: `mass_reschedules.target_slot_id` stays empty, and the visit is never left without a booking.
+
+**Decision:** Option A, the AI's design for the human to veto. Only visits still marked booked move; attended and no show stay as they are. A person may have one waiting request per visit and may ask again after a decline. Declining does not offer a date, because the Registrar can approve with a chosen slot instead.
+
+**Consequences:** A mass reschedule on a busy day can leave people on the date being emptied until slots are added. A no show visit has no way to ask for a reschedule yet, because nothing in the system marks a no show.

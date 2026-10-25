@@ -6,7 +6,9 @@
 // an applicant read only their own booking and the slot it points to.
 //
 // Applicants see their visit with the checklist for their admission type
-// (step 7 decision C). Students see their student number and any late item
+// (step 7 decision C) and, under it, where their reschedule request stands
+// (step 12): none, waiting for the Registrar, or declined with the Registrar's
+// note. An approved request needs no line, the visit itself has moved. Students see their student number and any late item
 // still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10) and their COR (step 11). Every other role keeps "Nothing to do yet" until the
 // dashboards in step 14.
 import { createClient } from '@/lib/supabase/server';
@@ -17,7 +19,14 @@ import { sectionLabel } from '@/features/section-scheduling/schema';
 export type NextStep =
   | { kind: 'none' }
   | { kind: 'waiting' }
-  | { kind: 'visit'; date: string; window: string; office: string; whatToBring: string | null }
+  | {
+      kind: 'visit';
+      date: string;
+      window: string;
+      office: string;
+      whatToBring: string | null;
+      reschedule: RescheduleState;
+    }
   | {
       kind: 'student_waiting';
       studentNumber: string;
@@ -27,6 +36,9 @@ export type NextStep =
       payment: 'pending' | 'cleared' | null; // null when payment is not required
       cor: { schoolYear: string; semester: string } | null; // set once the student is enrolled
     };
+
+// The applicant's latest reschedule request, as the card shows it.
+export type RescheduleState = { status: 'none' } | { status: 'pending' } | { status: 'declined'; note: string };
 
 type PlacementRow = {
   sections: { name: string; year_level: number; schedule_status: string; programs: { code: string } | null } | null;
@@ -107,8 +119,8 @@ export async function getNextStep(user: CurrentUser): Promise<NextStep> {
   const booking = data as unknown as BookingRow | null;
 
   if (!booking) return { kind: 'waiting' };
-  // An attended visit means the applicant is already a student (handled above);
-  // a no show is handled by step 12. Until then there is nothing to show.
+  // An attended visit means the applicant is already a student (handled above).
+  // A no show has nothing to show yet.
   if (booking.status !== 'booked' || !booking.visit_slots) return { kind: 'none' };
 
   const slot = booking.visit_slots;
@@ -121,11 +133,27 @@ export async function getNextStep(user: CurrentUser): Promise<NextStep> {
     checklist = typeof text === 'string' ? text : null;
   }
 
+  // Row level security lets an applicant read only the requests they sent.
+  const { data: latest } = await supabase
+    .from('reschedule_requests')
+    .select('status, decision_note')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const request = latest as { status: string; decision_note: string | null } | null;
+  const reschedule: RescheduleState =
+    request?.status === 'pending'
+      ? { status: 'pending' }
+      : request?.status === 'declined'
+        ? { status: 'declined', note: request.decision_note ?? '' }
+        : { status: 'none' };
+
   return {
     kind: 'visit',
     date: formatSlotDate(slot.slot_date),
     window: windowLabel(slot.start_time.slice(0, 5), slot.end_time.slice(0, 5)),
     office: slot.office_name,
     whatToBring: joinWhatToBring(checklist, slot.what_to_bring),
+    reschedule,
   };
 }
