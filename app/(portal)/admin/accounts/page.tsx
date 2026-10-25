@@ -1,4 +1,5 @@
-import { Stack, Title } from '@mantine/core';
+import { Stack } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { createClient } from '@/lib/supabase/server';
 import { spacing } from '@/styles/tokens';
 import { AccountForm } from './AccountForm';
@@ -15,7 +16,7 @@ export default async function AccountsPage() {
 
   return (
     <Stack gap={spacing.md}>
-      <Title order={3}>Accounts</Title>
+      <PageHeading title="Accounts" parent={{ label: 'Admin', href: '/admin' }} />
       <AccountForm colleges={colleges} />
     </Stack>
   );

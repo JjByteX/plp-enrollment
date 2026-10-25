@@ -4,7 +4,8 @@
 // have no slip yet. Fewer than 5 rows render as a list, 5 or more as a table
 // (ux-ui-guidelines.md). All changes go through ./actions.
 import { useState } from 'react';
-import { Button, Divider, Group, Stack, Table, Text, Title } from '@mantine/core';
+import { Button, Divider, Group, Stack, Table, Text } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { issueAllReadySlips, issueSlip, type SlipActionResult } from './actions';
 import type { ReadyStudent } from './queries';
@@ -26,7 +27,7 @@ export function SlipsAdmin({ ready }: { ready: ReadyStudent[] }) {
   return (
     <Stack gap={spacing.md}>
       <Group justify="space-between">
-        <Title order={3}>Assessment slips</Title>
+        <PageHeading title="Assessment slips" parent={{ label: 'Registrar', href: '/registrar' }} />
         <Button
           loading={busy === 'all'}
           disabled={ready.length === 0 || busy !== null}

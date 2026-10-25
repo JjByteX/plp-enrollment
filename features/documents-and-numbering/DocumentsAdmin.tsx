@@ -7,7 +7,8 @@
 // go through ./actions.
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput, Title } from '@mantine/core';
+import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { formatSlotDate } from '@/features/visit-scheduling/schema';
@@ -75,7 +76,7 @@ export function DocumentsAdmin({
 
   return (
     <Stack gap={spacing.md}>
-      <Title order={3}>Documents</Title>
+      <PageHeading title="Documents" parent={{ label: 'Registrar', href: '/registrar' }} />
 
       <Tabs value={filter.tab} onChange={(value) => setFilter({ tab: value === 'received' ? 'received' : 'pending' })}>
         <Tabs.List>

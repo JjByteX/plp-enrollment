@@ -6,7 +6,8 @@
 // holds the per-program payment toggle. All changes go through ./actions.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Stack, Switch, Table, Tabs, Text, Title } from '@mantine/core';
+import { Button, Divider, Group, Stack, Switch, Table, Tabs, Text } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { setPaymentRequired, type PaymentActionResult } from './actions';
 import type { PaymentRow, ProgramSetting } from './queries';
@@ -44,7 +45,7 @@ export function PaymentsAdmin({
 
   return (
     <Stack gap={spacing.md}>
-      <Title order={3}>Payments</Title>
+      <PageHeading title="Payments" parent={{ label: 'Finance', href: '/finance' }} />
 
       <Tabs value={tab} onChange={setTab}>
         <Tabs.List>

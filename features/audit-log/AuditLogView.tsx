@@ -6,7 +6,8 @@
 // more as a table (ux-ui-guidelines.md). Details open in a centered modal.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Modal, Pagination, Select, Stack, Table, Text, Title } from '@mantine/core';
+import { Button, Divider, Group, Modal, Pagination, Select, Stack, Table, Text } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { ROLE_LABEL, isRole } from '@/lib/auth/roles';
 import type { AuditEntry } from './queries';
@@ -58,7 +59,7 @@ export function AuditLogView({
 
   return (
     <Stack gap={spacing.md}>
-      <Title order={3}>Audit log</Title>
+      <PageHeading title="Audit log" parent={{ label: 'Admin', href: '/admin' }} />
 
       <Group gap={spacing.md} align="flex-end">
         <Select

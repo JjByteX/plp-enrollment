@@ -1,11 +1,14 @@
-// How many people reached each enrollment stage. A bar per stage, sized
-// against the first stage, with the count beside it. Registrar and Admin only.
+// How many people reached each enrollment stage, led by the one number the
+// Registrar wants first: the share of admitted applicants who are enrolled.
+// Under it, the place where the most people stall, then a bar per stage sized
+// against the first stage. Registrar and Admin only.
 import { Group, Progress, Stack, Text } from '@mantine/core';
-import { color, fontWeight, spacing } from '@/styles/tokens';
-import type { FunnelStage } from './schema';
+import { color, fontFamily, fontSize, fontWeight, layout, spacing } from '@/styles/tokens';
+import { funnelSummary, plural, type FunnelStage } from './schema';
 
 export function EnrollmentFunnel({ stages }: { stages: FunnelStage[] }) {
-  const total = stages[0]?.count ?? 0;
+  const summary = funnelSummary(stages);
+  const { total, biggestGap } = summary;
 
   return (
     <Stack gap={spacing.md}>
@@ -13,15 +16,43 @@ export function EnrollmentFunnel({ stages }: { stages: FunnelStage[] }) {
       {total === 0 ? (
         <Text c={color.textSecondary}>No applicants yet.</Text>
       ) : (
-        stages.map((stage) => (
-          <Stack key={stage.label} gap={spacing.xs}>
-            <Group justify="space-between">
-              <Text size="sm">{stage.label}</Text>
-              <Text size="sm">{stage.count}</Text>
-            </Group>
-            <Progress value={(stage.count / total) * 100} color={color.accent} aria-label={stage.label} />
-          </Stack>
-        ))
+        <>
+          <Group align="baseline" gap={spacing.md}>
+            <Text fz={fontSize.display} fw={fontWeight.semibold} ff={fontFamily.heading} lh={1}>
+              {summary.percent}%
+            </Text>
+            <Text size="sm" c={color.textSecondary}>
+              {summary.enrolled} of {total} admitted are enrolled
+            </Text>
+          </Group>
+
+          {biggestGap && (
+            <Text size="sm">
+              <Text span fw={fontWeight.semibold}>
+                Biggest gap:
+              </Text>{' '}
+              {biggestGap.count} {plural(biggestGap.count, 'person', 'people')} between {biggestGap.from} and{' '}
+              {biggestGap.to}.
+            </Text>
+          )}
+
+          {stages.map((stage) => (
+            <Stack key={stage.label} gap={spacing.xs}>
+              <Group justify="space-between">
+                <Text size="sm">{stage.label}</Text>
+                <Text size="sm" c={color.textSecondary}>
+                  {stage.count} ({Math.round((stage.count / total) * 100)}%)
+                </Text>
+              </Group>
+              <Progress
+                value={(stage.count / total) * 100}
+                color={color.accent}
+                size={layout.barHeight}
+                aria-label={stage.label}
+              />
+            </Stack>
+          ))}
+        </>
       )}
     </Stack>
   );

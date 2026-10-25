@@ -1,4 +1,5 @@
-import { Stack, Title } from '@mantine/core';
+import { Stack } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { createClient } from '@/lib/supabase/server';
 import { IntakeAdmin, type IntakeRow } from '@/features/admissions-intake/IntakeAdmin';
 import { spacing } from '@/styles/tokens';
@@ -50,7 +51,7 @@ export default async function AdmissionsPage() {
 
   return (
     <Stack gap={spacing.md}>
-      <Title order={3}>Admissions</Title>
+      <PageHeading title="Admissions" parent={{ label: 'Admin', href: '/admin' }} />
       <IntakeAdmin enabled={(settings as { is_enabled: boolean } | null)?.is_enabled ?? true} rows={rows} />
     </Stack>
   );

@@ -6,7 +6,8 @@
 // changes go through the feature actions.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Stack, Table, Tabs, Text, Title } from '@mantine/core';
+import { Button, Divider, Group, Stack, Table, Tabs, Text } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { MassReschedulePanel } from '@/features/reschedule-mass/MassReschedulePanel';
 import type { BookedVisit } from '@/features/reschedule-mass/queries';
@@ -46,7 +47,7 @@ export function ReschedulesAdmin({
 
   return (
     <Stack gap={spacing.md}>
-      <Title order={3}>Reschedules</Title>
+      <PageHeading title="Reschedules" parent={{ label: 'Registrar', href: '/registrar' }} />
 
       <Tabs value={tab} onChange={setTab}>
         <Tabs.List>

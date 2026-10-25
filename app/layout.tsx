@@ -1,6 +1,7 @@
 // app/layout.tsx
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import '@/styles/global.css';
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { Manrope, Plus_Jakarta_Sans } from 'next/font/google';

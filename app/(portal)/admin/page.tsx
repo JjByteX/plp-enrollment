@@ -1,20 +1,55 @@
-import { Divider, Stack, Title } from '@mantine/core';
+import { Divider, SimpleGrid, Stack } from '@mantine/core';
 import { EnrollmentFunnel } from '@/features/dashboards/EnrollmentFunnel';
+import { HomeHeading } from '@/features/dashboards/HomeHeading';
+import { PipelineBar } from '@/features/dashboards/PipelineBar';
+import { RecentActivity } from '@/features/dashboards/RecentActivity';
+import { VisitCapacity } from '@/features/dashboards/VisitCapacity';
 import { WorkList } from '@/features/dashboards/WorkList';
-import { getAdminItems, getFunnel } from '@/features/dashboards/queries';
+import { getAdminHome, getFunnel, getPipeline } from '@/features/dashboards/queries';
+import { todayLabel } from '@/features/dashboards/schema';
+import { termLabel } from '@/features/cor/schema';
+import { getTerm } from '@/features/content/queries';
 import { spacing } from '@/styles/tokens';
 
 export const metadata = { title: 'Admin | PLP Enrollment' };
 
-// Admin does everything, so this lists every page with what waits on it.
+// Admin does everything, so this lists every page with what waits on it, then
+// the state of the whole enrollment. The term is shown here because no COR can
+// be issued until Admin sets it, and only Admin can read it.
 export default async function AdminPage() {
-  const [items, stages] = await Promise.all([getAdminItems(), getFunnel()]);
+  const [{ items, capacity, activity }, stages, pipeline, term] = await Promise.all([
+    getAdminHome(),
+    getFunnel(),
+    getPipeline(),
+    getTerm(),
+  ]);
   return (
     <Stack gap={spacing.lg}>
-      <Title order={3}>Admin</Title>
+      <HomeHeading
+        title="Admin"
+        facts={[todayLabel(), ...(term ? [termLabel(term.schoolYear, term.semester)] : [])]}
+        warning={
+          term
+            ? undefined
+            : {
+                text: 'No term is set. No COR can be issued until one is.',
+                href: '/admin/content?tab=term',
+                linkLabel: 'Set the term',
+              }
+        }
+      />
       <WorkList items={items} />
       <Divider />
-      <EnrollmentFunnel stages={stages} />
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing={spacing.xl}>
+        <EnrollmentFunnel stages={stages} />
+        <Stack gap={spacing.lg}>
+          <VisitCapacity data={capacity} />
+          <Divider />
+          <PipelineBar stages={pipeline} />
+        </Stack>
+      </SimpleGrid>
+      <Divider />
+      <RecentActivity items={activity} />
     </Stack>
   );
 }

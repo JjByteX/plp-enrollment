@@ -2,8 +2,8 @@
 //
 // Which Heroicons icon each sidebar link uses (ux-ui-guidelines.md, icon rules:
 // one library, the same icon for the same concept everywhere). Library:
-// @heroicons/react, 24 outline set. Placement: left of the label; alone, with a
-// tooltip, when the sidebar is collapsed.
+// @heroicons/react, 24 solid (filled) set. Placement: left of the label; alone,
+// with a tooltip, when the sidebar is collapsed.
 import type { ComponentType, SVGProps } from 'react';
 import {
   AcademicCapIcon,
@@ -23,7 +23,7 @@ import {
   TicketIcon,
   UserIcon,
   UsersIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/solid';
 import type { NavIconName } from '@/lib/nav';
 
 export const NAV_ICONS: Record<NavIconName, ComponentType<SVGProps<SVGSVGElement>>> = {

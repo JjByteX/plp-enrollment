@@ -9,10 +9,29 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchAll } from '@/features/documents-and-numbering/queries';
 import { first, listReadyStudents } from '@/features/assessment-slip/queries';
 import { listReadyForCor } from '@/features/cor/queries';
-import { listPayments } from '@/features/payment/queries';
-import { DAY_LABEL, sectionLabel, subjectName, windowLabel, type Meeting } from '@/features/section-scheduling/schema';
+import { listPayments, type PaymentRow } from '@/features/payment/queries';
+import { listSections } from '@/features/section-scheduling/queries';
+import {
+  DAY_LABEL,
+  STATUS_LABEL,
+  sectionLabel,
+  subjectName,
+  windowLabel,
+  type Meeting,
+  type ScheduleStatus,
+} from '@/features/section-scheduling/schema';
+import { ACTION_LABEL, tableLabel, type AuditAction } from '@/features/audit-log/schema';
+import { ROLE_LABEL, isRole } from '@/lib/auth/roles';
 import { manilaToday } from '@/features/visit-scheduling/schema';
-import type { FunnelStage, WorkItem } from './schema';
+import type {
+  ActivityItem,
+  FunnelStage,
+  PipelineStage,
+  SectionAttention,
+  VisitCapacityData,
+  VisitDay,
+  WorkItem,
+} from './schema';
 
 async function headCount(query: PromiseLike<{ count: number | null }>): Promise<number> {
   const { count } = await query;
@@ -29,10 +48,12 @@ async function sectionsWithStatus(status: string): Promise<number> {
 type RawApplicant = { id: string; visit_bookings: unknown; students: unknown };
 type RawBooking = { visit_slots: { slot_date: string } | { slot_date: string }[] | null };
 
+type ApplicantCounts = { unassigned: number; atDocuments: number };
+
 // Applicants who are not students yet: those with no visit, and those whose
 // visit date has come (today or earlier), who wait for the Registrar to
 // receive their documents.
-async function applicantCounts(): Promise<{ unassigned: number; atDocuments: number }> {
+async function applicantCounts(): Promise<ApplicantCounts> {
   const supabase = createClient();
   const today = manilaToday();
   const rows = await fetchAll<RawApplicant>((from, to) =>
@@ -65,37 +86,173 @@ async function pendingRequests(): Promise<number> {
 }
 
 // The Registrar's pages, with what waits on each. Also used by Admin.
-async function registrarItems(): Promise<WorkItem[]> {
-  const [applicants, requests, schedules, slips, cors] = await Promise.all([
-    applicantCounts(),
+async function registrarItems(applicants: ApplicantCounts): Promise<WorkItem[]> {
+  const [requests, schedules, slips, cors] = await Promise.all([
     pendingRequests(),
     sectionsWithStatus('dean_signed'),
     listReadyStudents(),
     listReadyForCor(),
   ]);
   return [
-    { href: '/registrar/visits', label: 'Visits', waiting: applicants.unassigned },
-    { href: '/registrar/reschedules', label: 'Reschedules', waiting: requests },
-    { href: '/registrar/documents', label: 'Documents', waiting: applicants.atDocuments },
-    { href: '/registrar/schedules', label: 'Schedules', waiting: schedules },
-    { href: '/registrar/slips', label: 'Slips', waiting: slips.length },
-    { href: '/registrar/cors', label: 'COR', waiting: cors.length },
+    { href: '/registrar/visits', label: 'Visits', icon: 'visits', waiting: applicants.unassigned },
+    { href: '/registrar/reschedules', label: 'Reschedules', icon: 'reschedules', waiting: requests },
+    { href: '/registrar/documents', label: 'Documents', icon: 'documents', waiting: applicants.atDocuments },
+    { href: '/registrar/schedules', label: 'Schedules', icon: 'schedules', waiting: schedules },
+    { href: '/registrar/slips', label: 'Slips', icon: 'slips', waiting: slips.length },
+    { href: '/registrar/cors', label: 'COR', icon: 'cor', waiting: cors.length },
   ];
 }
 
-export async function getRegistrarItems(): Promise<WorkItem[]> {
-  return registrarItems();
+// ---------------------------------------------------------------
+// Visit capacity: the next days with an open slot, and whether the open
+// seats cover the applicants who still have no visit date.
+// ---------------------------------------------------------------
+const CAPACITY_DAYS = 7;
+
+type RawCapacitySlot = { slot_date: string; capacity: number; visit_bookings: { id: string }[] | null };
+
+// "Mon, Oct 26". Fixed to UTC so the server and the browser print the same text.
+function shortDay(value: string): string {
+  return new Intl.DateTimeFormat('en-PH', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
+    new Date(`${value}T00:00:00Z`)
+  );
 }
 
-export async function getFinanceItems(): Promise<WorkItem[]> {
-  const pending = await listPayments('pending');
-  return [{ href: '/finance/payments', label: 'Payments', waiting: pending.length }];
+async function visitCapacity(applicants: ApplicantCounts): Promise<VisitCapacityData> {
+  const supabase = createClient();
+  const today = manilaToday();
+  const slots = await fetchAll<RawCapacitySlot>((from, to) =>
+    supabase
+      .from('visit_slots')
+      .select('slot_date, capacity, visit_bookings(id)')
+      .eq('status', 'open')
+      .gte('slot_date', today)
+      .order('slot_date')
+      .range(from, to)
+  );
+
+  const byDate = new Map<string, { booked: number; capacity: number }>();
+  let freeSeats = 0;
+  for (const slot of slots) {
+    const booked = (slot.visit_bookings ?? []).length;
+    freeSeats += Math.max(slot.capacity - booked, 0);
+    const day = byDate.get(slot.slot_date) ?? { booked: 0, capacity: 0 };
+    byDate.set(slot.slot_date, { booked: day.booked + booked, capacity: day.capacity + slot.capacity });
+  }
+
+  const days: VisitDay[] = Array.from(byDate.entries())
+    .slice(0, CAPACITY_DAYS)
+    .map(([date, day]) => ({ date, label: shortDay(date), booked: day.booked, capacity: day.capacity }));
+
+  return { days, freeSeats, unassigned: applicants.unassigned };
 }
+
+export async function getRegistrarHome(): Promise<{ items: WorkItem[]; capacity: VisitCapacityData }> {
+  const applicants = await applicantCounts();
+  const [items, capacity] = await Promise.all([registrarItems(applicants), visitCapacity(applicants)]);
+  return { items, capacity };
+}
+
+// ---------------------------------------------------------------
+// Schedule pipeline for the Registrar and Admin: sections at each step of
+// the approval chain, across every college.
+// ---------------------------------------------------------------
+const PIPELINE_STATUSES: ScheduleStatus[] = ['draft', 'pending_dean', 'dean_signed', 'approved'];
+
+export async function getPipeline(): Promise<PipelineStage[]> {
+  const counts = await Promise.all(PIPELINE_STATUSES.map(sectionsWithStatus));
+  return PIPELINE_STATUSES.map((status, index) => ({ status, label: STATUS_LABEL[status], count: counts[index] }));
+}
+
+// ---------------------------------------------------------------
+// Finance: who waits for a payment to be recorded, and what came in.
+// ---------------------------------------------------------------
+const FINANCE_PREVIEW = 5;
+
+export type FinanceHome = {
+  items: WorkItem[];
+  pending: PaymentRow[]; // the first few waiting, lowest student number first
+  recent: PaymentRow[]; // the latest cleared payments
+  clearedCount: number;
+  collected: number; // pesos paid across every cleared payment
+};
+
+export async function getFinanceHome(): Promise<FinanceHome> {
+  const [pending, cleared] = await Promise.all([listPayments('pending'), listPayments('cleared')]);
+  const newestFirst = [...cleared].sort((a, b) => (b.clearedAt ?? '').localeCompare(a.clearedAt ?? ''));
+  return {
+    items: [{ href: '/finance/payments', label: 'Payments', icon: 'payments', waiting: pending.length }],
+    pending: pending.slice(0, FINANCE_PREVIEW),
+    recent: newestFirst.slice(0, FINANCE_PREVIEW),
+    clearedCount: cleared.length,
+    collected: cleared.reduce((sum, row) => sum + row.amountPaid, 0),
+  };
+}
+
+// ---------------------------------------------------------------
+// Dean and Secretary: the sections that wait on this person, the seats
+// across their college, and the students still without a section. Row level
+// security limits every read to the person's own college.
+// ---------------------------------------------------------------
+const ATTENTION_LIMIT = 5;
+const FILL_LIMIT = 6;
+
+type RawWaitingStudent = { id: string; student_sections: unknown };
+
+async function studentsWithoutSection(): Promise<number> {
+  const supabase = createClient();
+  const rows = await fetchAll<RawWaitingStudent>((from, to) =>
+    supabase.from('students').select('id, student_sections(student_id)').order('id').range(from, to)
+  );
+  return rows.filter((row) => first(row.student_sections) === null).length;
+}
+
+export type SeatRow = { id: string; label: string; filled: number; capacity: number };
+
+export type CollegeHome = {
+  items: WorkItem[];
+  pipeline: PipelineStage[];
+  attention: SectionAttention[];
+  attentionTotal: number;
+  seats: SeatRow[];
+};
 
 // The Dean signs off what the Secretary submitted; the Secretary works on drafts.
-export async function getCollegeItems(role: 'dean' | 'secretary'): Promise<WorkItem[]> {
-  const waiting = await sectionsWithStatus(role === 'dean' ? 'pending_dean' : 'draft');
-  return [{ href: '/secretary/schedule', label: 'Schedules', waiting }];
+export async function getCollegeHome(role: 'dean' | 'secretary'): Promise<CollegeHome> {
+  const mine: ScheduleStatus = role === 'dean' ? 'pending_dean' : 'draft';
+  const [sections, waiting] = await Promise.all([listSections(), studentsWithoutSection()]);
+
+  const label = (section: (typeof sections)[number]) => sectionLabel(section.programCode, section.yearLevel, section.name);
+  const queue = sections.filter((section) => section.status === mine);
+
+  return {
+    items: [
+      { href: '/secretary/schedule', label: 'Schedules', icon: 'schedules', waiting: queue.length },
+      { href: '/secretary/schedule', label: 'Waiting for a section', icon: 'schedules', waiting },
+    ],
+    pipeline: PIPELINE_STATUSES.map((status) => ({
+      status,
+      label: STATUS_LABEL[status],
+      count: sections.filter((section) => section.status === status).length,
+    })),
+    attention: queue.slice(0, ATTENTION_LIMIT).map((section) => ({
+      id: section.id,
+      label: label(section),
+      detail: [
+        `${section.readyCount} of ${section.subjectCount} subjects ready`,
+        `${section.studentCount} students`,
+        section.status === 'draft' && section.rejectedReason ? `Sent back: ${section.rejectedReason}` : '',
+      ]
+        .filter(Boolean)
+        .join(', '),
+    })),
+    attentionTotal: queue.length,
+    seats: sections
+      .filter((section) => section.capacity > 0)
+      .map((section) => ({ id: section.id, label: label(section), filled: section.studentCount, capacity: section.capacity }))
+      .sort((a, b) => b.filled / b.capacity - a.filled / a.capacity)
+      .slice(0, FILL_LIMIT),
+  };
 }
 
 type RawIntake = { applicant_ref: string; status: string };
@@ -115,16 +272,76 @@ async function failedIntakes(): Promise<number> {
   return rows.filter((row) => row.status === 'rejected' && !accepted.has(row.applicant_ref)).length;
 }
 
-export async function getAdminItems(): Promise<WorkItem[]> {
-  const [failed, registrar, pending] = await Promise.all([failedIntakes(), registrarItems(), listPayments('pending')]);
-  return [
-    { href: '/admin/accounts', label: 'Accounts', waiting: null },
-    { href: '/admin/content', label: 'Content', waiting: null },
-    { href: '/admin/admissions', label: 'Admissions', waiting: failed },
-    ...registrar,
-    { href: '/finance/payments', label: 'Payments', waiting: pending.length },
-    { href: '/admin/audit', label: 'Audit log', waiting: null },
-  ];
+const ACTIVITY_LIMIT = 6;
+
+type RawActivity = {
+  id: number;
+  actor_id: string | null;
+  actor_role: string | null;
+  action: string;
+  table_name: string;
+  created_at: string;
+};
+
+// Formatted here, on the server, so the browser shows the same text.
+const activityTime = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' });
+
+// The newest changes in the audit log. Only Admin can read it (row level
+// security), so anyone else gets an empty list.
+async function recentActivity(): Promise<ActivityItem[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('audit_log')
+    .select('id, actor_id, actor_role, action, table_name, created_at')
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(ACTIVITY_LIMIT);
+  const rows = (data ?? []) as unknown as RawActivity[];
+
+  const actorIds = Array.from(new Set(rows.flatMap((row) => (row.actor_id ? [row.actor_id] : []))));
+  const names = new Map<string, string>();
+  if (actorIds.length > 0) {
+    const { data: users } = await supabase.from('users').select('id, full_name').in('id', actorIds);
+    for (const user of (users ?? []) as { id: string; full_name: string }[]) names.set(user.id, user.full_name);
+  }
+
+  return rows.map((row) => {
+    const name = row.actor_id ? (names.get(row.actor_id) ?? 'Unknown account') : 'System';
+    const role = row.actor_role && isRole(row.actor_role) ? ROLE_LABEL[row.actor_role] : row.actor_role;
+    return {
+      id: String(row.id),
+      when: activityTime.format(new Date(row.created_at)),
+      actor: role ? `${name} (${role})` : name,
+      text: `${ACTION_LABEL[row.action as AuditAction] ?? row.action} in ${tableLabel(row.table_name)}`,
+    };
+  });
+}
+
+export async function getAdminHome(): Promise<{
+  items: WorkItem[];
+  capacity: VisitCapacityData;
+  activity: ActivityItem[];
+}> {
+  const applicants = await applicantCounts();
+  const [failed, registrar, pending, capacity, activity] = await Promise.all([
+    failedIntakes(),
+    registrarItems(applicants),
+    listPayments('pending'),
+    visitCapacity(applicants),
+    recentActivity(),
+  ]);
+  return {
+    items: [
+      { href: '/admin/accounts', label: 'Accounts', icon: 'accounts', waiting: null },
+      { href: '/admin/content', label: 'Content', icon: 'content', waiting: null },
+      { href: '/admin/admissions', label: 'Admissions', icon: 'admissions', waiting: failed },
+      ...registrar,
+      { href: '/finance/payments', label: 'Payments', icon: 'payments', waiting: pending.length },
+      { href: '/admin/audit', label: 'Audit log', icon: 'audit', waiting: null },
+    ],
+    capacity,
+    activity,
+  };
 }
 
 // How far this year's applicants have come, from the live tables. Each stage
@@ -158,6 +375,9 @@ export type LoadRow = {
   section: string;
   schedule: string;
   room: string;
+  day: number | null; // 1 Monday to 7 Sunday
+  start: string; // HH:MM, empty when the subject has no time yet
+  end: string;
 };
 
 export type ClassStudent = { sectionId: string; subjectCode: string; studentNumber: string; fullName: string };
@@ -207,6 +427,9 @@ export async function getProfessorLoad(): Promise<{ rows: LoadRow[]; students: C
             ? `${DAY_LABEL[row.day_of_week] ?? ''} ${windowLabel(row.start_time.slice(0, 5), row.end_time.slice(0, 5))}`
             : '',
         room: row.rooms?.name ?? '',
+        day: row.day_of_week,
+        start: row.start_time ? row.start_time.slice(0, 5) : '',
+        end: row.end_time ? row.end_time.slice(0, 5) : '',
       },
     }))
     .sort((a, b) => a.sort.localeCompare(b.sort))

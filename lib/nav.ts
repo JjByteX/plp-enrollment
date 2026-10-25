@@ -13,16 +13,19 @@ export type NavIconName =
   | 'home' | 'visits' | 'reschedules' | 'documents' | 'schedules' | 'slips' | 'cor' | 'payments'
   | 'accounts' | 'content' | 'admissions' | 'audit' | 'registrar' | 'finance' | 'dean' | 'secretary' | 'professor';
 
-export type NavItem = { label: string; href: string; icon: NavIconName; exact?: boolean };
+// `keywords` are extra search-only terms (abbreviations, synonyms, the full
+// name behind an acronym) that feed the top-bar search alongside the label,
+// so a near-miss or shorthand still finds the right area.
+export type NavItem = { label: string; href: string; icon: NavIconName; exact?: boolean; keywords?: string[] };
 export type NavGroup = { label: string | null; items: NavItem[] };
 
 const REGISTRAR: NavItem[] = [
-  { label: 'Visits', href: '/registrar/visits', icon: 'visits' },
-  { label: 'Reschedules', href: '/registrar/reschedules', icon: 'reschedules' },
-  { label: 'Documents', href: '/registrar/documents', icon: 'documents' },
-  { label: 'Schedules', href: '/registrar/schedules', icon: 'schedules' },
-  { label: 'Slips', href: '/registrar/slips', icon: 'slips' },
-  { label: 'COR', href: '/registrar/cors', icon: 'cor' },
+  { label: 'Visits', href: '/registrar/visits', icon: 'visits', keywords: ['campus visit', 'appointment', 'tour'] },
+  { label: 'Reschedules', href: '/registrar/reschedules', icon: 'reschedules', keywords: ['reschedule', 'rebook', 'move visit'] },
+  { label: 'Documents', href: '/registrar/documents', icon: 'documents', keywords: ['docs', 'requirements', 'files'] },
+  { label: 'Schedules', href: '/registrar/schedules', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
+  { label: 'Slips', href: '/registrar/slips', icon: 'slips', keywords: ['assessment slip', 'fees', 'tuition'] },
+  { label: 'COR', href: '/registrar/cors', icon: 'cor', keywords: ['certificate of registration', 'registration'] },
 ];
 
 export function navFor(role: Role): NavGroup[] {
@@ -35,7 +38,7 @@ export function navFor(role: Role): NavGroup[] {
           label: null,
           items: [
             { label: 'Home', href: '/finance', icon: 'home', exact: true },
-            { label: 'Payments', href: '/finance/payments', icon: 'payments' },
+            { label: 'Payments', href: '/finance/payments', icon: 'payments', keywords: ['pay', 'tuition', 'fees', 'billing'] },
           ],
         },
       ];
@@ -45,7 +48,7 @@ export function navFor(role: Role): NavGroup[] {
           label: null,
           items: [
             { label: 'Home', href: '/dean', icon: 'home', exact: true },
-            { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules' },
+            { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
           ],
         },
       ];
@@ -55,7 +58,7 @@ export function navFor(role: Role): NavGroup[] {
           label: null,
           items: [
             { label: 'Home', href: '/secretary', icon: 'home', exact: true },
-            { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules' },
+            { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
           ],
         },
       ];
@@ -67,20 +70,20 @@ export function navFor(role: Role): NavGroup[] {
           label: null,
           items: [
             { label: 'Home', href: '/admin', icon: 'home', exact: true },
-            { label: 'Accounts', href: '/admin/accounts', icon: 'accounts' },
-            { label: 'Content', href: '/admin/content', icon: 'content' },
-            { label: 'Admissions', href: '/admin/admissions', icon: 'admissions' },
-            { label: 'Audit log', href: '/admin/audit', icon: 'audit' },
+            { label: 'Accounts', href: '/admin/accounts', icon: 'accounts', keywords: ['users', 'staff accounts', 'people'] },
+            { label: 'Content', href: '/admin/content', icon: 'content', keywords: ['subjects', 'rooms', 'programs'] },
+            { label: 'Admissions', href: '/admin/admissions', icon: 'admissions', keywords: ['intake', 'applicants', 'enroll'] },
+            { label: 'Audit log', href: '/admin/audit', icon: 'audit', keywords: ['history', 'activity log'] },
           ],
         },
         {
-          label: 'Staff areas',
+          label: null,
           items: [
-            { label: 'Registrar', href: '/registrar', icon: 'registrar' },
-            { label: 'Finance', href: '/finance', icon: 'finance' },
-            { label: 'Dean', href: '/dean', icon: 'dean' },
-            { label: 'College Secretary', href: '/secretary', icon: 'secretary' },
-            { label: 'Professor', href: '/professor', icon: 'professor' },
+            { label: 'Registrar', href: '/registrar', icon: 'registrar', keywords: ['visits', 'documents', 'cor', 'slips'] },
+            { label: 'Finance', href: '/finance', icon: 'finance', keywords: ['payments', 'billing', 'tuition'] },
+            { label: 'Dean', href: '/dean', icon: 'dean', keywords: ['college', 'approval'] },
+            { label: 'College Secretary', href: '/secretary', icon: 'secretary', keywords: ['secretary', 'college', 'schedules'] },
+            { label: 'Professor', href: '/professor', icon: 'professor', keywords: ['faculty', 'teacher', 'instructor'] },
           ],
         },
       ];
@@ -94,4 +97,11 @@ export const SIDEBAR_COOKIE = 'plp_sidebar';
 export function isActive(pathname: string, item: NavItem): boolean {
   if (item.exact) return pathname === item.href;
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+// Flat list of every item the current user's nav exposes, for the top-bar
+// search: only areas the signed-in user is actually recommended/allowed to
+// open (the same groups rendered in the sidebar), never the full site map.
+export function flattenNav(nav: NavGroup[]): NavItem[] {
+  return nav.flatMap((group) => group.items);
 }

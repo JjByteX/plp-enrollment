@@ -7,9 +7,23 @@
 // through ./actions.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Select, Stack, Table, Text, Title } from '@mantine/core';
+import { Button, Divider, Group, Select, Stack, Table, Text } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import type { Role } from '@/lib/auth/roles';
+
+// The role's own home page, as the "previous page" ancestor (matches the
+// role's "Home" sidebar entry and the title its own home page shows).
+const HOME_CRUMB: Record<Role, { label: string; href: string }> = {
+  applicant: { label: 'Home', href: '/applicant' },
+  student: { label: 'Home', href: '/student' },
+  registrar: { label: 'Registrar', href: '/registrar' },
+  finance: { label: 'Finance', href: '/finance' },
+  dean: { label: 'Dean', href: '/dean' },
+  college_secretary: { label: 'College Secretary', href: '/secretary' },
+  professor: { label: 'Professor', href: '/professor' },
+  admin: { label: 'Admin', href: '/admin' },
+};
 import { moveStudent, type ScheduleActionResult } from './actions';
 import type { PersonOption, ProgramOption, RoomOption, SectionRow, WaitingStudent } from './queries';
 import { SectionDetailsModal } from './SectionDetailsModal';
@@ -110,7 +124,7 @@ export function SchedulesBoard({
   return (
     <Stack gap={spacing.md}>
       <Group justify="space-between">
-        <Title order={3}>Schedules</Title>
+        <PageHeading title="Schedules" parent={HOME_CRUMB[viewerRole]} />
         {isCollege && (
           <Button onClick={() => setForm({ section: null })} disabled={programs.length === 0}>
             New section

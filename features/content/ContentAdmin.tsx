@@ -6,7 +6,8 @@
 // the URL. All changes go through ./actions.
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput, Title } from '@mantine/core';
+import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { SEMESTER_LABEL, termLabel, yearLabel, type Semester } from '@/features/cor/schema';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
@@ -64,7 +65,7 @@ export function ContentAdmin({
 
   return (
     <Stack gap={spacing.md}>
-      <Title order={3}>Content</Title>
+      <PageHeading title="Content" parent={{ label: 'Admin', href: '/admin' }} />
 
       <Tabs value={tab} onChange={(value) => go(value, value === 'subjects' ? programId : null)}>
         <Tabs.List>

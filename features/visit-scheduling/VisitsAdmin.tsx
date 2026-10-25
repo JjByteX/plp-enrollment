@@ -5,7 +5,8 @@
 // centered modals. All changes go through ./actions.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
+import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput } from '@mantine/core';
+import { PageHeading } from '@/components/PageHeading';
 import { color, padding, spacing } from '@/styles/tokens';
 import {
   assignAllUnassigned,
@@ -83,7 +84,7 @@ export function VisitsAdmin({
   return (
     <Stack gap={spacing.md}>
       <Group justify="space-between">
-        <Title order={3}>Visits</Title>
+        <PageHeading title="Visits" parent={{ label: 'Registrar', href: '/registrar' }} />
         <Button onClick={() => setForm({ slot: null })} disabled={programs.length === 0}>
           New slot
         </Button>

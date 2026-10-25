@@ -1,0 +1,29 @@
+/* styles/global.css
+ *
+ * The one thing plain inline styles can't express: the breadcrumb ancestor
+ * link's hover underline (components/PageHeading.tsx, "Previous page >
+ * Current page", ported from plp-admissions's .page-crumb:hover rule).
+ * Colors/weights/sizes still come from styles/tokens.ts inline; this file
+ * only adds the :hover behavior itself.
+ */
+.plp-breadcrumb-link:hover {
+  color: #24292F; /* color.textPrimary (gray[900]) — see styles/tokens.ts */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.plp-tile {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.plp-tile:hover {
+  border-color: #1A7F37 !important; /* color.accent (green[5]); all four sides, no glow */
+}
+.plp-tile:focus-visible {
+  outline: 2px solid #1A7F37; /* color.accent (green[5]) */
+  outline-offset: 2px;
+}
+.plp-breadcrumb-link:focus-visible {
+  outline: 2px solid #1A7F37; /* color.accent (green[5]) */
+  outline-offset: 2px;
+}

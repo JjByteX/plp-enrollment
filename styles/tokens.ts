@@ -138,6 +138,9 @@ export const fontSize = {
   sm: 14,
   md: 16,
   lg: 20,
+  // The fourth size, for one thing only: the big count on a dashboard tile.
+  // A count that leads to an action cannot be read at 20 beside body text.
+  display: 32,
 } as const;
 
 // ---------------------------------------------------------------
@@ -149,4 +152,5 @@ export const layout = {
   sidebarCollapsedWidth: 72,
   avatarSize: 32,
   iconSize: 20,
+  barHeight: 8, // progress and capacity bars on the dashboards
 } as const;
