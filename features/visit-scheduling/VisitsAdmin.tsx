@@ -57,6 +57,72 @@ export function VisitsAdmin({
   const pickable = programId ? slots.filter((slot) => slot.programId === programId && canTake(slot)) : [];
   const pickOptions = pickable.map((slot) => ({ value: slot.id, label: slotOptionLabel(slot) }));
 
+  // What the "Waiting for a visit" section shows: a hint, or the table of applicants.
+  function renderWaiting() {
+    if (!programId) {
+      return <Text c={color.textSecondary}>Choose a program to see who is waiting.</Text>;
+    }
+    if (unassigned.length === 0) {
+      return <Text c={color.textSecondary}>Nobody is waiting for a visit.</Text>;
+    }
+    return (
+      <>
+        {pickable.length === 0 && (
+          <Text size="sm" c={color.textSecondary}>
+            No open slot with a free seat. Create a slot to assign these applicants.
+          </Text>
+        )}
+        <Table.ScrollContainer minWidth={720}>
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Applicant</Table.Th>
+                <Table.Th>Reference</Table.Th>
+                <Table.Th>Admitted</Table.Th>
+                <Table.Th>Slot</Table.Th>
+                <Table.Th />
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {unassigned.map((applicant) => (
+                <Table.Tr key={applicant.applicantId}>
+                  <Table.Td>{applicant.fullName}</Table.Td>
+                  <Table.Td>{applicant.applicantRef}</Table.Td>
+                  <Table.Td>{formatSlotDate(applicant.admissionDate)}</Table.Td>
+                  <Table.Td>
+                    <Select
+                      aria-label={`Slot for ${applicant.fullName}`}
+                      placeholder="Choose a slot"
+                      data={pickOptions}
+                      value={picks[applicant.applicantId] ?? null}
+                      onChange={(value) => setPicks((current) => ({ ...current, [applicant.applicantId]: value }))}
+                      disabled={pickOptions.length === 0 || busy !== null}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <Button
+                      variant="default"
+                      loading={busy === applicant.applicantId}
+                      disabled={!picks[applicant.applicantId] || busy !== null}
+                      onClick={async () => {
+                        const slotId = picks[applicant.applicantId];
+                        if (!slotId) return;
+                        const result = await run(applicant.applicantId, () => assignSlot(applicant.applicantId, slotId));
+                        if ('ok' in result) setPicks((current) => ({ ...current, [applicant.applicantId]: null }));
+                      }}
+                    >
+                      Assign
+                    </Button>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
+      </>
+    );
+  }
+
   function setFilter(next: { program?: string | null; date?: string | null }) {
     const params = new URLSearchParams();
     const nextProgram = next.program === undefined ? programId : next.program;
@@ -128,66 +194,7 @@ export function VisitsAdmin({
           )}
         </Group>
 
-        {!programId ? (
-          <Text c={color.textSecondary}>Choose a program to see who is waiting.</Text>
-        ) : unassigned.length === 0 ? (
-          <Text c={color.textSecondary}>Nobody is waiting for a visit.</Text>
-        ) : (
-          <>
-            {pickable.length === 0 && (
-              <Text size="sm" c={color.textSecondary}>
-                No open slot with a free seat. Create a slot to assign these applicants.
-              </Text>
-            )}
-            <Table.ScrollContainer minWidth={720}>
-              <Table>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Applicant</Table.Th>
-                    <Table.Th>Reference</Table.Th>
-                    <Table.Th>Admitted</Table.Th>
-                    <Table.Th>Slot</Table.Th>
-                    <Table.Th />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {unassigned.map((applicant) => (
-                    <Table.Tr key={applicant.applicantId}>
-                      <Table.Td>{applicant.fullName}</Table.Td>
-                      <Table.Td>{applicant.applicantRef}</Table.Td>
-                      <Table.Td>{formatSlotDate(applicant.admissionDate)}</Table.Td>
-                      <Table.Td>
-                        <Select
-                          aria-label={`Slot for ${applicant.fullName}`}
-                          placeholder="Choose a slot"
-                          data={pickOptions}
-                          value={picks[applicant.applicantId] ?? null}
-                          onChange={(value) => setPicks((current) => ({ ...current, [applicant.applicantId]: value }))}
-                          disabled={pickOptions.length === 0 || busy !== null}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <Button
-                          variant="default"
-                          loading={busy === applicant.applicantId}
-                          disabled={!picks[applicant.applicantId] || busy !== null}
-                          onClick={async () => {
-                            const slotId = picks[applicant.applicantId];
-                            if (!slotId) return;
-                            const result = await run(applicant.applicantId, () => assignSlot(applicant.applicantId, slotId));
-                            if ('ok' in result) setPicks((current) => ({ ...current, [applicant.applicantId]: null }));
-                          }}
-                        >
-                          Assign
-                        </Button>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          </>
-        )}
+        {renderWaiting()}
       </Stack>
 
       <Divider />

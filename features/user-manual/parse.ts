@@ -6,12 +6,18 @@
 
 export type ListItem = { text: string; sub: string[] };
 
-export type Block =
+export type TableCell = { key: string; text: string };
+export type TableRow = { key: string; cells: TableCell[] };
+
+// Every block carries a key made when the text is parsed, so React lists can
+// use it instead of the position in the array.
+export type Block = { key: string } & (
   | { type: 'h2'; text: string; id: string }
   | { type: 'h3'; text: string }
   | { type: 'p'; text: string }
   | { type: 'ul' | 'ol'; items: ListItem[] }
-  | { type: 'table'; head: string[]; rows: string[][] };
+  | { type: 'table'; head: string[]; rows: TableRow[] }
+);
 
 export type Section = { id: string; title: string; blocks: Block[] };
 export type Manual = { intro: Block[]; sections: Section[] };
@@ -28,7 +34,7 @@ function slug(text: string): string {
     .replace(/^-|-$/g, ''); // the line above leaves at most one dash at each end
 }
 
-function cells(line: string): string[] {
+function splitCells(line: string): string[] {
   return line
     .trim()
     .replace(/^\||\|$/g, '')
@@ -45,6 +51,8 @@ function parseBlocks(source: string): Block[] {
   const lines = source.split('\n');
   const blocks: Block[] = [];
   let i = 0;
+  let nextKey = 0;
+  const makeKey = (prefix: string) => `${prefix}${nextKey++}`;
 
   while (i < lines.length) {
     const line = lines[i] ?? '';
@@ -57,10 +65,10 @@ function parseBlocks(source: string): Block[] {
       i += 1;
     } else if (line.startsWith('## ')) {
       const text = line.slice(3).trim();
-      blocks.push({ type: 'h2', text, id: slug(text) });
+      blocks.push({ key: makeKey('b'), type: 'h2', text, id: slug(text) });
       i += 1;
     } else if (line.startsWith('### ')) {
-      blocks.push({ type: 'h3', text: line.slice(4).trim() });
+      blocks.push({ key: makeKey('b'), type: 'h3', text: line.slice(4).trim() });
       i += 1;
     } else if (trimmed.startsWith('|')) {
       const rows: string[] = [];
@@ -68,7 +76,15 @@ function parseBlocks(source: string): Block[] {
         rows.push(lines[i] ?? '');
         i += 1;
       }
-      blocks.push({ type: 'table', head: cells(rows[0] ?? ''), rows: rows.slice(2).map(cells) });
+      const tableKey = makeKey('b');
+      const body = rows.slice(2).map((row, rowNumber) => {
+        const rowKey = `${tableKey}-r${rowNumber}`;
+        return {
+          key: rowKey,
+          cells: splitCells(row).map((text, cellNumber) => ({ key: `${rowKey}-c${cellNumber}`, text })),
+        };
+      });
+      blocks.push({ key: tableKey, type: 'table', head: splitCells(rows[0] ?? ''), rows: body });
     } else if (LIST_LINE.test(line)) {
       const kind = /^\d/.test(trimmed) ? 'ol' : 'ul';
       const items: ListItem[] = [];
@@ -87,14 +103,14 @@ function parseBlocks(source: string): Block[] {
         }
         i += 1;
       }
-      blocks.push({ type: kind, items });
+      blocks.push({ key: makeKey('b'), type: kind, items });
     } else {
       const parts: string[] = [];
       while (i < lines.length && !startsNewBlock(lines[i] ?? '')) {
         parts.push((lines[i] ?? '').trim());
         i += 1;
       }
-      blocks.push({ type: 'p', text: parts.join(' ') });
+      blocks.push({ key: makeKey('b'), type: 'p', text: parts.join(' ') });
     }
   }
 

@@ -70,16 +70,16 @@ function BlockView({ block }: { block: Block }) {
       return block.rows.length < LIST_LIMIT ? (
         <Stack gap={spacing.md}>
           {block.rows.map((row, rowIndex) => (
-            <Stack key={row[0] ?? rowIndex} gap={spacing.xs}>
+            <Stack key={row.key} gap={spacing.xs}>
               {rowIndex > 0 && <Divider mb={spacing.sm} />}
               <Text fw={fontWeight.semibold}>
-                <Inline text={row[0] ?? ''} />
+                <Inline text={row.cells[0]?.text ?? ''} />
               </Text>
-              {row.slice(1).map(
+              {row.cells.slice(1).map(
                 (cell, cellIndex) =>
-                  cell !== '' && (
-                    <Text key={cellIndex} size="sm" c={color.textSecondary}>
-                      {block.head[cellIndex + 1]}: <Inline text={cell} />
+                  cell.text !== '' && (
+                    <Text key={cell.key} size="sm" c={color.textSecondary}>
+                      {block.head[cellIndex + 1]}: <Inline text={cell.text} />
                     </Text>
                   )
               )}
@@ -97,11 +97,11 @@ function BlockView({ block }: { block: Block }) {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {block.rows.map((row, rowIndex) => (
-                <Table.Tr key={rowIndex}>
-                  {row.map((cell, cellIndex) => (
-                    <Table.Td key={cellIndex}>
-                      <Inline text={cell} />
+              {block.rows.map((row) => (
+                <Table.Tr key={row.key}>
+                  {row.cells.map((cell) => (
+                    <Table.Td key={cell.key}>
+                      <Inline text={cell.text} />
                     </Table.Td>
                   ))}
                 </Table.Tr>
@@ -157,8 +157,8 @@ export function ManualView({ manual }: { manual: Manual }) {
 
           {manual.intro.length > 0 && (
             <Stack gap={spacing.md}>
-              {manual.intro.map((block, index) => (
-                <BlockView key={index} block={block} />
+              {manual.intro.map((block) => (
+                <BlockView key={block.key} block={block} />
               ))}
             </Stack>
           )}
@@ -168,8 +168,8 @@ export function ManualView({ manual }: { manual: Manual }) {
               <Divider />
               <Stack gap={spacing.md}>
                 <Title order={4}>{section.title}</Title>
-                {section.blocks.map((block, index) => (
-                  <BlockView key={index} block={block} />
+                {section.blocks.map((block) => (
+                  <BlockView key={block.key} block={block} />
                 ))}
               </Stack>
             </Stack>
