@@ -92,7 +92,7 @@ export function changedFields(
 ): FieldChange[] {
   const before = oldData ?? {};
   const after = newData ?? {};
-  const fields = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort();
+  const fields = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort((a, b) => a.localeCompare(b));
   return fields
     .filter((field) => JSON.stringify(before[field]) !== JSON.stringify(after[field]))
     .map((field) => ({ field, before: show(before[field]), after: show(after[field]) }));

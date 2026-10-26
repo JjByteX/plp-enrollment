@@ -37,7 +37,9 @@ function verifiedDocuments(raw: Record<string, unknown>): string[] {
   const value = raw.verified_documents;
   if (!Array.isArray(value)) return [];
   const slugs = value.filter((item): item is string => typeof item === 'string' && /^[a-z0-9_]{2,40}$/.test(item));
-  return Array.from(new Set(slugs)).slice(0, MAX_VERIFIED).sort();
+  return Array.from(new Set(slugs))
+    .slice(0, MAX_VERIFIED)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 export function parseIntakePayload(raw: unknown): ParsedIntake {

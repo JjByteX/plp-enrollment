@@ -37,8 +37,8 @@ type ApplicantRow = {
 type UserRow = { id: string; auth_id: string; role: string; email: string; full_name: string };
 
 function sameList(a: string[], b: string[]): boolean {
-  const left = [...a].sort();
-  const right = [...b].sort();
+  const left = [...a].sort((x, y) => x.localeCompare(y));
+  const right = [...b].sort((x, y) => x.localeCompare(y));
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 

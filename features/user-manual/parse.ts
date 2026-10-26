@@ -16,13 +16,16 @@ export type Block =
 export type Section = { id: string; title: string; blocks: Block[] };
 export type Manual = { intro: Block[]; sections: Section[] };
 
-const LIST_LINE = /^(\s*)(-|\d+\.)\s+(.*)$/;
+// The text group starts at a non-space, so it cannot overlap the spaces before it
+// (an overlap makes the match slow on long runs of spaces). It is undefined for
+// an empty item.
+const LIST_LINE = /^(\s*)(-|\d+\.)\s+(\S.*)?$/;
 
 function slug(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-|-$/g, ''); // the line above leaves at most one dash at each end
 }
 
 function cells(line: string): string[] {

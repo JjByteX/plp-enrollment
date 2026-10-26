@@ -16,6 +16,12 @@ export function checkPassword(password: string, confirm: string): string | null 
   return null;
 }
 
+// One local part and one domain around a single @, no spaces, and a dot in the
+// domain with something on both sides of it. Checked step by step, because the
+// one-line regex for this backtracks badly on long input.
 export function isEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  const email = value.trim();
+  const at = email.indexOf('@');
+  if (at < 1 || email.includes('@', at + 1) || /\s/.test(email)) return false;
+  return email.slice(at + 1).slice(1, -1).includes('.');
 }

@@ -34,7 +34,7 @@ export function MassReschedulePanel({
   const programs = Array.from(new Map(booked.map((visit) => [visit.programId, visit.programCode])).entries());
   const programValue = programs.some(([id]) => id === programId) ? programId : null;
   const inProgram = programValue ? booked.filter((visit) => visit.programId === programValue) : booked;
-  const offices = Array.from(new Set(inProgram.map((visit) => visit.officeName))).sort();
+  const offices = Array.from(new Set(inProgram.map((visit) => visit.officeName))).sort((a, b) => a.localeCompare(b));
   const officeValue = officeName !== null && offices.includes(officeName) ? officeName : null;
   const affected = officeValue ? inProgram.filter((visit) => visit.officeName === officeValue) : inProgram;
 
