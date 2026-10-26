@@ -8,13 +8,25 @@ export const MANUAL_SOURCE = `# PLP Enrollment: User Manual
 
 For staff of Pamantasan ng Lungsod ng Pasig.
 
-This manual explains what every page does, how a student goes from "admitted" to "enrolled", what the system does by itself, and what to do when something unusual happens.
+Use this manual to look up what a page does, the steps from "admitted" to "enrolled", and what to do when something goes wrong.
+
+### Where to start
+
+| Your role | Read |
+|---|---|
+| Everyone | [Getting started](#2-getting-started), [The whole journey](#3-the-whole-journey-from-start-to-end) |
+| Registrar | [Registrar pages](#5-page-by-page-registrar), [Reschedules](#7-reschedules), [Withdrawals](#8-withdrawals) |
+| College Secretary or Dean | [Secretary and Dean pages](#6-page-by-page-college-secretary-and-dean), [Grades](#9-grades) |
+| Finance | [Finance pages](#10-page-by-page-finance) |
+| Professor | [Professor pages](#11-page-by-page-professor), [Grades](#9-grades) |
+| Admin | [Admin pages](#12-page-by-page-admin), [Setup checklist](#14-before-the-first-day-setup-checklist-admin) |
+| Something looks wrong | [When something looks wrong](#15-when-something-looks-wrong) |
 
 ---
 
 ## 1. What this system is
 
-PLP Enrollment takes over after a student is admitted in the PLP Admissions system. It carries the student through these steps:
+PLP Enrollment starts after a student is admitted in the PLP Admissions system. A student goes through these steps:
 
 1. Get a visit date.
 2. Bring original documents to the Registrar.
@@ -24,7 +36,7 @@ PLP Enrollment takes over after a student is admitted in the PLP Admissions syst
 6. Pay, but only if the course requires it.
 7. Get the COR (Certificate of Registration). The student is now enrolled.
 
-Every step is done by the right office. The system blocks anyone from skipping a step or doing another office's job.
+Each step belongs to one office. The system does not let anyone skip a step or do another office's step.
 
 ### Who uses it
 
@@ -39,7 +51,7 @@ Every step is done by the right office. The system blocks anyone from skipping a
 | Professor | Sees their classes and class lists. Enters grades. |
 | Admin | Can do everything. Also manages accounts, subjects, rooms, the school term, the grading scale and the Admissions connection. |
 
-You only see what your job needs. If you type a web address for a page that is not yours, the system will not show it.
+You only see the pages for your role. A page that is not yours will not open.
 
 ---
 
@@ -75,7 +87,7 @@ If the page says **"This link has expired or was already used"**, ask the Admin 
 - **Search bar (top):** press the **/** key, then type at least 2 letters. It finds pages and records (for example a student's name or number). You only get results you are allowed to see.
 - **Profile menu (top right, your name):**
   - **Settings:** make the text bigger or smaller and switch between light and dark look.
-  - **Withdraw enrollment:** only for Applicants and Students (see section 8).
+  - **Withdraw enrollment:** only for Applicants and Students (see [section 8](#8-withdrawals)).
   - **Sign out.**
 - **Home page:** staff homes show a list of your pages with a **"N waiting"** tag. Pages with work to do are shown first.
 
@@ -83,7 +95,7 @@ If the page says **"This link has expired or was already used"**, ask the Admin 
 
 ## 3. The whole journey, from start to end
 
-This is the order things happen for one student.
+The steps for one student, in order.
 
 ### Step 1: Admissions sends the applicant
 
@@ -139,7 +151,7 @@ Every Applicant and Student page has a **Your next step** card. It always tells 
 - "Your assessment slip is ready. Next, Finance clears your payment, then the Registrar issues your COR."
 - "You are officially enrolled."
 
-Their home page also shows a simple step bar: Visit, Schedule, Assessment slip, Payment (only if required), COR.
+Their home page also shows a step bar: Visit, Schedule, Assessment slip, Payment (only if required), COR.
 
 ---
 
@@ -152,7 +164,7 @@ Shows the step bar. All details and buttons are on the **Your next step** card.
 ### Your next step card
 
 - Before a visit date: tells them to wait for the Registrar.
-- With a visit date: shows the date, time, office and what to bring. It also has a **Request a reschedule** button (see section 7).
+- With a visit date: shows the date, time, office and what to bring. It also has a **Request a reschedule** button (see [section 7](#7-reschedules)).
 - After documents are received: shows the student number, section, schedule status, slip, payment status and COR status. It lists any document still to be submitted later (for example Form 137).
 
 ### Assessment slip page
@@ -165,13 +177,13 @@ Open it with **View COR** on the card once enrolled. It shows the schedule, the 
 
 ### Withdraw enrollment
 
-Found in the profile menu. See section 8.
+Found in the profile menu. See [section 8](#8-withdrawals).
 
 ---
 
 ## 5. Page by page: Registrar
 
-Sidebar: Home, Visits, Reschedules, Documents, Schedules, Slips, COR, Grades.
+Sidebar: [Home](/registrar), [Visits](/registrar/visits), [Reschedules](/registrar/reschedules), [Documents](/registrar/documents), [Schedules](/registrar/schedules), [Slips](/registrar/slips), [COR](/registrar/cors), [Grades](/registrar/grades).
 
 ### Home
 
@@ -207,7 +219,7 @@ Rules:
 
 ### Reschedules
 
-Two tabs. See section 7 for the full story.
+Two tabs. See [section 7](#7-reschedules) for the full story.
 
 - **Requests:** reschedule requests from applicants and students waiting for your answer.
 - **Mass reschedule:** move everyone on a date to a new date (typhoon, class suspension, office closed).
@@ -240,7 +252,7 @@ The checklist by type:
 | Alien Certificate of Registration | No | No | Yes |
 | Form 137 (original SHS, marked for PLP) | Can be late | No | No |
 
-Good to know:
+Notes:
 
 - You cannot mark documents received while any required item is missing. There is no way around this.
 - **Form 137** may come later. The student is still promoted, and Form 137 stays open on their card until you tick it.
@@ -251,13 +263,13 @@ Good to know:
 
 **Correct student details:** on a student's row. Use it to fix a misspelled name or wrong email. You must give a reason. The student signs in with the new email. Papers already printed are not changed. The student number, program and section are not touched.
 
-**Withdraw:** see section 8.
+**Withdraw:** see [section 8](#8-withdrawals).
 
 **Withdrawn tab:** people who withdrew, with the date and reason.
 
 ### Schedules
 
-Same page the Secretary and Dean use (see section 6 for how it works). As Registrar, you:
+Same page the Secretary and Dean use (see [section 6](#6-page-by-page-college-secretary-and-dean) for how it works). As Registrar, you:
 
 - See sections and filter by Program and Status.
 - Open a section to review its subjects, professors, rooms, times and students.
@@ -282,7 +294,7 @@ Lists students who have a slip and either paid or do not need to pay.
 
 ### Grades
 
-See section 9. The Registrar approves grade changes here.
+See [section 9](#9-grades). The Registrar approves grade changes here.
 
 ---
 
@@ -290,7 +302,7 @@ See section 9. The Registrar approves grade changes here.
 
 ### Schedules (shared by Secretary and Dean)
 
-This is where a section's schedule is prepared, signed off and approved. You only see your own college.
+This is where a section's schedule is prepared, signed off and approved. You only see your own college. Open it at [Schedules](/secretary/schedule).
 
 **Top of the page**
 
@@ -314,7 +326,7 @@ For every subject, set:
 
 Then press **Save** on that subject.
 
-The system stops mistakes for you:
+The system refuses these:
 
 - A professor cannot be in two classes at the same time.
 - A room cannot be used by two classes at the same time.
@@ -352,7 +364,7 @@ After approval, the Secretary, Dean or Admin can still change a subject's profes
 
 ### Grades (Dean)
 
-See section 9.
+Open [Grades](/dean/grades). See [section 9](#9-grades).
 
 ---
 
@@ -368,7 +380,7 @@ The student never picks a new date. Staff or the system do.
 
 ### The Registrar answers
 
-1. Go to **Reschedules**, tab **Requests**, and open the request.
+1. Go to [Reschedules](/registrar/reschedules), tab **Requests**, and open the request.
 2. Optionally choose **Move to** a specific slot. If you leave it empty, the system uses the next open slot on a different date.
 3. Add a note. The note is optional when approving and **required when declining**. The student sees it.
 4. Press **Approve** or **Decline**.
@@ -381,7 +393,7 @@ A visit already marked attended or no-show cannot be moved.
 
 Registrar or Admin only.
 
-1. Go to **Reschedules**, tab **Mass reschedule**.
+1. Go to [Reschedules](/registrar/reschedules?tab=mass), tab **Mass reschedule**.
 2. Choose the **Affected date**. It cannot be in the past.
 3. Optionally narrow it by **Program** and **Office**.
 4. Type the **Reason**.
@@ -389,7 +401,7 @@ Registrar or Admin only.
 
 The system moves every booked person on that date to the next open slot on a different date. It tells you how many were moved. If some people do not fit, they stay where they are and are counted. Add more slots and run it again.
 
-Nobody loses their place or becomes a no-show because of a reschedule. Only the visit date changes. Documents, progress and student number stay as they are. The reason is saved in the history.
+A reschedule changes only the visit date. Nobody becomes a no-show, and documents, progress and student number stay as they are. The reason is saved in the history.
 
 ---
 
@@ -404,7 +416,7 @@ Allowed until their COR is issued.
 
 ### The Registrar or Admin withdraws someone
 
-On the **Documents** page, press **Withdraw** on the person's row. Works at any stage. Type a reason and type the person's student number (or applicant reference) to confirm.
+On the [Documents](/registrar/documents) page, press **Withdraw** on the person's row. Works at any stage. Type a reason and type the person's student number (or applicant reference) to confirm.
 
 ### What happens
 
@@ -425,7 +437,7 @@ On the **Documents** page, press **Withdraw** on the person's row. Works at any 
 
 ### Before anything: the grading scale
 
-The Admin must set the scale first, under **Content, Grading**. Nothing is pre-filled.
+The Admin must set the scale first, under [Content, Grading](/admin/content?tab=grading). Nothing is pre-filled.
 
 - **Days an incomplete stays open:** after this many days, an incomplete that was not completed becomes a failed 5.0 by itself.
 - **Bands:** each band has a Label (for example 1.00 or INC), an Outcome (Passed, Incomplete, Failed or Dropped), and From and To numbers for number grades. A band can be marked **Display only** if it should not decide any outcome.
@@ -435,7 +447,7 @@ The system does not guess whether a high or low number is better. The bands you 
 
 ### Professor: entering grades
 
-1. Go to **Grades**, tab **Subjects**. You see only your own subjects.
+1. Go to [Grades](/professor/grades), tab **Subjects**. You see only your own subjects.
 2. Open a subject. Every student is listed.
 3. Type a grade for each student. It must match the scale (a number inside a band, or a label like INC).
 4. Press **Save** to keep a draft, or **Submit to Dean**. Every student needs a grade before you can submit.
@@ -462,7 +474,7 @@ When the Dean or Registrar opens their Grades page, the system checks for approv
 
 ## 10. Page by page: Finance
 
-Sidebar: Home, Payments.
+Sidebar: [Home](/finance), [Payments](/finance/payments).
 
 ### Home
 
@@ -492,7 +504,7 @@ Three tabs.
 
 ## 11. Page by page: Professor
 
-Sidebar: Home, Grades.
+Sidebar: [Home](/professor), [Grades](/professor/grades).
 
 ### Home
 
@@ -502,13 +514,13 @@ Sidebar: Home, Grades.
 
 ### Grades
 
-See section 9.
+See [section 9](#9-grades).
 
 ---
 
 ## 12. Page by page: Admin
 
-Sidebar: Home, Accounts, Content, Admissions, Audit log, plus every other staff area (Registrar, Finance, Dean, College Secretary, Professor). Admin can open and do everything those roles can.
+Sidebar: [Home](/admin), [Accounts](/admin/accounts), [Content](/admin/content), [Admissions](/admin/admissions), [Audit log](/admin/audit), plus every other staff area (Registrar, Finance, Dean, College Secretary, Professor). Admin can open and do everything those roles can.
 
 ### Home
 
@@ -537,7 +549,7 @@ Four tabs.
 
 **Term:** set the **School year** (like 2026-2027) and the **Semester** (1st, 2nd or summer). Nothing can be built without this. A section cannot be created and a COR cannot be issued until a term is set. Change it when a new semester starts.
 
-**Grading:** the grading scale (see section 9).
+**Grading:** the grading scale (see [section 9](#9-grades)).
 
 The 7 colleges and 13 programs are already loaded. Program codes match Admissions on purpose, so they are not editable.
 
@@ -565,18 +577,18 @@ Admin actions are logged like everyone else's.
 
 ## 13. What the system does by itself
 
-You do not need to do any of these. Each one is explained in the section named.
+The system does these without anyone doing anything. The section number shows where each one is explained.
 
-- Creates the applicant account, sends the set-password email and books the first visit (sections 3 and 5).
-- Gives the student number and places the student in a section when documents are received (sections 3 and 6).
-- Fills new sections with subjects, blocks double booked professors and rooms, and tells students when their schedule is approved or changed (section 6).
-- Opens a pending payment only when the course requires payment, and skips Finance when it does not (section 10).
-- Moves everyone in a mass reschedule (section 7).
-- Frees the visit slot and seat when someone withdraws, and seats the next waiting student (section 8).
-- Turns an unfinished incomplete into a failed 5.0 when the allowed days pass (section 9).
-- Keeps the **Your next step** card up to date for every student (section 3).
+- Creates the applicant account, sends the set-password email and books the first visit ([section 3](#3-the-whole-journey-from-start-to-end) and [section 5](#5-page-by-page-registrar)).
+- Gives the student number and places the student in a section when documents are received ([section 3](#3-the-whole-journey-from-start-to-end) and [section 6](#6-page-by-page-college-secretary-and-dean)).
+- Fills new sections with subjects, blocks double booked professors and rooms, and tells students when their schedule is approved or changed ([section 6](#6-page-by-page-college-secretary-and-dean)).
+- Opens a pending payment only when the course requires payment, and skips Finance when it does not ([section 10](#10-page-by-page-finance)).
+- Moves everyone in a mass reschedule ([section 7](#7-reschedules)).
+- Frees the visit slot and seat when someone withdraws, and seats the next waiting student ([section 8](#8-withdrawals)).
+- Turns an unfinished incomplete into a failed 5.0 when the allowed days pass ([section 9](#9-grades)).
+- Keeps the **Your next step** card up to date for every student ([section 3](#3-the-whole-journey-from-start-to-end)).
 - Tells Admissions when a student gets a number and when they are enrolled. If Admissions is down, it tries again later and catches up when you open the Documents or COR page.
-- Writes every important change to the audit log (section 12).
+- Writes every important change to the audit log ([section 12](#12-page-by-page-admin)).
 
 ---
 
@@ -584,15 +596,15 @@ You do not need to do any of these. Each one is explained in the section named.
 
 Do these in order.
 
-1. Create the staff accounts (Registrar, Finance, Dean and Secretary for each college, Professors).
-2. In **Content, Term**, set the school year and semester. Sections and CORs cannot be made without it.
-3. In **Content, Subjects**, add the subjects for every program, year level and semester.
-4. In **Content, Rooms**, add the rooms.
-5. In **Content, Grading**, set the grading scale.
-6. In **Finance, Payments, Programs**, check which programs require payment.
-7. In **Admissions**, check that the connection switch is on.
-8. Registrar: create visit slots for each program before applicants arrive.
-9. Secretary or Dean: create the sections for each program so new students can be placed.
+1. Create the staff accounts in [Accounts](/admin/accounts) (Registrar, Finance, Dean and Secretary for each college, Professors).
+2. In [Content, Term](/admin/content?tab=term), set the school year and semester. Sections and CORs cannot be made without it.
+3. In [Content, Subjects](/admin/content?tab=subjects), add the subjects for every program, year level and semester.
+4. In [Content, Rooms](/admin/content?tab=rooms), add the rooms.
+5. In [Content, Grading](/admin/content?tab=grading), set the grading scale.
+6. In [Finance, Payments, Programs](/finance/payments?tab=programs), check which programs require payment.
+7. In [Admissions](/admin/admissions), check that the connection switch is on.
+8. Registrar: create visit slots in [Visits](/registrar/visits) for each program before applicants arrive.
+9. Secretary or Dean: create the sections in [Schedules](/secretary/schedule) for each program so new students can be placed.
 
 ---
 
@@ -600,17 +612,17 @@ Do these in order.
 
 | What you see | What to do |
 |---|---|
-| An applicant says "Waiting for your visit schedule" | No slot was free. Registrar adds a slot on **Visits**, then presses **Assign all unassigned**. |
+| An applicant says "Waiting for your visit schedule" | No slot was free. Registrar adds a slot on [Visits](/registrar/visits), then presses **Assign all unassigned**. |
 | A student is not in any section | There is no section or no free seat for their program. Create a section or raise capacity. They are placed automatically once a seat opens, or move them by hand. |
 | A new section shows no subjects | The Admin has not added subjects for that program, year level and semester. |
 | A student cannot get a slip | Their section schedule is not approved yet. |
 | A student cannot get a COR | The slip is not issued, or payment is not cleared yet. |
-| A request from Admissions is Rejected | Open **Admissions**, read the reason, fix it, then press **Resend**. |
-| A student cannot sign in | Check they use the email on their account. If it was wrong, correct it on the **Documents** page. If their link expired, ask the Admin for a new one. |
+| A request from Admissions is Rejected | Open [Admissions](/admin/admissions), read the reason, fix it, then press **Resend**. |
+| A student cannot sign in | Check they use the email on their account. If it was wrong, correct it on the [Documents](/registrar/documents) page. If their link expired, ask the Admin for a new one. |
 | A person withdrew by mistake | It cannot be undone in the system. The person must contact the Registrar. |
 | A slot cannot be cancelled | Someone is booked in it. Move them first, or close the slot instead. |
 
-For any other message, read it closely. The system says in plain words what is missing.
+For any other error message, read it. It says what is missing.
 
 ### About emails
 

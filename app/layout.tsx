@@ -4,22 +4,26 @@ import '@mantine/notifications/styles.css';
 import '@/styles/global.css';
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import { Manrope, Plus_Jakarta_Sans } from 'next/font/google';
+import localFont from 'next/font/local';
 import { theme } from '@/styles/theme';
 
 // Fonts per the human's decision: Manrope for headings, Plus Jakarta Sans
-// for body text. next/font self-hosts these at build time (no external
-// stylesheet calls at runtime).
-const manrope = Manrope({
-  subsets: ['latin'],
-  weight: ['400', '600'],
+// for body text. The font files are kept in ./fonts and served from this app,
+// so the build does not need to reach Google Fonts.
+const manrope = localFont({
+  src: [
+    { path: './fonts/manrope-latin-400-normal.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/manrope-latin-600-normal.woff2', weight: '600', style: 'normal' },
+  ],
   variable: '--font-heading',
   display: 'swap',
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '600'],
+const plusJakartaSans = localFont({
+  src: [
+    { path: './fonts/plus-jakarta-sans-latin-400-normal.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/plus-jakarta-sans-latin-600-normal.woff2', weight: '600', style: 'normal' },
+  ],
   variable: '--font-body',
   display: 'swap',
 });

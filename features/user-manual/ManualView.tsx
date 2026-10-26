@@ -6,28 +6,53 @@
 // full page (ux-ui-guidelines.md, Help & FAQ): the section index sits beside
 // the text on desktop and becomes a "Jump to" select on mobile. Sections are
 // separated by dividers, not cards. Tables with fewer than 5 rows render as a
-// list, as everywhere else in the app.
-import { Fragment } from 'react';
-import { Box, Divider, List, NavLink, Select, Stack, Table, Text, Title } from '@mantine/core';
+// list, as everywhere else in the app. The index marks the section being read,
+// and the text can link to other sections (#id) and to pages (/path).
+import { Fragment, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Anchor, Box, Divider, List, NavLink, Select, Stack, Table, Text, Title } from '@mantine/core';
 import { color, fontWeight, layout, radius, spacing } from '@/styles/tokens';
 import type { Block, Manual } from './parse';
 
 const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
 
-// **bold** pieces become semibold text. Split with a capture group puts the
-// bold pieces at the odd positions.
+// **bold** and [text](target) pieces are picked out of the text. Split with a
+// capture group puts those pieces at the odd positions. A target starting with
+// # jumps to a section; one starting with / opens a page.
+const INLINE_PIECE = /(\*\*.+?\*\*|\[[^\]]+\]\([^)]+\))/;
+const LINK_PIECE = /^\[([^\]]+)\]\(([^)]+)\)$/;
+
+function InlineLink({ label, href }: { label: string; href: string }) {
+  if (href.startsWith('/')) {
+    return (
+      <Anchor component={Link} href={href} inherit>
+        {label}
+      </Anchor>
+    );
+  }
+  return (
+    <Anchor href={href} inherit>
+      {label}
+    </Anchor>
+  );
+}
+
 function Inline({ text }: { text: string }) {
+  let offset = 0; // where each piece starts in the text, so its key stays the same on re-render
   return (
     <>
-      {text.split(/\*\*(.+?)\*\*/).map((part, index) =>
-        index % 2 === 1 ? (
-          <Text key={index} span inherit fw={fontWeight.semibold}>
-            {part}
+      {text.split(INLINE_PIECE).map((part, position) => {
+        const key = offset;
+        offset += part.length;
+        if (position % 2 === 0) return <Fragment key={key}>{part}</Fragment>;
+        const link = LINK_PIECE.exec(part);
+        if (link) return <InlineLink key={key} label={link[1] ?? ''} href={link[2] ?? ''} />;
+        return (
+          <Text key={key} span inherit fw={fontWeight.semibold}>
+            {part.slice(2, -2)}
           </Text>
-        ) : (
-          <Fragment key={index}>{part}</Fragment>
-        )
-      )}
+        );
+      })}
     </>
   );
 }
@@ -117,6 +142,28 @@ function BlockView({ block }: { block: Block }) {
 
 export function ManualView({ manual }: { manual: Manual }) {
   const jumpOptions = manual.sections.map((section) => ({ value: section.id, label: section.title }));
+  const [activeId, setActiveId] = useState<string | null>(manual.sections[0]?.id ?? null);
+
+  // The section nearest the top of the screen is the one being read.
+  useEffect(() => {
+    const visible = new Set<string>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.add(entry.target.id);
+          else visible.delete(entry.target.id);
+        }
+        const current = manual.sections.find((section) => visible.has(section.id));
+        if (current) setActiveId(current.id);
+      },
+      { rootMargin: '0px 0px -60% 0px' }
+    );
+    for (const section of manual.sections) {
+      const element = document.getElementById(section.id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [manual.sections]);
 
   return (
     <Stack gap={spacing.lg}>
@@ -127,16 +174,30 @@ export function ManualView({ manual }: { manual: Manual }) {
           component="nav"
           aria-label="Manual sections"
           visibleFrom="md"
-          style={{ flex: 'none', width: layout.manualIndexWidth, position: 'sticky', top: spacing.xl }}
+          style={{
+            flex: 'none',
+            width: layout.manualIndexWidth,
+            position: 'sticky',
+            top: spacing.xl,
+            maxHeight: `calc(100vh - ${layout.headerHeight * 2}px)`,
+            overflowY: 'auto',
+            paddingRight: spacing.md,
+            borderRight: `1px solid ${color.border}`,
+          }}
         >
           <Stack gap={spacing.xs}>
+            <Text size="xs" fw={fontWeight.semibold} c={color.textSecondary} tt="uppercase">
+              Contents
+            </Text>
             {manual.sections.map((section) => (
               <NavLink
                 key={section.id}
                 component="a"
                 href={`#${section.id}`}
                 label={section.title}
-                fw={fontWeight.regular}
+                active={section.id === activeId}
+                onClick={() => setActiveId(section.id)}
+                fw={section.id === activeId ? fontWeight.semibold : fontWeight.regular}
                 style={{ borderRadius: radius.default }}
               />
             ))}
@@ -164,7 +225,7 @@ export function ManualView({ manual }: { manual: Manual }) {
           )}
 
           {manual.sections.map((section) => (
-            <Stack key={section.id} id={section.id} gap={spacing.xl}>
+            <Stack key={section.id} id={section.id} gap={spacing.xl} style={{ scrollMarginTop: spacing.xl }}>
               <Divider />
               <Stack gap={spacing.md}>
                 <Title order={4}>{section.title}</Title>
