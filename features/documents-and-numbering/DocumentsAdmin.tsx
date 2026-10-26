@@ -14,7 +14,7 @@ import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput } f
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
-import { formatSlotDate } from '@/features/visit-scheduling/schema';
+import { formatSlotDate, formatWeekdayDate } from '@/lib/format';
 import { CorrectDetailsButton } from '@/features/correct-student-details/CorrectDetailsButton';
 import { WithdrawApplicantButton } from '@/features/withdraw-enrollment/WithdrawApplicantButton';
 import { ChecklistModal } from './ChecklistModal';
@@ -22,7 +22,6 @@ import type { PendingApplicant, ReceivedStudent, WithdrawnApplicant } from './qu
 import {
   ADMISSION_TYPE_LABEL,
   MAX_SEARCH,
-  formatReceivedDate,
   progressLabel,
   type DocumentsFilter,
   type DocumentsTab,
@@ -237,7 +236,7 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
                   {row.studentNumber}, {row.fullName}
                 </Text>
                 <Text size="sm" c={color.textSecondary}>
-                  {row.programCode}, {ADMISSION_TYPE_LABEL[row.admissionType]}, received {formatReceivedDate(row.receivedAt)}
+                  {row.programCode}, {ADMISSION_TYPE_LABEL[row.admissionType]}, received {formatWeekdayDate(row.receivedAt)}
                   {row.receivedByName ? ` by ${row.receivedByName}` : ''}
                 </Text>
                 {row.openLateItems.length > 0 && (
@@ -282,7 +281,7 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
               <Table.Td>{row.studentNumber}</Table.Td>
               <Table.Td>{row.fullName}</Table.Td>
               <Table.Td>{row.programCode}</Table.Td>
-              <Table.Td>{formatReceivedDate(row.receivedAt)}</Table.Td>
+              <Table.Td>{formatWeekdayDate(row.receivedAt)}</Table.Td>
               <Table.Td>{row.receivedByName ?? ''}</Table.Td>
               <Table.Td>{row.openLateItems.join('; ')}</Table.Td>
               <Table.Td>

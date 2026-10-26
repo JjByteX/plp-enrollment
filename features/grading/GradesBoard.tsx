@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Stack, Table, Tabs, Text } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
+import { FormMessage } from '@/components/FormMessage';
 import type { Role } from '@/lib/auth/roles';
 import { approveChange, rejectChange, signChange, type GradingActionResult } from './actions';
 import { ReasonDialog } from './ReasonModal';
@@ -76,11 +77,7 @@ export function GradesBoard({
         </Tabs.List>
       </Tabs>
 
-      {message && (
-        <Text size="sm" c={'error' in message ? color.error : color.success} role="status">
-          {'error' in message ? message.error : message.message}
-        </Text>
-      )}
+      <FormMessage message={message} />
 
       <Divider />
 

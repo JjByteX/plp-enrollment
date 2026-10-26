@@ -4,9 +4,11 @@
 // fits one screen). A slot with applicants booked keeps its program, date,
 // time and office; the database refuses those changes, so the fields are
 // locked here and the reason is stated once.
-import { useState, type FormEvent } from 'react';
-import { Button, Group, Modal, NumberInput, Select, Stack, Text, TextInput, Textarea } from '@mantine/core';
-import { color, padding, spacing } from '@/styles/tokens';
+import { useState } from 'react';
+import { Group, NumberInput, Select, Text, TextInput, Textarea } from '@mantine/core';
+import { color, spacing } from '@/styles/tokens';
+import { FormModal, useFormAction } from '@/components/FormModal';
+import { asNumber, reasonOf } from '@/lib/validate';
 import { createSlot, updateSlot, type VisitActionResult } from './actions';
 import type { ProgramOption, SlotRow } from './queries';
 import { MAX_CAPACITY, manilaToday, parseSlotInput } from './schema';
@@ -31,8 +33,7 @@ export function SlotFormModal({
   const [capacity, setCapacity] = useState<number | string>(slot?.capacity ?? 1);
   const [officeName, setOfficeName] = useState(slot?.officeName ?? '');
   const [whatToBring, setWhatToBring] = useState(slot?.whatToBring ?? '');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { loading, error, run } = useFormAction(onDone);
 
   const locked = slot !== null && slot.bookings.length > 0;
   const today = manilaToday();
@@ -45,127 +46,98 @@ export function SlotFormModal({
       slotDate,
       startTime,
       endTime,
-      capacity: typeof capacity === 'number' ? capacity : Number.NaN,
+      capacity: asNumber(capacity),
       officeName,
       whatToBring,
     },
     dateToday
   );
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!parsed.ok || loading) return;
-    setLoading(true);
-    setError(null);
-    const result = slot ? await updateSlot(slot.id, parsed.value) : await createSlot(parsed.value);
-    setLoading(false);
-    if ('error' in result) {
-      setError(result.error);
-      return;
-    }
-    onDone(result);
+  function onSubmit() {
+    if (!parsed.ok) return;
+    void run(() => (slot ? updateSlot(slot.id, parsed.value) : createSlot(parsed.value)));
   }
 
   return (
-    <Modal
-      opened
-      onClose={onClose}
+    <FormModal
       title={slot ? 'Edit slot' : 'New slot'}
-      padding={padding.modal}
-      radius="lg"
-      closeOnClickOutside={!loading}
+      onClose={onClose}
+      onSubmit={onSubmit}
+      loading={loading}
+      error={error}
+      hint={reasonOf(parsed)}
+      submitLabel={slot ? 'Save slot' : 'Create slot'}
+      submitDisabled={!parsed.ok}
     >
-      <form onSubmit={onSubmit}>
-        <Stack gap={spacing.md}>
-          <Select
-            label="Program"
-            data={programs.map((program) => ({ value: program.id, label: `${program.code} - ${program.name}` }))}
-            value={programId}
-            onChange={setProgramId}
-            searchable
-            disabled={locked}
-            required
-          />
-          <TextInput
-            label="Date"
-            type="date"
-            value={slotDate}
-            min={slot ? undefined : today}
-            onChange={(event) => setSlotDate(event.currentTarget.value)}
-            disabled={locked}
-            required
-          />
-          <Group grow gap={spacing.md} align="flex-start">
-            <TextInput
-              label="Start time"
-              type="time"
-              value={startTime}
-              onChange={(event) => setStartTime(event.currentTarget.value)}
-              disabled={locked}
-              required
-            />
-            <TextInput
-              label="End time"
-              type="time"
-              value={endTime}
-              onChange={(event) => setEndTime(event.currentTarget.value)}
-              disabled={locked}
-              required
-            />
-          </Group>
-          <NumberInput
-            label="Capacity"
-            value={capacity}
-            onChange={setCapacity}
-            min={slot ? Math.max(slot.bookings.length, 1) : 1}
-            max={MAX_CAPACITY}
-            allowDecimal={false}
-            allowNegative={false}
-            required
-          />
-          <TextInput
-            label="Office"
-            value={officeName}
-            onChange={(event) => setOfficeName(event.currentTarget.value)}
-            maxLength={100}
-            disabled={locked}
-            required
-          />
-          <Textarea
-            label="Extra notes"
-            description="Shown after the documents listed for the applicant's admission type"
-            value={whatToBring}
-            onChange={(event) => setWhatToBring(event.currentTarget.value)}
-            autosize
-            minRows={3}
-            maxRows={8}
-            maxLength={2000}
-          />
-          {locked && (
-            <Text size="sm" c={color.textSecondary}>
-              Date, time and office are locked while applicants are booked. Close the slot and move them instead.
-            </Text>
-          )}
-          {error && (
-            <Text size="sm" c={color.error} role="alert">
-              {error}
-            </Text>
-          )}
-          {!parsed.ok && (
-            <Text size="sm" c={color.textSecondary}>
-              {parsed.reason}
-            </Text>
-          )}
-          <Group justify="space-between">
-            <Button variant="default" onClick={onClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={loading} disabled={!parsed.ok}>
-              {slot ? 'Save slot' : 'Create slot'}
-            </Button>
-          </Group>
-        </Stack>
-      </form>
-    </Modal>
+      <Select
+        label="Program"
+        data={programs.map((program) => ({ value: program.id, label: `${program.code} - ${program.name}` }))}
+        value={programId}
+        onChange={setProgramId}
+        searchable
+        disabled={locked}
+        required
+      />
+      <TextInput
+        label="Date"
+        type="date"
+        value={slotDate}
+        min={slot ? undefined : today}
+        onChange={(event) => setSlotDate(event.currentTarget.value)}
+        disabled={locked}
+        required
+      />
+      <Group grow gap={spacing.md} align="flex-start">
+        <TextInput
+          label="Start time"
+          type="time"
+          value={startTime}
+          onChange={(event) => setStartTime(event.currentTarget.value)}
+          disabled={locked}
+          required
+        />
+        <TextInput
+          label="End time"
+          type="time"
+          value={endTime}
+          onChange={(event) => setEndTime(event.currentTarget.value)}
+          disabled={locked}
+          required
+        />
+      </Group>
+      <NumberInput
+        label="Capacity"
+        value={capacity}
+        onChange={setCapacity}
+        min={slot ? Math.max(slot.bookings.length, 1) : 1}
+        max={MAX_CAPACITY}
+        allowDecimal={false}
+        allowNegative={false}
+        required
+      />
+      <TextInput
+        label="Office"
+        value={officeName}
+        onChange={(event) => setOfficeName(event.currentTarget.value)}
+        maxLength={100}
+        disabled={locked}
+        required
+      />
+      <Textarea
+        label="Extra notes"
+        description="Shown after the documents listed for the applicant's admission type"
+        value={whatToBring}
+        onChange={(event) => setWhatToBring(event.currentTarget.value)}
+        autosize
+        minRows={3}
+        maxRows={8}
+        maxLength={2000}
+      />
+      {locked && (
+        <Text size="sm" c={color.textSecondary}>
+          Date, time and office are locked while applicants are booked. Close the slot and move them instead.
+        </Text>
+      )}
+    </FormModal>
   );
 }

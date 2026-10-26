@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Select, Stack, Table, Text, Title } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
+import { FormMessage } from '@/components/FormMessage';
 import type { Role } from '@/lib/auth/roles';
 
 // The role's own home page, as the "previous page" ancestor (matches the
@@ -152,11 +153,7 @@ export function SchedulesBoard({
         />
       </Group>
 
-      {message && (
-        <Text size="sm" c={'error' in message ? color.error : color.success} role="status">
-          {'error' in message ? message.error : message.message}
-        </Text>
-      )}
+      <FormMessage message={message} />
 
       {isCollege && waiting.length > 0 && (
         <>

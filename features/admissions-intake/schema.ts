@@ -13,6 +13,7 @@
 //   verified_documents  optional list of document_requirements doc_type slugs
 //                   that Admissions staff already approved (information only)
 import { isEmail } from '@/lib/auth/validate';
+import { isRealDate, text } from '@/lib/validate';
 
 export type IntakePayload = {
   applicant_ref: string;
@@ -37,17 +38,6 @@ function verifiedDocuments(raw: Record<string, unknown>): string[] {
   if (!Array.isArray(value)) return [];
   const slugs = value.filter((item): item is string => typeof item === 'string' && /^[a-z0-9_]{2,40}$/.test(item));
   return Array.from(new Set(slugs)).slice(0, MAX_VERIFIED).sort();
-}
-
-function text(raw: Record<string, unknown>, key: string): string {
-  const value = raw[key];
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function isRealDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 export function parseIntakePayload(raw: unknown): ParsedIntake {

@@ -10,8 +10,9 @@
 //               a from and a to number or neither. Two numeric bands may not overlap.
 // Grade entry:  one text per student, matched to a band: a number inside a numeric band, or
 //               a label such as INC. Descriptive bands never match.
-export { UUID } from '@/features/section-scheduling/schema';
-import type { Parsed } from '@/features/section-scheduling/schema';
+import { parseChoice, type Parsed } from '@/lib/validate';
+
+export { UUID, parseReason } from '@/lib/validate';
 
 export const OUTCOMES = ['passed', 'incomplete', 'failed', 'dropped'] as const;
 export type Outcome = (typeof OUTCOMES)[number];
@@ -102,8 +103,7 @@ export const KIND_LABEL: Record<GradeChange['kind'], string> = {
 export type GradeTab = 'sections' | 'changes';
 
 export function parseGradeTab(raw: unknown): GradeTab {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  return value === 'changes' ? 'changes' : 'sections';
+  return parseChoice(raw, ['sections', 'changes'], 'sections');
 }
 
 export function scaleReady(scale: Scale): boolean {
@@ -170,10 +170,3 @@ export function parseScale(raw: unknown): Parsed<Scale> {
 }
 
 export type GradeEntry = { studentId: string; grade: string };
-
-export function parseReason(raw: unknown): Parsed<string> {
-  const reason = typeof raw === 'string' ? raw.trim() : '';
-  if (reason.length === 0) return { ok: false, reason: 'Enter the reason.' };
-  if (reason.length > 500) return { ok: false, reason: 'The reason is longer than 500 characters.' };
-  return { ok: true, value: reason };
-}

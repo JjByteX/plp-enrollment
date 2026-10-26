@@ -170,14 +170,3 @@ export function parseTickInput(raw: unknown): ParsedTick {
 
   return { ok: true, value: { applicantId, docType, received, note: rawNote.length > 0 ? rawNote : null } };
 }
-
-// "Mon, Nov 2, 2026" in Manila time, from a timestamp.
-export function formatReceivedDate(value: string): string {
-  return new Intl.DateTimeFormat('en-PH', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'Asia/Manila',
-  }).format(new Date(value));
-}

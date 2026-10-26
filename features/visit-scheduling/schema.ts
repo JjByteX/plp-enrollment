@@ -13,7 +13,11 @@
 //   officeName    where to go, shown on the applicant's card
 //   whatToBring   optional extra notes, shown after the checklist for the applicant's admission type
 
-export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID, isRealDate, normalizeTime, text } from '@/lib/validate';
+import { manilaToday } from '@/lib/format';
+
+export { UUID, isRealDate } from '@/lib/validate';
+export { formatSlotDate, manilaToday, windowLabel } from '@/lib/format';
 
 export const MAX_CAPACITY = 500;
 export const MAX_REASON = 200;
@@ -29,33 +33,6 @@ export type SlotInput = {
 };
 
 export type ParsedSlot = { ok: true; value: SlotInput } | { ok: false; reason: string };
-
-// Today's date in Manila, as YYYY-MM-DD. Slots are Manila dates.
-export function manilaToday(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-}
-
-function text(raw: Record<string, unknown>, key: string): string {
-  const value = raw[key];
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-export function isRealDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-// Accepts HH:MM or HH:MM:SS (the database returns seconds) and returns HH:MM.
-function normalizeTime(value: string): string | null {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)(?::00)?$/.exec(value);
-  return match ? `${match[1]}:${match[2]}` : null;
-}
 
 export function parseSlotInput(raw: unknown, today: string = manilaToday()): ParsedSlot {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
@@ -89,27 +66,4 @@ export function parseSlotInput(raw: unknown, today: string = manilaToday()): Par
   if (whatToBring.length > 2000) return { ok: false, reason: 'The notes are longer than 2000 characters.' };
 
   return { ok: true, value: { programId, slotDate, startTime, endTime, capacity, officeName, whatToBring } };
-}
-
-// "Mon, Nov 2, 2026" from a YYYY-MM-DD slot date. Fixed to UTC so the server
-// and the browser print the same text.
-export function formatSlotDate(value: string): string {
-  return new Intl.DateTimeFormat('en-PH', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(`${value}T00:00:00Z`));
-}
-
-// "9:00 AM to 12:00 PM" from two HH:MM values, the same wording the
-// database writes into notifications.window_label.
-export function windowLabel(startTime: string, endTime: string): string {
-  const format = (value: string) => {
-    const [h, m] = value.split(':').map(Number);
-    const hour = h % 12 === 0 ? 12 : h % 12;
-    return `${hour}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
-  };
-  return `${format(startTime)} to ${format(endTime)}`;
 }

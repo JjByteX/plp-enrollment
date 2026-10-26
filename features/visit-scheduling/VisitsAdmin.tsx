@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, padding, spacing } from '@/styles/tokens';
+import { FormMessage } from '@/components/FormMessage';
 import {
   assignAllUnassigned,
   assignSlot,
@@ -108,11 +109,7 @@ export function VisitsAdmin({
         />
       </Group>
 
-      {message && (
-        <Text size="sm" c={'error' in message ? color.error : color.success} role="status">
-          {'error' in message ? message.error : message.message}
-        </Text>
-      )}
+      <FormMessage message={message} />
 
       <Divider />
 

@@ -4,9 +4,11 @@
 // incomplete window. A short list of bands, one row each; editing opens a
 // centered modal. The save button stays disabled until the scale is valid and
 // the reason is shown (two bands that overlap are named).
-import { useState, type FormEvent } from 'react';
-import { Button, Divider, Group, Modal, NumberInput, Select, Stack, Switch, Table, Text, TextInput } from '@mantine/core';
-import { color, fontWeight, padding, spacing } from '@/styles/tokens';
+import { useState } from 'react';
+import { Button, Divider, Group, NumberInput, Select, Stack, Switch, Table, Text, TextInput } from '@mantine/core';
+import { color, fontWeight, spacing } from '@/styles/tokens';
+import { FormModal, useFormAction } from '@/components/FormModal';
+import { reasonOf } from '@/lib/validate';
 import { saveScale, type GradingActionResult } from './actions';
 import { MAX_BAND_LABEL, MAX_INC_DAYS, OUTCOMES, OUTCOME_LABEL, parseScale, type Band, type Outcome, type Scale } from './schema';
 
@@ -121,8 +123,7 @@ function ScaleModal({
 }) {
   const [rows, setRows] = useState<Draft[]>(scale.bands.map(toDraft));
   const [days, setDays] = useState<number | string>(scale.incWindowDays);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { loading, error, run } = useFormAction<GradingActionResult>(onDone);
 
   const parsed = parseScale({
     incWindowDays: typeof days === 'number' ? days : Number.NaN,
@@ -139,100 +140,79 @@ function ScaleModal({
     setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!parsed.ok || loading) return;
-    setLoading(true);
-    setError(null);
-    const result = await saveScale(parsed.value);
-    setLoading(false);
-    if ('error' in result) {
-      setError(result.error);
-      return;
-    }
-    onDone(result);
+  function onSubmit() {
+    if (!parsed.ok) return;
+    void run(() => saveScale(parsed.value));
   }
 
   return (
-    <Modal opened onClose={onClose} title="Edit grading scale" size="xl" padding={padding.modal} radius="lg" closeOnClickOutside={!loading}>
-      <form onSubmit={onSubmit}>
-        <Stack gap={spacing.md}>
-          <NumberInput
-            label="Days an incomplete stays open"
-            description="After this, an incomplete that is not completed becomes a failed 5.0."
-            value={days}
-            onChange={setDays}
-            min={1}
-            max={MAX_INC_DAYS}
-            allowDecimal={false}
-            allowNegative={false}
-            required
-          />
-          <Divider />
-          {rows.length === 0 && <Text c={color.textSecondary}>No band yet. Add the first one.</Text>}
-          {rows.map((row, index) => (
-            <Stack key={index} gap={spacing.sm}>
-              {index > 0 && <Divider />}
-              <Group grow align="flex-start" gap={spacing.md}>
-                <TextInput
-                  label="Label"
-                  value={row.label}
-                  onChange={(event) => change(index, { label: event.currentTarget.value })}
-                  maxLength={MAX_BAND_LABEL}
-                  required
-                />
-                {!row.descriptive && (
-                  <Select
-                    label="Outcome"
-                    data={OUTCOME_OPTIONS}
-                    value={row.outcome}
-                    onChange={(value) => change(index, { outcome: value as Outcome | null })}
-                    allowDeselect={false}
-                    required
-                  />
-                )}
-              </Group>
-              <Group grow align="flex-start" gap={spacing.md}>
-                <NumberInput label="From" decimalScale={2} allowNegative={false} value={row.from} onChange={(value) => change(index, { from: value })} />
-                <NumberInput label="To" decimalScale={2} allowNegative={false} value={row.to} onChange={(value) => change(index, { to: value })} />
-              </Group>
-              <Group justify="space-between">
-                <Switch
-                  label="Display only (does not decide the outcome)"
-                  checked={row.descriptive}
-                  onChange={(event) => change(index, { descriptive: event.currentTarget.checked })}
-                />
-                <Button variant="subtle" size="xs" color={color.error} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>
-                  Remove band
-                </Button>
-              </Group>
-            </Stack>
-          ))}
-          <Group justify="flex-start">
-            <Button variant="default" onClick={() => setRows((current) => [...current, { label: '', outcome: null, descriptive: false, from: '', to: '' }])}>
-              Add band
-            </Button>
+    <FormModal
+      title="Edit grading scale"
+      size="xl"
+      onClose={onClose}
+      onSubmit={onSubmit}
+      loading={loading}
+      error={error}
+      hint={reasonOf(parsed)}
+      submitLabel="Save scale"
+      submitDisabled={!parsed.ok}
+    >
+      <NumberInput
+        label="Days an incomplete stays open"
+        description="After this, an incomplete that is not completed becomes a failed 5.0."
+        value={days}
+        onChange={setDays}
+        min={1}
+        max={MAX_INC_DAYS}
+        allowDecimal={false}
+        allowNegative={false}
+        required
+      />
+      <Divider />
+      {rows.length === 0 && <Text c={color.textSecondary}>No band yet. Add the first one.</Text>}
+      {rows.map((row, index) => (
+        <Stack key={index} gap={spacing.sm}>
+          {index > 0 && <Divider />}
+          <Group grow align="flex-start" gap={spacing.md}>
+            <TextInput
+              label="Label"
+              value={row.label}
+              onChange={(event) => change(index, { label: event.currentTarget.value })}
+              maxLength={MAX_BAND_LABEL}
+              required
+            />
+            {!row.descriptive && (
+              <Select
+                label="Outcome"
+                data={OUTCOME_OPTIONS}
+                value={row.outcome}
+                onChange={(value) => change(index, { outcome: value as Outcome | null })}
+                allowDeselect={false}
+                required
+              />
+            )}
           </Group>
-          {error && (
-            <Text size="sm" c={color.error} role="alert">
-              {error}
-            </Text>
-          )}
-          {!parsed.ok && (
-            <Text size="sm" c={color.textSecondary}>
-              {parsed.reason}
-            </Text>
-          )}
+          <Group grow align="flex-start" gap={spacing.md}>
+            <NumberInput label="From" decimalScale={2} allowNegative={false} value={row.from} onChange={(value) => change(index, { from: value })} />
+            <NumberInput label="To" decimalScale={2} allowNegative={false} value={row.to} onChange={(value) => change(index, { to: value })} />
+          </Group>
           <Group justify="space-between">
-            <Button variant="default" onClick={onClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={loading} disabled={!parsed.ok}>
-              Save scale
+            <Switch
+              label="Display only (does not decide the outcome)"
+              checked={row.descriptive}
+              onChange={(event) => change(index, { descriptive: event.currentTarget.checked })}
+            />
+            <Button variant="subtle" size="xs" color={color.error} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>
+              Remove band
             </Button>
           </Group>
         </Stack>
-      </form>
-    </Modal>
+      ))}
+      <Group justify="flex-start">
+        <Button variant="default" onClick={() => setRows((current) => [...current, { label: '', outcome: null, descriptive: false, from: '', to: '' }])}>
+          Add band
+        </Button>
+      </Group>
+    </FormModal>
   );
 }

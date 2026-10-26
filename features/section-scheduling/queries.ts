@@ -5,6 +5,7 @@
 // the Registrar and Admin see every college, the Dean and Secretary only
 // their own, a Professor only their sections, a Student only their own.
 import { createClient } from '@/lib/supabase/server';
+import { hasAny } from '@/lib/supabase/rows';
 import type { CurrentUser } from '@/lib/auth/session';
 import type { Meeting, ScheduleStatus } from './schema';
 import { sectionLabel, subjectIsComplete } from './schema';
@@ -244,10 +245,6 @@ async function listRooms(): Promise<RoomOption[]> {
   return ((data ?? []) as { id: string; name: string; capacity: number | null; college_id: string | null }[]).map(
     (row) => ({ id: row.id, name: row.name, capacity: row.capacity, collegeId: row.college_id })
   );
-}
-
-function hasAny(value: unknown): boolean {
-  return Array.isArray(value) ? value.length > 0 : value != null;
 }
 
 // Students with no section: no section existed, or every seat was taken when

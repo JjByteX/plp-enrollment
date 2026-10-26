@@ -4,7 +4,7 @@
 // in certificate_of_registration(); this is its shape and the wording of its
 // term and year level. No server imports, so client components can use it.
 
-export { UUID, formatIssuedDate, scheduleText, subjectName, totalUnits } from '@/features/assessment-slip/schema';
+export { UUID, scheduleText, subjectName, totalUnits } from '@/features/assessment-slip/schema';
 export { ADMISSION_TYPE_LABEL } from '@/features/documents-and-numbering/schema';
 export type { SlipSubject } from '@/features/assessment-slip/schema';
 import type { SlipSubject } from '@/features/assessment-slip/schema';

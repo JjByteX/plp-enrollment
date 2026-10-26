@@ -11,10 +11,8 @@
 //   amountPaid  pesos, same limits, must cover the amount due (no partial payments)
 //   receiptNo   required when something was paid, up to MAX_RECEIPT characters
 
-export { UUID } from '@/features/visit-scheduling/schema';
-export { formatIssuedDate as formatClearedDate } from '@/features/assessment-slip/schema';
-import { UUID } from '@/features/visit-scheduling/schema';
-import type { Parsed } from '@/features/section-scheduling/schema';
+export { UUID } from '@/lib/validate';
+import { UUID, parseChoice, type Parsed } from '@/lib/validate';
 
 export const MAX_RECEIPT = 60;
 export const MAX_AMOUNT = 9999999999.99; // numeric(12,2)
@@ -29,8 +27,7 @@ export type PaymentInput = {
 };
 
 export function parseTab(raw: unknown): PaymentTab {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  return value === 'cleared' || value === 'programs' ? value : 'pending';
+  return parseChoice(raw, ['pending', 'cleared', 'programs'], 'pending');
 }
 
 function isMoney(value: unknown): value is number {
@@ -60,9 +57,4 @@ export function parsePaymentInput(raw: unknown): Parsed<PaymentInput> {
   if (amountPaid > 0 && receiptNo.length === 0) return { ok: false, reason: 'Enter the receipt number.' };
 
   return { ok: true, value: { studentId, amountDue, amountPaid, receiptNo } };
-}
-
-// "₱1,250.00"
-export function formatPeso(value: number): string {
-  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(value);
 }

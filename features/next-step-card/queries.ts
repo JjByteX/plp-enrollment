@@ -17,9 +17,8 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { CurrentUser } from '@/lib/auth/session';
-import { formatSlotDate, windowLabel } from '@/features/visit-scheduling/schema';
+import { formatDate, formatSlotDate, windowLabel } from '@/lib/format';
 import { sectionLabel } from '@/features/section-scheduling/schema';
-import { formatWithdrawnDate } from '@/features/withdraw-enrollment/schema';
 
 export type NextStep =
   | { kind: 'none' }
@@ -93,7 +92,7 @@ async function getWithdrawnStep(): Promise<NextStep | null> {
   if (!row || !row.withdrawn_at) return null;
   return {
     kind: 'withdrawn',
-    date: formatWithdrawnDate(row.withdrawn_at),
+    date: formatDate(row.withdrawn_at),
     byStaff: row.withdrawn_by !== row.user_id,
     reason: row.withdrawn_reason ?? '',
   };

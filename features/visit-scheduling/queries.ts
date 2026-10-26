@@ -4,6 +4,7 @@
 // person's session (decision-log.md #10), so row level security applies:
 // Registrar and Admin see every slot and booking, nobody else sees any.
 import { createClient } from '@/lib/supabase/server';
+import { hasAny } from '@/lib/supabase/rows';
 
 export type ProgramOption = { id: string; code: string; name: string };
 
@@ -118,12 +119,6 @@ type RawApplicant = {
   visit_bookings: unknown;
   students: unknown;
 };
-
-// PostgREST returns an array for one to many and an object (or null) for one
-// to one, so accept both.
-function hasAny(value: unknown): boolean {
-  return Array.isArray(value) ? value.length > 0 : value != null;
-}
 
 // Applicants of one program with no visit and not yet a student, in the order
 // "Assign all unassigned" uses: admission date, then when they arrived. Someone

@@ -10,6 +10,7 @@
 // change, the visit booking and the notification are one transaction.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { failureWith } from '@/lib/failure';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
 import { notifyStudentStage } from '@/features/admissions-callback/send';
 import { UUID, parseTickInput } from './schema';
@@ -24,13 +25,8 @@ async function requireStaff(): Promise<CurrentUser | null> {
   return actor && (actor.role === 'registrar' || actor.role === 'admin') ? actor : null;
 }
 
-// Messages the database raises on purpose (P0001) are written for the
-// Registrar, so show them. Anything else gets a plain message.
-function failure(error: { code?: string; message: string }, fallback: string): { error: string } {
-  if (error.code === 'P0001') return { error: error.message };
-  if (error.code === '23505') return { error: 'That document is already ticked.' };
-  return { error: fallback };
-}
+// 23505 is a document ticked twice.
+const failure = failureWith({ '23505': 'That document is already ticked.' });
 
 // Tick or untick one document, or change its note. Required items cannot be
 // changed once the applicant is a student (the database refuses and says so).

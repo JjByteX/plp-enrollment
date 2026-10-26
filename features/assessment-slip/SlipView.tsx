@@ -17,7 +17,8 @@ import {
   Title,
 } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
-import { formatIssuedDate, scheduleText, subjectName, totalUnits, type SlipData } from './schema';
+import { formatDate } from '@/lib/format';
+import { scheduleText, subjectName, totalUnits, type SlipData } from './schema';
 
 export function SlipView({ slip }: { slip: SlipData }) {
   return (
@@ -43,7 +44,7 @@ export function SlipView({ slip }: { slip: SlipData }) {
           <Text size="sm" c={color.textSecondary}>
             Issued
           </Text>
-          <Text>{formatIssuedDate(slip.issuedAt)}</Text>
+          <Text>{formatDate(slip.issuedAt)}</Text>
         </Stack>
       </Group>
 

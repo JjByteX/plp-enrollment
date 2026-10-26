@@ -3,6 +3,7 @@ import { PageHeading } from '@/components/PageHeading';
 import { createClient } from '@/lib/supabase/server';
 import { IntakeAdmin, type IntakeRow } from '@/features/admissions-intake/IntakeAdmin';
 import { spacing } from '@/styles/tokens';
+import { formatDateTime } from '@/lib/format';
 
 export const metadata = { title: 'Admissions | PLP Enrollment' };
 
@@ -18,9 +19,6 @@ type LogRow = {
   rejection_reason: string | null;
   received_at: string;
 };
-
-// Formatted here, on the server, so the browser shows the same text.
-const received = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' });
 
 export default async function AdmissionsPage() {
   const supabase = createClient();
@@ -39,7 +37,7 @@ export default async function AdmissionsPage() {
 
   const rows: IntakeRow[] = logRows.map((row) => ({
     id: row.id,
-    receivedAt: received.format(new Date(row.received_at)),
+    receivedAt: formatDateTime(row.received_at),
     applicantRef: row.applicant_ref,
     fullName: row.full_name,
     programCode: row.program_code,

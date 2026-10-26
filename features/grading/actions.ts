@@ -10,6 +10,7 @@
 // raises on purpose (P0001) are shown as written.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { failure } from '@/lib/failure';
 import { getCurrentUser } from '@/lib/auth/session';
 import type { Role } from '@/lib/auth/roles';
 import { UUID, parseReason, parseScale, type GradeEntry } from './schema';
@@ -21,10 +22,6 @@ const PAGES = ['/professor/grades', '/dean/grades', '/registrar/grades', '/admin
 async function allowed(roles: readonly Role[]): Promise<boolean> {
   const actor = await getCurrentUser();
   return actor !== null && roles.includes(actor.role);
-}
-
-function failure(error: { code?: string; message: string }, fallback: string): { error: string } {
-  return error.code === 'P0001' ? { error: error.message } : { error: fallback };
 }
 
 function done(message: string): GradingActionResult {

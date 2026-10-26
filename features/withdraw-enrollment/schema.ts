@@ -12,9 +12,8 @@
 // Confirmation: the person types a word (themselves) or the identifying number
 // of the person being withdrawn (staff). Case and spacing do not matter.
 
-export { MAX_REASON, parseReason } from '@/features/reschedule-request/schema';
-import { UUID } from '@/features/visit-scheduling/schema';
-import { parseReason } from '@/features/reschedule-request/schema';
+export { MAX_REASON, UUID, parseReason } from '@/lib/validate';
+import { UUID, parseReason } from '@/lib/validate';
 
 // What a student or applicant types to confirm withdrawing themselves.
 export const CONFIRM_WORD = 'withdraw';
@@ -42,15 +41,4 @@ export function parseWithdrawInput(raw: unknown): ParsedWithdraw {
   if (!reason.ok) return reason;
 
   return { ok: true, value: { applicantId, reason: reason.value } };
-}
-
-// "Oct 25, 2026" for when someone withdrew, in Manila time so the server and
-// the browser print the same text.
-export function formatWithdrawnDate(iso: string): string {
-  return new Intl.DateTimeFormat('en-PH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'Asia/Manila',
-  }).format(new Date(iso));
 }

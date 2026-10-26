@@ -3,7 +3,7 @@
 // tile, so the order is action first, then the record of what was done.
 import { Divider, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { color, fontFamily, fontSize, fontWeight, spacing } from '@/styles/tokens';
-import { formatClearedDate, formatPeso } from '@/features/payment/schema';
+import { formatDate, formatPeso } from '@/lib/format';
 import type { FinanceHome } from './queries';
 
 function Figure({ value, caption }: { value: string; caption: string }) {
@@ -66,7 +66,7 @@ export function FinanceSummary({ home }: { home: FinanceHome }) {
                   <Text size="sm" c={color.textSecondary}>
                     {formatPeso(row.amountPaid)}
                     {row.receiptNo ? `, receipt ${row.receiptNo}` : ''}
-                    {row.clearedAt ? `, ${formatClearedDate(row.clearedAt)}` : ''}
+                    {row.clearedAt ? `, ${formatDate(row.clearedAt)}` : ''}
                   </Text>
                 </Stack>
               </Stack>

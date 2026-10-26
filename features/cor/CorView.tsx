@@ -20,10 +20,9 @@ import {
   Title,
 } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
-import { formatPeso } from '@/features/payment/schema';
+import { formatDate, formatPeso } from '@/lib/format';
 import {
   ADMISSION_TYPE_LABEL,
-  formatIssuedDate,
   scheduleText,
   subjectName,
   termLabel,
@@ -79,7 +78,7 @@ export function CorView({ cor }: { cor: CorData }) {
           <Field label="Department" value={cor.collegeName} />
         </Stack>
         <Stack gap={spacing.md}>
-          <Field label="Enrollment date" value={formatIssuedDate(cor.issuedAt)} />
+          <Field label="Enrollment date" value={formatDate(cor.issuedAt)} />
           <Field label="School year and semester" value={termLabel(cor.schoolYear, cor.semester)} />
           <Field label="Year level" value={yearLabel(cor.yearLevel)} />
           <Field label="Student type" value={ADMISSION_TYPE_LABEL[cor.admissionType]} />

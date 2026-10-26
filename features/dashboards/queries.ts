@@ -16,13 +16,12 @@ import {
   STATUS_LABEL,
   sectionLabel,
   subjectName,
-  windowLabel,
   type Meeting,
   type ScheduleStatus,
 } from '@/features/section-scheduling/schema';
 import { ACTION_LABEL, tableLabel, type AuditAction } from '@/features/audit-log/schema';
 import { ROLE_LABEL, isRole } from '@/lib/auth/roles';
-import { manilaToday } from '@/features/visit-scheduling/schema';
+import { formatDateTime, formatShortDay, manilaToday, windowLabel } from '@/lib/format';
 import type {
   ActivityItem,
   FunnelStage,
@@ -112,13 +111,6 @@ const CAPACITY_DAYS = 7;
 
 type RawCapacitySlot = { slot_date: string; capacity: number; visit_bookings: { id: string }[] | null };
 
-// "Mon, Oct 26". Fixed to UTC so the server and the browser print the same text.
-function shortDay(value: string): string {
-  return new Intl.DateTimeFormat('en-PH', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
-    new Date(`${value}T00:00:00Z`)
-  );
-}
-
 async function visitCapacity(applicants: ApplicantCounts): Promise<VisitCapacityData> {
   const supabase = createClient();
   const today = manilaToday();
@@ -143,7 +135,7 @@ async function visitCapacity(applicants: ApplicantCounts): Promise<VisitCapacity
 
   const days: VisitDay[] = Array.from(byDate.entries())
     .slice(0, CAPACITY_DAYS)
-    .map(([date, day]) => ({ date, label: shortDay(date), booked: day.booked, capacity: day.capacity }));
+    .map(([date, day]) => ({ date, label: formatShortDay(date), booked: day.booked, capacity: day.capacity }));
 
   return { days, freeSeats, unassigned: applicants.unassigned };
 }
@@ -290,9 +282,6 @@ type RawActivity = {
   created_at: string;
 };
 
-// Formatted here, on the server, so the browser shows the same text.
-const activityTime = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' });
-
 // The newest changes in the audit log. Only Admin can read it (row level
 // security), so anyone else gets an empty list.
 async function recentActivity(): Promise<ActivityItem[]> {
@@ -317,7 +306,7 @@ async function recentActivity(): Promise<ActivityItem[]> {
     const role = row.actor_role && isRole(row.actor_role) ? ROLE_LABEL[row.actor_role] : row.actor_role;
     return {
       id: String(row.id),
-      when: activityTime.format(new Date(row.created_at)),
+      when: formatDateTime(row.created_at),
       actor: role ? `${name} (${role})` : name,
       text: `${ACTION_LABEL[row.action as AuditAction] ?? row.action} in ${tableLabel(row.table_name)}`,
     };

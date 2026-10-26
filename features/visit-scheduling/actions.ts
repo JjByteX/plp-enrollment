@@ -9,6 +9,7 @@
 // are one transaction (plan decision C).
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { failureWith } from '@/lib/failure';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
 import { MAX_REASON, UUID, parseSlotInput, type SlotInput } from './schema';
 
@@ -21,15 +22,8 @@ async function requireStaff(): Promise<CurrentUser | null> {
   return actor && (actor.role === 'registrar' || actor.role === 'admin') ? actor : null;
 }
 
-// Messages the database raises on purpose (P0001) are written for the
-// Registrar, so show them. Anything else gets a plain message.
-function failure(error: { code?: string; message: string }, fallback: string): { error: string } {
-  if (error.code === 'P0001') return { error: error.message };
-  if (error.code === '23505') {
-    return { error: 'A slot for this program, date, start time and office already exists.' };
-  }
-  return { error: fallback };
-}
+// 23505 is a slot that already exists.
+const failure = failureWith({ '23505': 'A slot for this program, date, start time and office already exists.' });
 
 function slotColumns(value: SlotInput) {
   return {

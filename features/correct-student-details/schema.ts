@@ -13,8 +13,7 @@
 //   reason        1 to 500 characters after trimming
 
 import { isEmail } from '@/lib/auth/validate';
-import { parseReason } from '@/features/reschedule-request/schema';
-import { UUID } from '@/features/visit-scheduling/schema';
+import { UUID, parseReason } from '@/lib/validate';
 
 export const MAX_NAME = 150;
 export const MIN_NAME = 2;

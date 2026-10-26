@@ -15,13 +15,13 @@
 //   dayOfWeek             1 (Monday) to 7 (Sunday), with startTime and endTime or none of the three
 //   startTime, endTime    HH:MM, end after start
 
-export { UUID, windowLabel } from '@/features/visit-scheduling/schema';
-import { UUID } from '@/features/visit-scheduling/schema';
+export { MAX_REASON, UUID, parseReason, type Parsed } from '@/lib/validate';
+export { windowLabel } from '@/lib/format';
+import { UUID, normalizeTime, text, type Parsed } from '@/lib/validate';
 
 export const MAX_NAME = 50;
 export const MAX_YEAR = 6;
 export const MAX_CAPACITY = 500;
-export const MAX_REASON = 500;
 
 export type Meeting = 'lecture' | 'laboratory';
 
@@ -64,23 +64,10 @@ export type LoadingInput = {
   endTime: string | null;
 };
 
-export type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string };
-
-function text(raw: Record<string, unknown>, key: string): string {
-  const value = raw[key];
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 function optionalId(raw: Record<string, unknown>, key: string): string | null | undefined {
   const value = raw[key];
   if (value === null || value === undefined || value === '') return null;
   return typeof value === 'string' && UUID.test(value) ? value : undefined; // undefined = invalid
-}
-
-// Accepts HH:MM or HH:MM:SS (the database returns seconds) and returns HH:MM.
-export function normalizeTime(value: string): string | null {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)(?::00)?$/.exec(value);
-  return match ? `${match[1]}:${match[2]}` : null;
 }
 
 export function parseSectionInput(raw: unknown): Parsed<SectionInput> {
@@ -162,13 +149,6 @@ export function parseLoadingInput(raw: unknown): Parsed<LoadingInput> {
   if (endTime <= startTime) return { ok: false, reason: 'The end time must be after the start time.' };
 
   return { ok: true, value: { sectionSubjectId, professorId, roomId, dayOfWeek: day, startTime, endTime } };
-}
-
-export function parseReason(raw: unknown): Parsed<string> {
-  const reason = typeof raw === 'string' ? raw.trim() : '';
-  if (reason.length === 0) return { ok: false, reason: 'Enter the reason.' };
-  if (reason.length > MAX_REASON) return { ok: false, reason: `The reason is longer than ${MAX_REASON} characters.` };
-  return { ok: true, value: reason };
 }
 
 // "BSIT 3A": program, year level and section letter.

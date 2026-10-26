@@ -10,6 +10,7 @@
 // only Finance and Admin change it, and a trigger audit-logs the change.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { failure } from '@/lib/failure';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
 import { UUID, parsePaymentInput } from './schema';
 
@@ -20,13 +21,6 @@ const PAGE = '/finance/payments';
 async function requireFinance(): Promise<CurrentUser | null> {
   const actor = await getCurrentUser();
   return actor && (actor.role === 'finance' || actor.role === 'admin') ? actor : null;
-}
-
-// Messages the database raises on purpose (P0001) are written for Finance,
-// so show them. Anything else gets a plain message.
-function failure(error: { code?: string; message: string }, fallback: string): { error: string } {
-  if (error.code === 'P0001') return { error: error.message };
-  return { error: fallback };
 }
 
 export async function recordPayment(input: unknown): Promise<PaymentActionResult> {

@@ -9,13 +9,15 @@ import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Stack, Table, Tabs, Text } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
+import { FormMessage } from '@/components/FormMessage';
+import { formatDate } from '@/lib/format';
 import { MassReschedulePanel } from '@/features/reschedule-mass/MassReschedulePanel';
 import type { BookedVisit } from '@/features/reschedule-mass/queries';
 import type { SlotRow } from '@/features/visit-scheduling/queries';
 import type { RescheduleActionResult } from './actions';
 import { DecideRescheduleModal } from './DecideRescheduleModal';
 import type { PendingRequest } from './queries';
-import { formatRequestedDate, formatSlotDate, windowLabel } from './schema';
+import { formatSlotDate, windowLabel } from './schema';
 
 const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
 
@@ -56,11 +58,7 @@ export function ReschedulesAdmin({
         </Tabs.List>
       </Tabs>
 
-      {message && (
-        <Text size="sm" c={'error' in message ? color.error : color.success} role="status">
-          {'error' in message ? message.error : message.message}
-        </Text>
-      )}
+      <FormMessage message={message} />
 
       <Divider />
 
@@ -143,7 +141,7 @@ function RequestRows({ requests, onOpen }: { requests: PendingRequest[]; onOpen:
                   {request.reason}
                 </Text>
               </Table.Td>
-              <Table.Td>{formatRequestedDate(request.requestedAt)}</Table.Td>
+              <Table.Td>{formatDate(request.requestedAt)}</Table.Td>
               <Table.Td>
                 <Group justify="flex-end">
                   <Button variant="default" size="xs" onClick={() => onOpen(request)}>

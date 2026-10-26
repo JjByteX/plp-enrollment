@@ -10,6 +10,7 @@
 // are one transaction. The person never picks a slot (decision-log.md #5).
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { failureWith } from '@/lib/failure';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
 import { parseDecisionInput, parseReason, type DecisionInput } from './schema';
 
@@ -27,13 +28,8 @@ async function requireRequester(): Promise<CurrentUser | null> {
   return actor && (actor.role === 'applicant' || actor.role === 'student') ? actor : null;
 }
 
-// Messages the database raises on purpose (P0001) are written for the person
-// who sees them, so show them. Anything else gets a plain message.
-function failure(error: { code?: string; message: string }, fallback: string): { error: string } {
-  if (error.code === 'P0001') return { error: error.message };
-  if (error.code === '23505') return { error: 'You already have a reschedule request waiting for the Registrar.' };
-  return { error: fallback };
-}
+// 23505 is a second request while one is already waiting.
+const failure = failureWith({ '23505': 'You already have a reschedule request waiting for the Registrar.' });
 
 // The applicant or student sends a reason. The next step card is rendered by
 // the portal layout, so the whole layout is refreshed to show the waiting state.

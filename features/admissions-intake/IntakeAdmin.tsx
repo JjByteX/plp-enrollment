@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Button, Paper, Stack, Switch, Table, Text } from '@mantine/core';
-import { color, padding, spacing } from '@/styles/tokens';
+import { padding, spacing } from '@/styles/tokens';
+import { FormMessage } from '@/components/FormMessage';
 import { resendIntake, setConnectionEnabled, type IntakeActionResult } from './actions';
 
 export type IntakeRow = {
@@ -39,11 +40,7 @@ export function IntakeAdmin({ enabled, rows }: { enabled: boolean; rows: IntakeR
         />
       </Paper>
 
-      {message && (
-        <Text size="sm" c={'error' in message ? color.error : color.success} role="status">
-          {'error' in message ? message.error : message.message}
-        </Text>
-      )}
+      <FormMessage message={message} />
 
       <Paper p={padding.card}>
         {rows.length === 0 ? (

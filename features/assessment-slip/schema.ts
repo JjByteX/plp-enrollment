@@ -30,16 +30,6 @@ export type SlipData = {
   subjects: SlipSubject[];
 };
 
-// "Oct 25, 2026" in Manila time, so the server and the browser print the same text.
-export function formatIssuedDate(value: string): string {
-  return new Intl.DateTimeFormat('en-PH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'Asia/Manila',
-  }).format(new Date(value));
-}
-
 // "Monday, 8:00 AM to 10:00 AM", or empty when the subject has no time yet.
 // The slip and the COR both print it.
 export function scheduleText(day: number | null, start: string | null, end: string | null): string {

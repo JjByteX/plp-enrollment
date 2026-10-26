@@ -12,19 +12,9 @@
 //   slotId      the slot to move to, or null for the next open slot on another date
 //   note        optional on approval, required to decline, 500 characters at most
 
-export { UUID, formatSlotDate, windowLabel } from '@/features/visit-scheduling/schema';
-import { UUID } from '@/features/visit-scheduling/schema';
-
-export const MAX_REASON = 500;
-
-export type ParsedReason = { ok: true; value: string } | { ok: false; reason: string };
-
-export function parseReason(raw: unknown): ParsedReason {
-  const value = typeof raw === 'string' ? raw.trim() : '';
-  if (value.length === 0) return { ok: false, reason: 'Enter the reason.' };
-  if (value.length > MAX_REASON) return { ok: false, reason: `The reason is longer than ${MAX_REASON} characters.` };
-  return { ok: true, value };
-}
+export { MAX_REASON, UUID, parseReason } from '@/lib/validate';
+export { formatSlotDate, windowLabel } from '@/lib/format';
+import { MAX_REASON, UUID } from '@/lib/validate';
 
 export type DecisionInput = {
   requestId: string;
@@ -59,15 +49,4 @@ export function parseDecisionInput(raw: unknown): ParsedDecision {
   if (!approve && note.length === 0) return { ok: false, reason: 'Enter the reason for declining.' };
 
   return { ok: true, value: { requestId, approve, slotId, note } };
-}
-
-// "Oct 25, 2026" for when a request was sent, in Manila time so the server and
-// the browser print the same text.
-export function formatRequestedDate(iso: string): string {
-  return new Intl.DateTimeFormat('en-PH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'Asia/Manila',
-  }).format(new Date(iso));
 }

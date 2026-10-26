@@ -11,10 +11,10 @@
 //                 hasLaboratory, offeredInSummer
 // Room input:     name (1 to 80), capacity (whole number from 1, or none), collegeId (or none)
 // Term input:     schoolYear (2026-2027), semester (1st, 2nd or summer)
-export { UUID } from '@/features/visit-scheduling/schema';
+export { UUID } from '@/lib/validate';
 export { SEMESTER_LABEL, type Semester } from '@/features/cor/schema';
-import { UUID } from '@/features/visit-scheduling/schema';
-import { MAX_YEAR, type Parsed } from '@/features/section-scheduling/schema';
+import { UUID, asObject, parseChoice, text, type Parsed } from '@/lib/validate';
+import { MAX_YEAR } from '@/features/section-scheduling/schema';
 import type { Semester } from '@/features/cor/schema';
 
 export { MAX_YEAR };
@@ -27,17 +27,7 @@ export const MAX_UNITS = 99.9; // numeric(3,1)
 export type ContentTab = 'subjects' | 'rooms' | 'term' | 'grading';
 
 export function parseTab(raw: unknown): ContentTab {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  return value === 'rooms' || value === 'term' || value === 'grading' ? value : 'subjects';
-}
-
-function text(raw: Record<string, unknown>, key: string): string {
-  const value = raw[key];
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function asObject(raw: unknown): Record<string, unknown> | null {
-  return typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  return parseChoice(raw, ['subjects', 'rooms', 'term', 'grading'], 'subjects');
 }
 
 export type SubjectFields = { code: string; title: string; units: number; hasLaboratory: boolean; offeredInSummer: boolean };

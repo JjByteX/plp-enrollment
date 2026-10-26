@@ -9,10 +9,12 @@ import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Stack, Switch, Table, Tabs, Text } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
+import { FormMessage } from '@/components/FormMessage';
+import { formatDate, formatPeso } from '@/lib/format';
 import { setPaymentRequired, type PaymentActionResult } from './actions';
 import type { PaymentRow, ProgramSetting } from './queries';
 import { RecordPaymentModal } from './RecordPaymentModal';
-import { formatClearedDate, formatPeso, type PaymentTab } from './schema';
+import type { PaymentTab } from './schema';
 
 const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
 
@@ -55,11 +57,7 @@ export function PaymentsAdmin({
         </Tabs.List>
       </Tabs>
 
-      {message && (
-        <Text size="sm" c={'error' in message ? color.error : color.success} role="status">
-          {'error' in message ? message.error : message.message}
-        </Text>
-      )}
+      <FormMessage message={message} />
 
       <Divider />
 
@@ -159,7 +157,7 @@ function ClearedRows({ rows }: { rows: PaymentRow[] }) {
             <Text size="sm" c={color.textSecondary}>
               Paid {formatPeso(row.amountPaid)} of {formatPeso(row.amountDue ?? 0)}
               {row.receiptNo ? `, receipt ${row.receiptNo}` : ''}
-              {row.clearedAt ? `, ${formatClearedDate(row.clearedAt)}` : ''}
+              {row.clearedAt ? `, ${formatDate(row.clearedAt)}` : ''}
             </Text>
           </Stack>
         ))}
@@ -190,7 +188,7 @@ function ClearedRows({ rows }: { rows: PaymentRow[] }) {
               <Table.Td>{formatPeso(row.amountDue ?? 0)}</Table.Td>
               <Table.Td>{formatPeso(row.amountPaid)}</Table.Td>
               <Table.Td>{row.receiptNo ?? ''}</Table.Td>
-              <Table.Td>{row.clearedAt ? formatClearedDate(row.clearedAt) : ''}</Table.Td>
+              <Table.Td>{row.clearedAt ? formatDate(row.clearedAt) : ''}</Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>

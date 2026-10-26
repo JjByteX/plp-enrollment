@@ -3,6 +3,7 @@
 // Shapes and small helpers for the role home screens (step 14). No server
 // imports, so client components can use it.
 import type { NavIconName } from '@/lib/nav';
+export { todayLabel } from '@/lib/format';
 import type { NextStep } from '@/features/next-step-card/queries';
 import type { ScheduleStatus } from '@/features/section-scheduling/schema';
 
@@ -84,16 +85,6 @@ export type SectionAttention = { id: string; label: string; detail: string };
 // Time helpers. Fixed to Manila so the server and the browser print the
 // same text, and "today" means the school's day.
 // ---------------------------------------------------------------
-export function todayLabel(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-PH', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'Asia/Manila',
-  }).format(now);
-}
-
 const WEEKDAY_NUMBER: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
 
 // The weekday (1 Monday to 7 Sunday, like section_subjects.day_of_week) and

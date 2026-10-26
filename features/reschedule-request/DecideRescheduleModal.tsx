@@ -7,11 +7,12 @@
 import { useState } from 'react';
 import { Button, Group, Modal, Select, Stack, Text, Textarea } from '@mantine/core';
 import { color, fontWeight, padding, spacing } from '@/styles/tokens';
+import { formatDate } from '@/lib/format';
 import type { SlotRow } from '@/features/visit-scheduling/queries';
 import { slotOptionLabel } from '@/features/visit-scheduling/SlotDetailsModal';
 import { decideReschedule, type RescheduleActionResult } from './actions';
 import type { PendingRequest } from './queries';
-import { MAX_REASON, formatRequestedDate, formatSlotDate, parseDecisionInput, windowLabel } from './schema';
+import { MAX_REASON, formatSlotDate, parseDecisionInput, windowLabel } from './schema';
 
 export function DecideRescheduleModal({
   request,
@@ -73,7 +74,7 @@ export function DecideRescheduleModal({
             {request.officeName}
           </Text>
           <Text size="sm" c={color.textSecondary}>
-            Sent {formatRequestedDate(request.requestedAt)}
+            Sent {formatDate(request.requestedAt)}
           </Text>
         </Stack>
         <Text size="sm" style={{ whiteSpace: 'pre-line' }}>

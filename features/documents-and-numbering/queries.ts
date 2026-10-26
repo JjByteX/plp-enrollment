@@ -11,7 +11,7 @@
 // Someone who withdrew (step 17) leaves the Waiting and Received lists and
 // appears only on the Withdrawn list, with who withdrew them and why.
 import { createClient } from '@/lib/supabase/server';
-import { formatWithdrawnDate } from '@/features/withdraw-enrollment/schema';
+import { formatDate } from '@/lib/format';
 import {
   buildChecklist,
   checklistProgress,
@@ -288,7 +288,7 @@ export async function listWithdrawn(filter: Pick<DocumentsFilter, 'q' | 'program
       studentNumber,
       fullName,
       programCode: row.programs?.code ?? '',
-      withdrawnOn: formatWithdrawnDate(row.withdrawn_at),
+      withdrawnOn: formatDate(row.withdrawn_at),
       byStaff: row.withdrawn_by !== row.user_id,
       reason: row.withdrawn_reason ?? '',
     });

@@ -9,6 +9,7 @@
 // payment (when required) and the student's notification are one transaction.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { failure } from '@/lib/failure';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
 import { UUID } from './schema';
 
@@ -19,13 +20,6 @@ const PAGE = '/registrar/slips';
 async function requireStaff(): Promise<CurrentUser | null> {
   const actor = await getCurrentUser();
   return actor && (actor.role === 'registrar' || actor.role === 'admin') ? actor : null;
-}
-
-// Messages the database raises on purpose (P0001) are written for the
-// Registrar, so show them. Anything else gets a plain message.
-function failure(error: { code?: string; message: string }, fallback: string): { error: string } {
-  if (error.code === 'P0001') return { error: error.message };
-  return { error: fallback };
 }
 
 export async function issueSlip(studentId: string): Promise<SlipActionResult> {

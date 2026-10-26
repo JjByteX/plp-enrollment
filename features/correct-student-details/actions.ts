@@ -12,18 +12,12 @@
 // does it) and put back if the database refuses. The name needs no such step.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { failure } from '@/lib/failure';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/auth/session';
 import { parseCorrectInput, type CorrectInput } from './schema';
 
 export type CorrectActionResult = { ok: true; message: string } | { error: string };
-
-// Messages the database raises on purpose (P0001) are written for the person
-// who sees them, so show them. Anything else gets a plain message.
-function failure(error: { code?: string; message: string }, fallback: string): { error: string } {
-  if (error.code === 'P0001') return { error: error.message };
-  return { error: fallback };
-}
 
 export async function correctStudentDetails(input: CorrectInput): Promise<CorrectActionResult> {
   const actor = await getCurrentUser();

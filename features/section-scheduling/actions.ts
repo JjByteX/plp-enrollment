@@ -12,6 +12,7 @@
 // notification are in the same transaction as the change.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { failureWith } from '@/lib/failure';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/session';
 import type { Role } from '@/lib/auth/roles';
 import { getSectionDetail, type SectionDetail } from './queries';
@@ -43,16 +44,11 @@ function refresh() {
   for (const page of PAGES) revalidatePath(page);
 }
 
-function failure(error: { code?: string; message: string }, fallback: string): { error: string } {
-  if (error.code === 'P0001') return { error: error.message };
-  if (error.code === '23P01') {
-    return { error: 'That professor or room is already used at that time in another section.' };
-  }
-  if (error.code === '23505') {
-    return { error: 'A section with this name already exists for this program and year level.' };
-  }
-  return { error: fallback };
-}
+// 23P01 is a clash with another section, 23505 a repeated section name.
+const failure = failureWith({
+  '23P01': 'That professor or room is already used at that time in another section.',
+  '23505': 'A section with this name already exists for this program and year level.',
+});
 
 // The rows a section and its students show when it is opened. Reads only.
 export async function loadSectionDetail(sectionId: string): Promise<SectionDetail | { error: string }> {

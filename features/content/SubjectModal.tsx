@@ -4,9 +4,11 @@
 // screen). The save button stays disabled until the input is valid and the
 // reason is shown. Editing keeps the program and year level; deleting asks
 // once more first.
-import { useState, type FormEvent } from 'react';
-import { Button, Group, Modal, NumberInput, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
-import { color, padding, spacing } from '@/styles/tokens';
+import { useState } from 'react';
+import { Button, Group, NumberInput, Select, Switch, Text, TextInput } from '@mantine/core';
+import { color, spacing } from '@/styles/tokens';
+import { FormModal, useFormAction } from '@/components/FormModal';
+import { asNumber, reasonOf } from '@/lib/validate';
 import { SEMESTER_LABEL, yearLabel, type Semester } from '@/features/cor/schema';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { addSubject, deleteSubject, editSubject, type ContentActionResult } from './actions';
@@ -22,10 +24,6 @@ const SEMESTER_OPTIONS = (Object.keys(SEMESTER_LABEL) as Semester[]).map((value)
   value,
   label: SEMESTER_LABEL[value],
 }));
-
-function asNumber(value: number | string): number {
-  return typeof value === 'number' ? value : Number.NaN;
-}
 
 export function SubjectModal({
   program,
@@ -46,8 +44,7 @@ export function SubjectModal({
   const [hasLaboratory, setHasLaboratory] = useState(subject?.hasLaboratory ?? false);
   const [offeredInSummer, setOfferedInSummer] = useState(subject?.offeredInSummer ?? false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { loading, error, run } = useFormAction(onDone);
 
   const summerOnly = (subject ? subject.semester : semester) === 'summer';
   const fields = { code, title, units: asNumber(units), hasLaboratory, offeredInSummer: summerOnly ? false : offeredInSummer };
@@ -55,126 +52,97 @@ export function SubjectModal({
     ? parseSubjectEdit(fields)
     : parseSubjectInput({ ...fields, programId: program.id, yearLevel: year === null ? null : Number(year), semester });
 
-  async function run(action: () => Promise<ContentActionResult>) {
-    if (loading) return;
-    setLoading(true);
-    setError(null);
-    const result = await action();
-    setLoading(false);
-    if ('error' in result) {
-      setError(result.error);
-      setConfirmDelete(false);
-      return;
-    }
-    onDone(result);
+  async function runAction(action: () => Promise<ContentActionResult>) {
+    if (!(await run(action))) setConfirmDelete(false);
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function onSubmit() {
     if (!parsed.ok) return;
-    void run(() => (subject ? editSubject(subject.id, parsed.value) : addSubject(parsed.value)));
+    void runAction(() => (subject ? editSubject(subject.id, parsed.value) : addSubject(parsed.value)));
   }
 
   return (
-    <Modal
-      opened
-      onClose={onClose}
+    <FormModal
       title={subject ? 'Edit subject' : 'Add subject'}
-      padding={padding.modal}
-      radius="lg"
-      closeOnClickOutside={!loading}
-    >
-      <form onSubmit={onSubmit}>
-        <Stack gap={spacing.md}>
-          <Text size="sm" c={color.textSecondary}>
-            {program.code}
-            {subject
-              ? `, ${subject.yearLevel === null ? 'no year level' : yearLabel(subject.yearLevel)}, ${SEMESTER_LABEL[subject.semester as Semester] ?? subject.semester}`
-              : ''}
-          </Text>
-          <TextInput
-            label="Code"
-            value={code}
-            onChange={(event) => setCode(event.currentTarget.value)}
-            maxLength={MAX_CODE}
-            required
-          />
-          <TextInput
-            label="Title"
-            value={title}
-            onChange={(event) => setTitle(event.currentTarget.value)}
-            maxLength={MAX_TITLE}
-            required
-          />
-          <NumberInput
-            label="Units"
-            decimalScale={1}
-            min={0}
-            max={MAX_UNITS}
-            allowNegative={false}
-            value={units}
-            onChange={setUnits}
-            required
-          />
-          {!subject && <Select label="Year level" data={YEAR_OPTIONS} value={year} onChange={setYear} required />}
-          {!subject && <Select label="Semester" data={SEMESTER_OPTIONS} value={semester} onChange={setSemester} required />}
-          <Switch
-            label="Has a laboratory"
-            checked={hasLaboratory}
-            onChange={(event) => setHasLaboratory(event.currentTarget.checked)}
-          />
-          {!summerOnly && (
-            <Switch
-              label="Also offered in summer"
-              checked={offeredInSummer}
-              onChange={(event) => setOfferedInSummer(event.currentTarget.checked)}
-            />
-          )}
-          {error && (
-            <Text size="sm" c={color.error} role="alert">
-              {error}
-            </Text>
-          )}
-          {!parsed.ok && (
-            <Text size="sm" c={color.textSecondary}>
-              {parsed.reason}
-            </Text>
-          )}
-          <Group justify="space-between">
-            <Button variant="default" onClick={onClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={loading} disabled={!parsed.ok}>
-              {subject ? 'Save' : 'Add subject'}
-            </Button>
-          </Group>
-          {subject && (
-            <Group justify="flex-start">
-              {confirmDelete ? (
-                <Group gap={spacing.sm}>
-                  <Text size="sm">Delete this subject?</Text>
-                  <Button
-                    variant="default"
-                    size="xs"
-                    color={color.error}
-                    disabled={loading}
-                    onClick={() => void run(() => deleteSubject(subject.id))}
-                  >
-                    Delete
-                  </Button>
-                  <Button variant="subtle" size="xs" disabled={loading} onClick={() => setConfirmDelete(false)}>
-                    Keep
-                  </Button>
-                </Group>
-              ) : (
-                <Button variant="subtle" size="xs" color={color.error} disabled={loading} onClick={() => setConfirmDelete(true)}>
-                  Delete subject
+      onClose={onClose}
+      onSubmit={onSubmit}
+      loading={loading}
+      error={error}
+      hint={reasonOf(parsed)}
+      submitLabel={subject ? 'Save' : 'Add subject'}
+      submitDisabled={!parsed.ok}
+      footer={
+        subject && (
+          <Group justify="flex-start">
+            {confirmDelete ? (
+              <Group gap={spacing.sm}>
+                <Text size="sm">Delete this subject?</Text>
+                <Button
+                  variant="default"
+                  size="xs"
+                  color={color.error}
+                  disabled={loading}
+                  onClick={() => void runAction(() => deleteSubject(subject.id))}
+                >
+                  Delete
                 </Button>
-              )}
-            </Group>
-          )}
-        </Stack>
-      </form>
-    </Modal>
+                <Button variant="subtle" size="xs" disabled={loading} onClick={() => setConfirmDelete(false)}>
+                  Keep
+                </Button>
+              </Group>
+            ) : (
+              <Button variant="subtle" size="xs" color={color.error} disabled={loading} onClick={() => setConfirmDelete(true)}>
+                Delete subject
+              </Button>
+            )}
+          </Group>
+        )
+      }
+    >
+      <Text size="sm" c={color.textSecondary}>
+        {program.code}
+        {subject
+          ? `, ${subject.yearLevel === null ? 'no year level' : yearLabel(subject.yearLevel)}, ${SEMESTER_LABEL[subject.semester as Semester] ?? subject.semester}`
+          : ''}
+      </Text>
+      <TextInput
+        label="Code"
+        value={code}
+        onChange={(event) => setCode(event.currentTarget.value)}
+        maxLength={MAX_CODE}
+        required
+      />
+      <TextInput
+        label="Title"
+        value={title}
+        onChange={(event) => setTitle(event.currentTarget.value)}
+        maxLength={MAX_TITLE}
+        required
+      />
+      <NumberInput
+        label="Units"
+        decimalScale={1}
+        min={0}
+        max={MAX_UNITS}
+        allowNegative={false}
+        value={units}
+        onChange={setUnits}
+        required
+      />
+      {!subject && <Select label="Year level" data={YEAR_OPTIONS} value={year} onChange={setYear} required />}
+      {!subject && <Select label="Semester" data={SEMESTER_OPTIONS} value={semester} onChange={setSemester} required />}
+      <Switch
+        label="Has a laboratory"
+        checked={hasLaboratory}
+        onChange={(event) => setHasLaboratory(event.currentTarget.checked)}
+      />
+      {!summerOnly && (
+        <Switch
+          label="Also offered in summer"
+          checked={offeredInSummer}
+          onChange={(event) => setOfferedInSummer(event.currentTarget.checked)}
+        />
+      )}
+    </FormModal>
   );
 }

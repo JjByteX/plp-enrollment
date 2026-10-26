@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
+import { FormMessage } from '@/components/FormMessage';
 import { SEMESTER_LABEL, termLabel, yearLabel, type Semester } from '@/features/cor/schema';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { saveTerm, type ContentActionResult } from './actions';
@@ -80,11 +81,7 @@ export function ContentAdmin({
         </Tabs.List>
       </Tabs>
 
-      {message && (
-        <Text size="sm" c={'error' in message ? color.error : color.success} role="status">
-          {'error' in message ? message.error : message.message}
-        </Text>
-      )}
+      <FormMessage message={message} />
 
       {tab === 'subjects' && (
         <>
