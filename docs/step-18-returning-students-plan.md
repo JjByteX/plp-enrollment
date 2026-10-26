@@ -260,3 +260,13 @@ Risks:
 - A section can only be created when the term is set.
 - Admin sets a subject's semester and summer flag in Content.
 - Not done: the dashboard funnel still counts rows. Nothing was run.
+
+## As built (phase 3, step 20)
+
+- Writes to `subject_prerequisites` and `student_credits` go only through the functions. A trigger refuses any other write, Admin included, like the grading tables (decision #33).
+- The Registrar and the Secretary get their own read-only Prerequisites pages (`/registrar/prerequisites`, `/secretary/prerequisites`). Admin and the Dean edit on `/admin/prerequisites` and `/dean/prerequisites`. All four share one view.
+- The Registrar approves or rejects a credit under Grades, tab Changes, beside the grade changes. There is no new page and no new count on the home list.
+- Credits are recorded from the section details window, so a student appears there only while placed in a section. A student still waiting for a section cannot be given a credit yet; step 22's review list is the natural place.
+- Eligibility reads approved grade sheets only. The check is read-only, so it does not run the INC lapse first (the plan said it would). A lapsed incomplete that has not been turned into a failed 5.0 yet still blocks, so the answer differs only in the label shown.
+- The loop check in `save_prerequisites` cannot be reached while a prerequisite must be strictly earlier in the curriculum. It stays as a guard in case a year level or semester is ever editable.
+- Not done: the eligibility answer is not used anywhere yet (steps 21 and 22). The audit labels for the step 19 tables (`grade_bands`, `grade_sheets`, `grades`, `grade_changes`, `grading_settings`) are still missing from `features/audit-log/schema.ts`. Nothing was run.

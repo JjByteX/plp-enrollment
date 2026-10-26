@@ -11,7 +11,7 @@ import type { Role } from '@/lib/auth/roles';
 // suffix. components/NavIcons.tsx maps each name to its component.
 export type NavIconName =
   | 'home' | 'visits' | 'reschedules' | 'documents' | 'schedules' | 'slips' | 'cor' | 'payments'
-  | 'grades' | 'accounts' | 'content' | 'admissions' | 'audit' | 'registrar' | 'finance' | 'dean' | 'secretary' | 'professor';
+  | 'grades' | 'prerequisites' | 'accounts' | 'content' | 'admissions' | 'audit' | 'registrar' | 'finance' | 'dean' | 'secretary' | 'professor';
 
 // `keywords` are extra search-only terms (abbreviations, synonyms, the full
 // name behind an acronym) that feed the top-bar search alongside the label,
@@ -37,6 +37,13 @@ const REGISTRAR: NavItem[] = [
   { label: 'COR', href: '/registrar/cors', icon: 'cor', keywords: ['certificate of registration', 'registration'] },
   { label: 'Grades', href: '/registrar/grades', icon: 'grades', keywords: ['grade changes', 'marks', 'incomplete', 'inc'] },
 ];
+
+// One link per area, because each area has its own page. Admin and the Dean edit; the Registrar and
+// the Secretary only read.
+const PREREQUISITE_KEYWORDS = ['prerequisite', 'required subject', 'requires', 'curriculum', 'credit', 'transferee'];
+function prerequisitesItem(href: string): NavItem {
+  return { label: 'Prerequisites', href, icon: 'prerequisites', keywords: PREREQUISITE_KEYWORDS };
+}
 
 const SECRETARY_SCHEDULES: NavItem = {
   label: 'Schedules',
@@ -66,7 +73,16 @@ const FINANCE_PAYMENTS: NavItem = {
 export function navFor(role: Role): NavGroup[] {
   switch (role) {
     case 'registrar':
-      return [{ label: null, items: [{ label: 'Home', href: '/registrar', icon: 'home', exact: true }, ...REGISTRAR] }];
+      return [
+        {
+          label: null,
+          items: [
+            { label: 'Home', href: '/registrar', icon: 'home', exact: true },
+            ...REGISTRAR,
+            prerequisitesItem('/registrar/prerequisites'),
+          ],
+        },
+      ];
     case 'finance':
       return [
         {
@@ -85,6 +101,7 @@ export function navFor(role: Role): NavGroup[] {
             { label: 'Home', href: '/dean', icon: 'home', exact: true },
             { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
             DEAN_GRADES,
+            prerequisitesItem('/dean/prerequisites'),
           ],
         },
       ];
@@ -95,6 +112,7 @@ export function navFor(role: Role): NavGroup[] {
           items: [
             { label: 'Home', href: '/secretary', icon: 'home', exact: true },
             { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
+            prerequisitesItem('/secretary/prerequisites'),
           ],
         },
       ];
@@ -108,6 +126,7 @@ export function navFor(role: Role): NavGroup[] {
             { label: 'Home', href: '/admin', icon: 'home', exact: true },
             { label: 'Accounts', href: '/admin/accounts', icon: 'accounts', keywords: ['users', 'staff accounts', 'people'] },
             { label: 'Content', href: '/admin/content', icon: 'content', keywords: ['subjects', 'rooms', 'programs', 'grading scale', 'grade bands'] },
+            prerequisitesItem('/admin/prerequisites'),
             { label: 'Admissions', href: '/admin/admissions', icon: 'admissions', keywords: ['intake', 'applicants', 'enroll'] },
             { label: 'Audit log', href: '/admin/audit', icon: 'audit', keywords: ['history', 'activity log'] },
           ],

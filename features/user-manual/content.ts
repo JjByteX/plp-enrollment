@@ -16,7 +16,7 @@ Use this manual to look up what a page does, the steps from "admitted" to "enrol
 |---|---|
 | Everyone | [Getting started](#2-getting-started), [The whole journey](#3-the-whole-journey-from-start-to-end) |
 | Registrar | [Registrar pages](#5-page-by-page-registrar), [Reschedules](#7-reschedules), [Withdrawals](#8-withdrawals) |
-| College Secretary or Dean | [Secretary and Dean pages](#6-page-by-page-college-secretary-and-dean), [Grades](#9-grades) |
+| College Secretary or Dean | [Secretary and Dean pages](#6-page-by-page-college-secretary-and-dean), [Prerequisites and credits](#6-page-by-page-college-secretary-and-dean), [Grades](#9-grades) |
 | Finance | [Finance pages](#10-page-by-page-finance) |
 | Professor | [Professor pages](#11-page-by-page-professor), [Grades](#9-grades) |
 | Admin | [Admin pages](#12-page-by-page-admin), [Setup checklist](#14-before-the-first-day-setup-checklist-admin) |
@@ -183,7 +183,7 @@ Found in the profile menu. See [section 8](#8-withdrawals).
 
 ## 5. Page by page: Registrar
 
-Sidebar: [Home](/registrar), [Visits](/registrar/visits), [Reschedules](/registrar/reschedules), [Documents](/registrar/documents), [Schedules](/registrar/schedules), [Slips](/registrar/slips), [COR](/registrar/cors), [Grades](/registrar/grades).
+Sidebar: [Home](/registrar), [Visits](/registrar/visits), [Reschedules](/registrar/reschedules), [Documents](/registrar/documents), [Schedules](/registrar/schedules), [Slips](/registrar/slips), [COR](/registrar/cors), [Grades](/registrar/grades), [Prerequisites](/registrar/prerequisites).
 
 ### Home
 
@@ -296,6 +296,15 @@ Lists students who have a slip and either paid or do not need to pay.
 
 See [section 9](#9-grades). The Registrar approves grade changes here.
 
+The **Changes** tab also lists **credits** waiting for you. A credit is a subject a transferee already finished in earlier schooling. Each row shows the student, the subject, the reason (which names the line of the transferee's TOR) and who recorded it.
+
+- **Approve** makes the credit count as a pass. It has no grade number.
+- **Reject** needs a reason. The credit does not count, and the Dean or Secretary can record it again.
+
+### Prerequisites
+
+Open [Prerequisites](/registrar/prerequisites) to see which subjects need which earlier subjects. Choose a program to see its subjects. You can only read this page. Admin and the Dean set prerequisites.
+
 ---
 
 ## 6. Page by page: College Secretary and Dean
@@ -365,6 +374,39 @@ After approval, the Secretary, Dean or Admin can still change a subject's profes
 ### Grades (Dean)
 
 Open [Grades](/dean/grades). See [section 9](#9-grades).
+
+### Prerequisites (Dean sets, Secretary reads)
+
+A prerequisite is an earlier subject that a student must have **passed** before taking a later one. Open [Prerequisites](/dean/prerequisites) (Dean) or [Prerequisites](/secretary/prerequisites) (Secretary). You only see the programs of your own college. Setting a prerequisite does not change any schedule that already exists. The system uses it when it checks whether a returning student may take a subject.
+
+1. Choose the **Program**. Each subject is listed with its year level, semester and the subjects it requires.
+2. The Dean presses **Edit** on a subject. The Secretary cannot edit.
+3. Choose every subject that must be passed first. **All** the chosen subjects are required. There is no "either one" rule.
+4. Press **Save**. Saving replaces the whole list of that subject.
+
+The system refuses these, and says which subject is the problem:
+
+- A subject that requires itself.
+- A subject from another program.
+- A subject that is not earlier in the curriculum. An earlier subject is in a lower year level, or in the same year level and an earlier semester.
+- A subject that has no year level. Its place in the curriculum is not known, so it cannot take or be given a prerequisite.
+
+What counts as passed:
+
+- A **Passed** grade in a subject whose grades the Dean approved. Any attempt counts, so a retake that passes unblocks the student.
+- An **approved credit** (see below).
+- Incomplete, Failed, Dropped, a subject never taken, and grades still waiting for the Dean do **not** count.
+
+### Credits for a transferee
+
+A credit marks a subject as passed because the student finished it in earlier schooling.
+
+1. Open the student's section in [Schedules](/secretary/schedule).
+2. Press **Credits** beside the student. The window shows the credits already recorded and whether each is waiting, approved or rejected.
+3. Under **New credit**, choose the **Subject** and type the **Reason**. Name the line of the transferee's TOR that shows the subject.
+4. Press **Record credit**.
+
+The credit waits for the Registrar. Until the Registrar approves it, it does not count. Only the Dean, the Secretary and Admin can record a credit, and only for a student of their own college. You cannot credit a subject the student has already passed or has already been credited, or one that has a credit waiting. The student must be in a section to appear in the list.
 
 ---
 
@@ -520,7 +562,7 @@ See [section 9](#9-grades).
 
 ## 12. Page by page: Admin
 
-Sidebar: [Home](/admin), [Accounts](/admin/accounts), [Content](/admin/content), [Admissions](/admin/admissions), [Audit log](/admin/audit), plus every other staff area (Registrar, Finance, Dean, College Secretary, Professor). Admin can open and do everything those roles can.
+Sidebar: [Home](/admin), [Accounts](/admin/accounts), [Content](/admin/content), [Prerequisites](/admin/prerequisites), [Admissions](/admin/admissions), [Audit log](/admin/audit), plus every other staff area (Registrar, Finance, Dean, College Secretary, Professor). Admin can open and do everything those roles can.
 
 ### Home
 
@@ -543,7 +585,7 @@ Applicants and students are not created here. They arrive from Admissions.
 
 Four tabs.
 
-**Subjects:** choose a program, then **Add subject** with Code, Title, Units, Year level, Semester, whether it has a laboratory, and whether it is also offered in summer. You can edit a subject. You cannot delete a subject that is already in a section. New subjects are added to existing draft sections of the matching year level and semester automatically.
+**Subjects:** choose a program, then **Add subject** with Code, Title, Units, Year level, Semester, whether it has a laboratory, and whether it is also offered in summer. You can edit a subject. You cannot delete a subject that is already in a section, or that has a grade or a credit. You also cannot delete a subject that other subjects require. The message names those subjects. Remove it from their prerequisites first, then delete it. New subjects are added to existing draft sections of the matching year level and semester automatically.
 
 **Rooms:** **Add room** with Name, Capacity and College. A room used by a section cannot be deleted.
 
@@ -552,6 +594,10 @@ Four tabs.
 **Grading:** the grading scale (see [section 9](#9-grades)).
 
 The 7 colleges and 13 programs are already loaded. Program codes match Admissions on purpose, so they are not editable.
+
+### Prerequisites
+
+Open [Prerequisites](/admin/prerequisites). Admin can set the prerequisites of every program. The page works the same way as the Dean's page, described in [section 6](#6-page-by-page-college-secretary-and-dean). A subject with no year level cannot take or be given a prerequisite, because its place in the curriculum is not known.
 
 ### Admissions
 
@@ -619,6 +665,7 @@ Do these in order.
 | A student cannot get a COR | The slip is not issued, or payment is not cleared yet. |
 | A request from Admissions is Rejected | Open [Admissions](/admin/admissions), read the reason, fix it, then press **Resend**. |
 | A student cannot sign in | Check they use the email on their account. If it was wrong, correct it on the [Documents](/registrar/documents) page. If their link expired, ask the Admin for a new one. |
+| A subject cannot be deleted | Another subject requires it, or it is in a section, or it has a grade or a credit. The message names the subjects that require it. Open [Prerequisites](/admin/prerequisites), remove it from their lists, then try again. |
 | A person withdrew by mistake | It cannot be undone in the system. The person must contact the Registrar. |
 | A slot cannot be cancelled | Someone is booked in it. Move them first, or close the slot instead. |
 

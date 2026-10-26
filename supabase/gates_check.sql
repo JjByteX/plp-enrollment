@@ -31,6 +31,11 @@
 -- Also checks step 19 in 20261026020000_grading.sql: the grading scale (overlap refused, one outcome per
 -- grade), grade entry and the draft, submitted, approved sheet, the Dean's approval, the INC lapse, and a
 -- grade change through the Professor, the Dean and the Registrar.
+-- Also checks step 20 in 20261026040000_prerequisites_and_credits.sql: who may set prerequisites, the refusals
+-- (itself, another program, not earlier, no year level), eligibility (failed, incomplete, dropped, never taken
+-- and an unapproved sheet block; a pass, a passing retake and an approved credit unblock), credits (record,
+-- approve, reject, record again), what each role may read, refusing to delete a subject that others require,
+-- the audit rows and the function grants.
 -- Blocked actions print 'ok   blocked'. Any 'FAIL' line is a broken rule.
 \set ON_ERROR_STOP on
 SET search_path = public, extensions;
@@ -1579,6 +1584,219 @@ SELECT act('rg');
 SELECT approve_grade_change(:'t19_change');
 SELECT expect_eq('the approved change is applied',
   (SELECT grade_text||'/'||outcome||'/'||lapsed::text FROM grades WHERE id = :'t19_grade'), '2.5/passed/false');
+
+-- ============================================================
+-- prerequisites and credits (step 20), 20261026040000_prerequisites_and_credits.sql.
+-- Uses the BST18 fixtures above: the student t18_student has a pass in T182 (through the grade
+-- change) and nothing in T181. dn2 is the Dean of the other college (step 16). The extra subjects
+-- are P20F (failed), P20I (incomplete), P20D (dropped), P20S (a pass in a sheet that is only
+-- submitted, so it does not count), P20C (credit target) and four year 2 subjects, P20U1 to P20U4.
+-- ============================================================
+SELECT act('ad');
+INSERT INTO subjects (id,program_id,code,title,units,year_level,semester) VALUES
+  (md5('P20F')::uuid,'00000000-0000-0000-0000-0000000000f8','P20F','Failed one',3,1,'2nd'),
+  (md5('P20I')::uuid,'00000000-0000-0000-0000-0000000000f8','P20I','Incomplete one',3,1,'2nd'),
+  (md5('P20D')::uuid,'00000000-0000-0000-0000-0000000000f8','P20D','Dropped one',3,1,'2nd'),
+  (md5('P20S')::uuid,'00000000-0000-0000-0000-0000000000f8','P20S','Submitted only',3,1,'2nd'),
+  (md5('P20C')::uuid,'00000000-0000-0000-0000-0000000000f8','P20C','Credit target',3,1,'2nd'),
+  (md5('P20U1')::uuid,'00000000-0000-0000-0000-0000000000f8','P20U1','Upper one',3,2,'1st'),
+  (md5('P20U2')::uuid,'00000000-0000-0000-0000-0000000000f8','P20U2','Upper two',3,2,'1st'),
+  (md5('P20U3')::uuid,'00000000-0000-0000-0000-0000000000f8','P20U3','Upper three',3,2,'1st'),
+  (md5('P20U4')::uuid,'00000000-0000-0000-0000-0000000000f8','P20U4','Upper four',3,2,'1st');
+INSERT INTO subjects (id,program_id,code,title,units) VALUES
+  (md5('P20N')::uuid,'00000000-0000-0000-0000-0000000000f8','P20N','No year level',3);
+
+-- the student's earlier results, written the way the grading functions would have left them
+SELECT set_config('app.grade_write', 'on', false);
+INSERT INTO grade_sheets (id,section_id,subject_id,school_year,semester,status) VALUES
+  (md5('G20F')::uuid, md5('ST18B')::uuid, md5('P20F')::uuid, '2026-2027','2nd','approved'),
+  (md5('G20I')::uuid, md5('ST18B')::uuid, md5('P20I')::uuid, '2026-2027','2nd','approved'),
+  (md5('G20D')::uuid, md5('ST18B')::uuid, md5('P20D')::uuid, '2026-2027','2nd','approved'),
+  (md5('G20S')::uuid, md5('ST18B')::uuid, md5('P20S')::uuid, '2026-2027','2nd','submitted');
+INSERT INTO grades (sheet_id,section_id,subject_id,student_id,school_year,semester,grade_text,outcome) VALUES
+  (md5('G20F')::uuid, md5('ST18B')::uuid, md5('P20F')::uuid, :'t18_student', '2026-2027','2nd','5.0','failed'),
+  (md5('G20I')::uuid, md5('ST18B')::uuid, md5('P20I')::uuid, :'t18_student', '2026-2027','2nd','INC','incomplete'),
+  (md5('G20D')::uuid, md5('ST18B')::uuid, md5('P20D')::uuid, :'t18_student', '2026-2027','2nd','DRP','dropped'),
+  (md5('G20S')::uuid, md5('ST18B')::uuid, md5('P20S')::uuid, :'t18_student', '2026-2027','2nd','2.0','passed');
+SELECT set_config('app.grade_write', 'off', false);
+
+-- writes go only through the functions, Admin and superuser included
+SELECT expect_msg('insert a prerequisite by hand',
+  format($$INSERT INTO subject_prerequisites (subject_id, prerequisite_id) VALUES (%L, %L)$$, md5('P20U1')::uuid, md5('T182')::uuid), 'only through their functions');
+SELECT expect_msg('insert a credit by hand',
+  format($$INSERT INTO student_credits (student_id, subject_id, reason) VALUES (%L, %L, 'x')$$, :'t18_student', md5('P20C')::uuid), 'only through their functions');
+
+-- nothing is required yet
+SELECT expect_eq('a subject with no prerequisite is allowed',
+  (subject_eligibility(:'t18_student', md5('T181')::uuid)->>'allowed'), 'true');
+
+-- who may set prerequisites, and the refusals that name the subjects
+SELECT act('rg');
+SELECT expect_msg('the Registrar cannot set prerequisites',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('P20U1')::uuid, md5('T182')::uuid), 'Only Admin or the Dean');
+SELECT act('sc');
+SELECT expect_msg('the Secretary cannot set prerequisites',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('P20U1')::uuid, md5('T182')::uuid), 'Only Admin or the Dean');
+SELECT act('dn2');
+SELECT expect_msg('a Dean cannot set the prerequisites of another college',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('P20U1')::uuid, md5('T182')::uuid), 'Only the Dean of this college');
+SELECT act('ad');
+SELECT expect_msg('a subject cannot require itself',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('P20U1')::uuid, md5('P20U1')::uuid), 'cannot require itself');
+SELECT expect_msg('a prerequisite in another program',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('P20U1')::uuid, md5('Y1')::uuid), 'another program');
+SELECT expect_msg('a later subject cannot be a prerequisite',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('T181')::uuid, md5('P20U1')::uuid), 'not earlier in the curriculum');
+SELECT expect_msg('the same year and semester is not earlier',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('T181')::uuid, md5('T183')::uuid), 'not earlier in the curriculum');
+SELECT expect_msg('a subject with no year level',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('P20N')::uuid, md5('T181')::uuid), 'Set the year level');
+SELECT expect_msg('an unknown required subject',
+  format($$SELECT save_prerequisites(%L, ARRAY[%L]::uuid[])$$, md5('P20U1')::uuid, md5('nobody')::uuid), 'was not found');
+SELECT expect_eq('the refusals wrote nothing', (SELECT count(*)::text FROM subject_prerequisites), '0');
+
+-- Admin sets them; the whole list of a subject is replaced each time
+SELECT save_prerequisites(md5('P20U1')::uuid, ARRAY[md5('T182')::uuid, md5('T181')::uuid]);
+SELECT save_prerequisites(md5('P20U1')::uuid, ARRAY[md5('T182')::uuid]);
+SELECT expect_eq('saving again replaces the list', (SELECT string_agg(r.code, ',') FROM subject_prerequisites sp JOIN subjects r ON r.id = sp.prerequisite_id WHERE sp.subject_id = md5('P20U1')::uuid), 'T182');
+SELECT save_prerequisites(md5('P20U2')::uuid, ARRAY[md5('T181')::uuid]);
+SELECT save_prerequisites(md5('P20U3')::uuid, ARRAY[md5('P20F')::uuid, md5('P20I')::uuid, md5('P20D')::uuid, md5('P20S')::uuid]);
+-- the Dean of the college sets the fourth
+SELECT act('dn');
+SELECT save_prerequisites(md5('P20U4')::uuid, ARRAY[md5('P20C')::uuid]);
+SELECT expect_eq('prerequisites are set: 1 + 1 + 4 + 1 rows', (SELECT count(*)::text FROM subject_prerequisites), '7');
+
+-- eligibility: one definition, names every blocking prerequisite
+SELECT expect_eq('a passed prerequisite unblocks',
+  (subject_eligibility(:'t18_student', md5('P20U1')::uuid)->>'allowed'), 'true');
+SELECT expect_eq('a prerequisite never taken blocks and is named',
+  (SELECT (subject_eligibility(:'t18_student', md5('P20U2')::uuid)->>'allowed')||'/'||(subject_eligibility(:'t18_student', md5('P20U2')::uuid)->'blockedBy'->0->>'code')||'/'||(subject_eligibility(:'t18_student', md5('P20U2')::uuid)->'blockedBy'->0->>'status')),
+  'false/T181/not_taken');
+SELECT expect_eq('failed, incomplete, dropped and a pass in an unapproved sheet all block',
+  (SELECT string_agg((b->>'code')||':'||(b->>'status'), ',' ORDER BY b->>'code') FROM jsonb_array_elements(subject_eligibility(:'t18_student', md5('P20U3')::uuid)->'blockedBy') b),
+  'P20D:dropped,P20F:failed,P20I:incomplete,P20S:not_taken');
+SELECT act('sc');
+SELECT expect_eq('the Secretary of the college can check eligibility',
+  (subject_eligibility(:'t18_student', md5('P20U1')::uuid)->>'allowed'), 'true');
+SELECT act('dn2');
+SELECT expect_msg('a Dean of another college cannot check a student', format($$SELECT subject_eligibility(%L, %L)$$, :'t18_student', md5('P20U1')::uuid), 'not in your college');
+SELECT act('pf');
+SELECT expect_msg('a Professor cannot check eligibility', format($$SELECT subject_eligibility(%L, %L)$$, :'t18_student', md5('P20U1')::uuid), 'cannot check eligibility');
+SELECT act('ad');
+SELECT expect_msg('eligibility for an unknown subject', format($$SELECT subject_eligibility(%L, %L)$$, :'t18_student', md5('nobody')::uuid), 'subject was not found');
+
+-- a passing retake unblocks: a second attempt of P20F, in another section, approved and passed
+SELECT set_config('app.grade_write', 'on', false);
+INSERT INTO grade_sheets (id,section_id,subject_id,school_year,semester,status) VALUES
+  (md5('G20R')::uuid, md5('ST18A')::uuid, md5('P20F')::uuid, '2026-2027','1st','approved');
+INSERT INTO grades (sheet_id,section_id,subject_id,student_id,school_year,semester,grade_text,outcome) VALUES
+  (md5('G20R')::uuid, md5('ST18A')::uuid, md5('P20F')::uuid, :'t18_student', '2026-2027','1st','2.5','passed');
+SELECT set_config('app.grade_write', 'off', false);
+SELECT expect_eq('a passing retake unblocks the subject that needed it',
+  (SELECT string_agg(b->>'code', ',' ORDER BY b->>'code') FROM jsonb_array_elements(subject_eligibility(:'t18_student', md5('P20U3')::uuid)->'blockedBy') b),
+  'P20D,P20I,P20S');
+
+-- credits: the Dean or the Secretary records, the Registrar approves
+SELECT act('rg');
+SELECT expect_msg('the Registrar cannot record a credit',
+  format($$SELECT record_credit(%L, %L, 'TOR line 1')$$, :'t18_student', md5('P20C')::uuid), 'Only the Dean or the College Secretary');
+SELECT act('dn2');
+SELECT expect_msg('a Dean of another college cannot record a credit',
+  format($$SELECT record_credit(%L, %L, 'TOR line 1')$$, :'t18_student', md5('P20C')::uuid), 'not in your college');
+SELECT act('dn');
+SELECT expect_msg('a credit needs a reason',
+  format($$SELECT record_credit(%L, %L, '   ')$$, :'t18_student', md5('P20C')::uuid), 'Enter the reason');
+SELECT expect_msg('a reason over 500 characters',
+  format($$SELECT record_credit(%L, %L, %L)$$, :'t18_student', md5('P20C')::uuid, repeat('x', 501)), 'longer than 500');
+SELECT expect_msg('a credit for a subject of another program',
+  format($$SELECT record_credit(%L, %L, 'TOR line 1')$$, :'t18_student', md5('Y1')::uuid), 'not in the student''s program');
+SELECT expect_msg('a credit for a subject already passed',
+  format($$SELECT record_credit(%L, %L, 'TOR line 1')$$, :'t18_student', md5('T182')::uuid), 'already passed or been credited');
+SELECT record_credit(:'t18_student', md5('P20C')::uuid, 'TOR page 2, line 5') AS t20_credit \gset
+SELECT expect_msg('a credit already waiting',
+  format($$SELECT record_credit(%L, %L, 'Again')$$, :'t18_student', md5('P20C')::uuid), 'already waiting for the Registrar');
+SELECT expect_eq('a credit waiting for the Registrar does not count',
+  (subject_eligibility(:'t18_student', md5('P20U4')::uuid)->>'allowed'), 'false');
+SELECT expect_msg('the Dean cannot approve a credit', format($$SELECT approve_credit(%L)$$, :'t20_credit'), 'Only the Registrar can approve');
+SELECT expect_msg('the Dean cannot read the credits waiting', $$SELECT credits_pending()$$, 'cannot read credits waiting');
+SELECT act('rg');
+SELECT expect_eq('the Registrar sees the credit waiting', (SELECT jsonb_array_length(credits_pending())::text), '1');
+SELECT approve_credit(:'t20_credit');
+SELECT expect_msg('a credit approved twice', format($$SELECT approve_credit(%L)$$, :'t20_credit'), 'not waiting for approval');
+SELECT expect_eq('an approved credit counts as a pass',
+  (subject_eligibility(:'t18_student', md5('P20U4')::uuid)->>'allowed'), 'true');
+SELECT expect_eq('the approval is audited with the Registrar',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'student_credits' AND action = 'UPDATE' AND actor_id = md5('rg')::uuid AND new_data->>'status' = 'approved'), '1');
+
+-- a rejected credit needs a reason, does not count, and can be recorded again
+SELECT act('sc');
+SELECT record_credit(:'t18_student', md5('P20S')::uuid, 'TOR page 3, line 2') AS t20_credit2 \gset
+SELECT act('rg');
+SELECT expect_msg('a rejection needs a reason', format($$SELECT reject_credit(%L, '')$$, :'t20_credit2'), 'Enter the reason');
+SELECT reject_credit(:'t20_credit2', 'The TOR line is a different subject');
+SELECT expect_eq('the rejected credit keeps its reason',
+  (SELECT status||'/'||rejected_reason FROM student_credits WHERE id = :'t20_credit2'), 'rejected/The TOR line is a different subject');
+SELECT expect_eq('a rejected credit does not count',
+  (SELECT string_agg(b->>'code', ',' ORDER BY b->>'code') FROM jsonb_array_elements(subject_eligibility(:'t18_student', md5('P20U3')::uuid)->'blockedBy') b),
+  'P20D,P20I,P20S');
+SELECT act('sc');
+SELECT record_credit(:'t18_student', md5('P20S')::uuid, 'TOR page 3, line 4');
+SELECT expect_eq('a rejected credit can be recorded again (one rejected, one waiting)',
+  (SELECT string_agg(status, ',' ORDER BY status) FROM student_credits WHERE student_id = :'t18_student' AND subject_id = md5('P20S')::uuid), 'pending,rejected');
+
+-- what the credits window and the Prerequisites page read
+SELECT act('dn');
+SELECT expect_eq('the credit window lists the credits of the student', (SELECT jsonb_array_length(credit_overview(:'t18_student')->'credits')::text), '3');
+SELECT expect_eq('the options leave out a credited subject and one with a credit waiting',
+  (SELECT count(*)::text FROM jsonb_array_elements(credit_overview(:'t18_student')->'options') o WHERE o->>'code' IN ('T182','P20C','P20S')), '0');
+SELECT expect_eq('the options keep a subject never taken',
+  (SELECT count(*)::text FROM jsonb_array_elements(credit_overview(:'t18_student')->'options') o WHERE o->>'code' = 'T181'), '1');
+SELECT act('dn2');
+SELECT expect_msg('another college cannot read the credits', format($$SELECT credit_overview(%L)$$, :'t18_student'), 'not in your college');
+SELECT act('pf');
+SELECT expect_msg('a Professor cannot read credits', format($$SELECT credit_overview(%L)$$, :'t18_student'), 'cannot read credits');
+SELECT expect_msg('a Professor cannot read prerequisites', $$SELECT prerequisite_programs()$$, 'cannot read prerequisites');
+SELECT act('dn');
+SELECT expect_eq('the Dean sees the programs of the own college',
+  (jsonb_array_length(prerequisite_programs())::text), (SELECT count(*)::text FROM programs WHERE college_id = '00000000-0000-0000-0000-0000000000c1'));
+SELECT act('dn2');
+SELECT expect_eq('the other Dean sees only the programs of the other college',
+  (jsonb_array_length(prerequisite_programs())::text), (SELECT count(*)::text FROM programs WHERE college_id = '00000000-0000-0000-0000-0000000000c2'));
+SELECT expect_msg('the other Dean cannot open the program', $$SELECT prerequisites_list('00000000-0000-0000-0000-0000000000f8')$$, 'not in your college');
+SELECT act('rg');
+SELECT expect_eq('the Registrar sees every program',
+  (jsonb_array_length(prerequisite_programs())::text), (SELECT count(*)::text FROM programs));
+SELECT expect_eq('the program list shows the prerequisites of a subject',
+  (SELECT jsonb_array_length(x->'prerequisites')::text FROM jsonb_array_elements(prerequisites_list('00000000-0000-0000-0000-0000000000f8')) x WHERE x->>'code' = 'P20U3'), '4');
+
+-- deleting a subject
+SELECT act('ad');
+SELECT expect_msg('delete a subject that others require', format($$DELETE FROM subjects WHERE id = %L$$, md5('T182')::uuid), 'is a prerequisite of');
+SELECT expect_msg('the refusal names the subject that requires it', format($$DELETE FROM subjects WHERE id = %L$$, md5('T182')::uuid), 'P20U1');
+SELECT expect_eq('the refused delete changed nothing', (SELECT count(*)::text FROM subject_prerequisites WHERE prerequisite_id = md5('T182')::uuid), '1');
+DELETE FROM subjects WHERE id = md5('P20U2')::uuid;
+SELECT expect_eq('a subject nobody requires can be deleted, and its own prerequisites go with it',
+  (SELECT (SELECT count(*) FROM subjects WHERE id = md5('P20U2')::uuid)::text||'/'||(SELECT count(*) FROM subject_prerequisites WHERE subject_id = md5('P20U2')::uuid)::text), '0/0');
+
+-- audit: every change has its actor
+SELECT expect_eq('the Dean''s prerequisite is audited',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'subject_prerequisites' AND action = 'INSERT' AND actor_id = md5('dn')::uuid), '1');
+SELECT expect_eq('the credits are audited',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'student_credits' AND action = 'INSERT'), '3');
+
+-- the signed-in role can call the checks, not the internal helpers, and cannot write the tables
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('dn');
+SELECT expect_eq('authenticated Dean checks eligibility', (subject_eligibility(:'t18_student', md5('P20U1')::uuid)->>'allowed'), 'true');
+SELECT expect_fail('authenticated calls student_has_passed', format($$SELECT student_has_passed(%L, %L)$$, :'t18_student', md5('T182')::uuid));
+SELECT expect_fail('authenticated calls student_blocking_prerequisites', format($$SELECT * FROM student_blocking_prerequisites(%L, %L)$$, :'t18_student', md5('P20U1')::uuid));
+SELECT expect_fail('authenticated writes a prerequisite directly',
+  format($$INSERT INTO subject_prerequisites (subject_id, prerequisite_id) VALUES (%L, %L)$$, md5('P20U1')::uuid, md5('T181')::uuid));
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 20 grant checks not run';
+\endif
 
 -- a withdrawal releases the current enrollment only; the earlier term stays as history
 SELECT act('rg');

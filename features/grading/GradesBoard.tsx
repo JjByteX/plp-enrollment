@@ -3,7 +3,8 @@
 // The Grades page body for the Professor, the Dean and the Registrar (step 19):
 // a Subjects tab with every section subject and its status, and a Changes tab
 // with grade changes in flight. Fewer than 5 rows render as a list, 5 or more as
-// a table (ux-ui-guidelines.md). A sheet opens as a centered modal.
+// a table (ux-ui-guidelines.md). A sheet opens as a centered modal. On the Registrar's page the
+// Changes tab also lists the credits waiting for approval (step 20).
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Stack, Table, Tabs, Text } from '@mantine/core';
@@ -11,6 +12,8 @@ import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
 import type { Role } from '@/lib/auth/roles';
+import { approveCredit, rejectCredit } from '@/features/prerequisites/actions';
+import type { PendingCredit } from '@/features/prerequisites/schema';
 import { approveChange, rejectChange, signChange, type GradingActionResult } from './actions';
 import { ReasonDialog } from './ReasonModal';
 import {
@@ -41,6 +44,7 @@ export function GradesBoard({
   changes,
   sheet,
   ready,
+  credits = [],
 }: {
   viewerRole: Role;
   basePath: string;
@@ -49,10 +53,12 @@ export function GradesBoard({
   changes: GradeChange[];
   sheet: Sheet | null; // the sheet named in the address, when one is open
   ready: boolean;
+  credits?: PendingCredit[]; // credits waiting for the Registrar; only that page passes them
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<GradingActionResult | null>(null);
   const [rejecting, setRejecting] = useState<GradeChange | null>(null);
+  const [rejectingCredit, setRejectingCredit] = useState<PendingCredit | null>(null);
 
   const parent = HOME[viewerRole] ?? HOME.admin;
 
@@ -82,7 +88,16 @@ export function GradesBoard({
       <Divider />
 
       {tab === 'sections' && <SectionRows sections={sections} onOpen={openSheet} />}
-      {tab === 'changes' && <ChangeRows changes={changes} viewerRole={viewerRole} onResult={setMessage} onReject={setRejecting} />}
+      {tab === 'changes' && (
+        <ChangeRows
+          changes={changes}
+          credits={credits}
+          viewerRole={viewerRole}
+          onResult={setMessage}
+          onReject={setRejecting}
+          onRejectCredit={setRejectingCredit}
+        />
+      )}
 
       {sheet && (
         <SheetModal
@@ -107,6 +122,20 @@ export function GradesBoard({
           onClose={() => setRejecting(null)}
           onDone={(result) => {
             setRejecting(null);
+            setMessage(result);
+          }}
+        />
+      )}
+
+      {rejectingCredit && (
+        <ReasonDialog
+          title="Reject credit"
+          action="Reject"
+          hint="The credit does not count as a pass. The Dean or the Secretary can record it again."
+          run={(reason) => rejectCredit(rejectingCredit.id, reason)}
+          onClose={() => setRejectingCredit(null)}
+          onDone={(result) => {
+            setRejectingCredit(null);
             setMessage(result);
           }}
         />
@@ -190,23 +219,45 @@ function SectionRows({ sections, onOpen }: { sections: GradeSection[]; onOpen: (
 
 function ChangeRows({
   changes,
+  credits,
   viewerRole,
   onResult,
   onReject,
+  onRejectCredit,
 }: {
   changes: GradeChange[];
+  credits: PendingCredit[];
   viewerRole: Role;
   onResult: (result: GradingActionResult) => void;
   onReject: (change: GradeChange) => void;
+  onRejectCredit: (credit: PendingCredit) => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
 
-  if (changes.length === 0) return <Text c={color.textSecondary}>No grade change is waiting.</Text>;
+  // Only the Registrar and Admin decide on credits; nobody else is shown them.
+  const decidesCredits = viewerRole === 'registrar' || viewerRole === 'admin';
+  const waitingCredits = decidesCredits ? credits : [];
+
+  if (changes.length === 0 && waitingCredits.length === 0) {
+    return (
+      <Text c={color.textSecondary}>
+        {decidesCredits ? 'No grade change or credit is waiting.' : 'No grade change is waiting.'}
+      </Text>
+    );
+  }
 
   async function decide(change: GradeChange) {
     if (busy) return;
     setBusy(change.id);
     const result = change.status === 'pending_dean' ? await signChange(change.id) : await approveChange(change.id);
+    setBusy(null);
+    onResult(result);
+  }
+
+  async function approve(credit: PendingCredit) {
+    if (busy) return;
+    setBusy(credit.id);
+    const result = await approveCredit(credit.id);
     setBusy(null);
     onResult(result);
   }
@@ -251,6 +302,36 @@ function ChangeRows({
                 </Button>
               </Group>
             )}
+          </Group>
+        </Stack>
+      ))}
+      {changes.length > 0 && waitingCredits.length > 0 && <Divider />}
+      {waitingCredits.map((credit, index) => (
+        <Stack key={credit.id} gap={spacing.sm}>
+          {index > 0 && <Divider />}
+          <Group justify="space-between" wrap="nowrap" align="flex-start">
+            <Stack gap={spacing.xs}>
+              <Text fw={fontWeight.semibold}>
+                {credit.fullName} ({credit.studentNumber})
+              </Text>
+              <Text size="sm" c={color.textSecondary}>
+                Credit for {credit.code}, {credit.title}. {credit.program}.
+              </Text>
+              <Text size="sm" lineClamp={2}>
+                {credit.reason}
+              </Text>
+              <Text size="sm" c={color.textSecondary}>
+                Waiting for the Registrar{credit.recordedBy ? `, recorded by ${credit.recordedBy}` : ''}
+              </Text>
+            </Stack>
+            <Group wrap="nowrap">
+              <Button variant="default" disabled={busy !== null} onClick={() => onRejectCredit(credit)}>
+                Reject
+              </Button>
+              <Button loading={busy === credit.id} disabled={busy !== null && busy !== credit.id} onClick={() => approve(credit)}>
+                Approve
+              </Button>
+            </Group>
           </Group>
         </Stack>
       ))}

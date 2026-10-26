@@ -23,15 +23,18 @@ async function isAdmin(): Promise<boolean> {
 
 type DbError = { code?: string; message: string };
 
-// 23505 is a duplicate, 23503 a row still used elsewhere.
+// P0001 is a refusal the database wrote on purpose (for example, a subject that other subjects
+// require, with their codes named), so it is shown as written. 23505 is a duplicate, 23503 a row
+// still used elsewhere.
 function failure(error: DbError, duplicate: string, inUse: string, fallback: string): { error: string } {
+  if (error.code === 'P0001') return { error: error.message };
   if (error.code === '23505') return { error: duplicate };
   if (error.code === '23503') return { error: inUse };
   return { error: fallback };
 }
 
 const DUPLICATE_SUBJECT = 'This program already has a subject with that code.';
-const SUBJECT_IN_USE = 'This subject is already in a section, so it cannot be deleted.';
+const SUBJECT_IN_USE = 'This subject is used by a section, a grade or a credit, so it cannot be deleted.';
 const DUPLICATE_ROOM = 'A room with that name already exists.';
 const ROOM_IN_USE = 'This room is used by a section, so it cannot be deleted.';
 

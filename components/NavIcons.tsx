@@ -19,6 +19,7 @@ import {
   HomeIcon,
   IdentificationIcon,
   InboxArrowDownIcon,
+  LinkIcon,
   MapPinIcon,
   TicketIcon,
   UserIcon,
@@ -33,6 +34,7 @@ export const NAV_ICONS: Record<NavIconName, ComponentType<SVGProps<SVGSVGElement
   documents: DocumentTextIcon, // page with lines: Documents
   schedules: CalendarDaysIcon, // calendar: Schedules
   grades: AcademicCapIcon, // graduation cap: Grades
+  prerequisites: LinkIcon, // chain link: Prerequisites (one subject needs another)
   slips: TicketIcon, // ticket: Slips
   cor: DocumentCheckIcon, // page with check: COR
   payments: CreditCardIcon, // card: Payments

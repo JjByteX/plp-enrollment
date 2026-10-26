@@ -6,12 +6,14 @@
 // reason. After approval the Secretary, Dean or Admin can still change a
 // subject's professor, room, day or time with a reason (step 16), until a
 // student of the section has a COR. Which controls show depends on the person's
-// role and the status; the database enforces the same rules. Fewer than 5 students render as a list, 5
+// role and the status; the database enforces the same rules. The Dean, the Secretary and Admin also
+// get a Credits button on each student (step 20). Fewer than 5 students render as a list, 5
 // or more as a table (ux-ui-guidelines.md).
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { color, fontWeight, padding, spacing } from '@/styles/tokens';
 import type { Role } from '@/lib/auth/roles';
+import { CreditsModal } from '@/features/prerequisites/CreditsModal';
 import {
   amendLoading,
   approveSchedule,
@@ -94,6 +96,7 @@ export function SectionDetailsModal({
   const [notice, setNotice] = useState<string | null>(null);
   const [amendReason, setAmendReason] = useState('');
   const [picks, setPicks] = useState<Record<string, string | null>>({});
+  const [creditsFor, setCreditsFor] = useState<SectionStudent | null>(null);
 
   const isCollege = viewerRole === 'college_secretary' || viewerRole === 'dean' || viewerRole === 'admin';
   const isDean = viewerRole === 'dean' || viewerRole === 'admin';
@@ -253,305 +256,337 @@ export function SectionDetailsModal({
     );
   }
 
-  return (
-    <Modal
-      opened
-      onClose={onClose}
-      title={sectionLabel(section.programCode, section.yearLevel, section.name)}
-      padding={padding.modal}
-      radius="lg"
-      size="xl"
-    >
-      <Stack gap={spacing.md}>
-        <Text size="sm" c={color.textSecondary}>
-          {STATUS_LABEL[status]}, {section.studentCount} of {section.capacity} students
-        </Text>
-        {status === 'draft' && section.rejectedReason && (
-          <Text size="sm" c={color.warning}>
-            Sent back: {section.rejectedReason}
-          </Text>
-        )}
+  // The Credits button and the move control, side by side on a student row.
+  function studentActions(student: SectionStudent) {
+    return (
+      <Group gap={spacing.sm} wrap="nowrap">
+        <Button
+          variant="default"
+          size="xs"
+          disabled={busy !== null}
+          onClick={() => {
+            setNotice(null);
+            setCreditsFor(student);
+          }}
+        >
+          Credits
+        </Button>
+        {moveControl(student)}
+      </Group>
+    );
+  }
 
-        <Divider />
-        <Title order={4}>Subjects</Title>
-        {!detail ? (
-          <Text c={color.textSecondary}>Loading.</Text>
-        ) : rows.length === 0 ? (
-          <Text c={color.textSecondary}>No subjects for this program and year level yet.</Text>
-        ) : (
-          rows.map((row, index) => {
-            const draft = drafts[row.id] ?? draftOf(row);
-            const checked = inputFor(row);
-            const dirty = isDirty(row, draft);
-            return (
-              <Stack key={row.id} gap={spacing.sm}>
+  return (
+    <>
+      <Modal
+        opened
+        onClose={onClose}
+        title={sectionLabel(section.programCode, section.yearLevel, section.name)}
+        padding={padding.modal}
+        radius="lg"
+        size="xl"
+      >
+        <Stack gap={spacing.md}>
+          <Text size="sm" c={color.textSecondary}>
+            {STATUS_LABEL[status]}, {section.studentCount} of {section.capacity} students
+          </Text>
+          {status === 'draft' && section.rejectedReason && (
+            <Text size="sm" c={color.warning}>
+              Sent back: {section.rejectedReason}
+            </Text>
+          )}
+
+          <Divider />
+          <Title order={4}>Subjects</Title>
+          {!detail ? (
+            <Text c={color.textSecondary}>Loading.</Text>
+          ) : rows.length === 0 ? (
+            <Text c={color.textSecondary}>No subjects for this program and year level yet.</Text>
+          ) : (
+            rows.map((row, index) => {
+              const draft = drafts[row.id] ?? draftOf(row);
+              const checked = inputFor(row);
+              const dirty = isDirty(row, draft);
+              return (
+                <Stack key={row.id} gap={spacing.sm}>
+                  {index > 0 && <Divider />}
+                  <Group justify="space-between" wrap="nowrap">
+                    <Text fw={fontWeight.semibold}>
+                      {subjectName(row.code, row.meeting)}, {row.title}
+                    </Text>
+                    <Text size="sm" c={color.textSecondary}>
+                      {row.meeting === 'laboratory' ? 'No units' : `${row.units} units`}
+                    </Text>
+                  </Group>
+                  {showEditors ? (
+                    <Stack gap={spacing.sm}>
+                      <Group grow gap={spacing.md} align="flex-start">
+                        <Select
+                          label="Professor"
+                          placeholder={professors.length === 0 ? 'No professor accounts' : 'Choose'}
+                          data={professors.map((p) => ({ value: p.id, label: p.fullName }))}
+                          value={draft.professorId}
+                          onChange={(value) => setDraft(row, { professorId: value })}
+                          searchable
+                          clearable
+                          disabled={busy !== null}
+                        />
+                        <Select
+                          label="Room"
+                          placeholder={rooms.length === 0 ? 'No rooms' : 'Choose'}
+                          data={rooms.map((r) => ({ value: r.id, label: r.name }))}
+                          value={draft.roomId}
+                          onChange={(value) => setDraft(row, { roomId: value })}
+                          searchable
+                          clearable
+                          disabled={busy !== null}
+                        />
+                      </Group>
+                      <Group grow gap={spacing.md} align="flex-start">
+                        <Select
+                          label="Day"
+                          placeholder="Choose"
+                          data={DAY_OPTIONS}
+                          value={draft.day}
+                          onChange={(value) => setDraft(row, { day: value })}
+                          clearable
+                          disabled={busy !== null}
+                        />
+                        <TextInput
+                          label="Start time"
+                          type="time"
+                          value={draft.start}
+                          onChange={(event) => setDraft(row, { start: event.currentTarget.value })}
+                          disabled={busy !== null}
+                        />
+                        <TextInput
+                          label="End time"
+                          type="time"
+                          value={draft.end}
+                          onChange={(event) => setDraft(row, { end: event.currentTarget.value })}
+                          disabled={busy !== null}
+                        />
+                      </Group>
+                      {dirty && canAmend && (
+                        <Text size="sm" c={checked.ok ? color.textSecondary : color.error}>
+                          {checked.ok ? 'Changed, not applied yet.' : checked.reason}
+                        </Text>
+                      )}
+                      {dirty && canEditLoading && (
+                        <Group justify="space-between">
+                          <Text size="sm" c={checked.ok ? color.textSecondary : color.error}>
+                            {checked.ok ? 'Unsaved changes.' : checked.reason}
+                          </Text>
+                          <Button
+                            variant="default"
+                            size="xs"
+                            loading={busy === row.id}
+                            disabled={!checked.ok || busy !== null}
+                            onClick={() => {
+                              if (checked.ok) void run(row.id, () => saveLoading(checked.value), { reload: row.id });
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </Group>
+                      )}
+                    </Stack>
+                  ) : (
+                    <Text size="sm" c={color.textSecondary}>
+                      {readOnlyLine(row)}
+                    </Text>
+                  )}
+                </Stack>
+              );
+            })
+          )}
+
+          <Divider />
+          <Title order={4}>Students</Title>
+          {!detail ? null : students.length === 0 ? (
+            <Text c={color.textSecondary}>Nobody is placed in this section.</Text>
+          ) : students.length < LIST_LIMIT ? (
+            students.map((student, index) => (
+              <Stack key={student.studentId} gap={spacing.sm}>
                 {index > 0 && <Divider />}
                 <Group justify="space-between" wrap="nowrap">
-                  <Text fw={fontWeight.semibold}>
-                    {subjectName(row.code, row.meeting)}, {row.title}
+                  <Text>
+                    {student.studentNumber}, {student.fullName}
                   </Text>
-                  <Text size="sm" c={color.textSecondary}>
-                    {row.meeting === 'laboratory' ? 'No units' : `${row.units} units`}
-                  </Text>
+                  {isCollege && studentActions(student)}
                 </Group>
-                {showEditors ? (
-                  <Stack gap={spacing.sm}>
-                    <Group grow gap={spacing.md} align="flex-start">
-                      <Select
-                        label="Professor"
-                        placeholder={professors.length === 0 ? 'No professor accounts' : 'Choose'}
-                        data={professors.map((p) => ({ value: p.id, label: p.fullName }))}
-                        value={draft.professorId}
-                        onChange={(value) => setDraft(row, { professorId: value })}
-                        searchable
-                        clearable
-                        disabled={busy !== null}
-                      />
-                      <Select
-                        label="Room"
-                        placeholder={rooms.length === 0 ? 'No rooms' : 'Choose'}
-                        data={rooms.map((r) => ({ value: r.id, label: r.name }))}
-                        value={draft.roomId}
-                        onChange={(value) => setDraft(row, { roomId: value })}
-                        searchable
-                        clearable
-                        disabled={busy !== null}
-                      />
-                    </Group>
-                    <Group grow gap={spacing.md} align="flex-start">
-                      <Select
-                        label="Day"
-                        placeholder="Choose"
-                        data={DAY_OPTIONS}
-                        value={draft.day}
-                        onChange={(value) => setDraft(row, { day: value })}
-                        clearable
-                        disabled={busy !== null}
-                      />
-                      <TextInput
-                        label="Start time"
-                        type="time"
-                        value={draft.start}
-                        onChange={(event) => setDraft(row, { start: event.currentTarget.value })}
-                        disabled={busy !== null}
-                      />
-                      <TextInput
-                        label="End time"
-                        type="time"
-                        value={draft.end}
-                        onChange={(event) => setDraft(row, { end: event.currentTarget.value })}
-                        disabled={busy !== null}
-                      />
-                    </Group>
-                    {dirty && canAmend && (
-                      <Text size="sm" c={checked.ok ? color.textSecondary : color.error}>
-                        {checked.ok ? 'Changed, not applied yet.' : checked.reason}
-                      </Text>
-                    )}
-                    {dirty && canEditLoading && (
-                      <Group justify="space-between">
-                        <Text size="sm" c={checked.ok ? color.textSecondary : color.error}>
-                          {checked.ok ? 'Unsaved changes.' : checked.reason}
-                        </Text>
-                        <Button
-                          variant="default"
-                          size="xs"
-                          loading={busy === row.id}
-                          disabled={!checked.ok || busy !== null}
-                          onClick={() => {
-                            if (checked.ok) void run(row.id, () => saveLoading(checked.value), { reload: row.id });
-                          }}
-                        >
-                          Save
-                        </Button>
-                      </Group>
-                    )}
-                  </Stack>
-                ) : (
+              </Stack>
+            ))
+          ) : (
+            <Table.ScrollContainer minWidth={640}>
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Student number</Table.Th>
+                    <Table.Th>Student</Table.Th>
+                    {isCollege && <Table.Th />}
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {students.map((student) => (
+                    <Table.Tr key={student.studentId}>
+                      <Table.Td>{student.studentNumber}</Table.Td>
+                      <Table.Td>{student.fullName}</Table.Td>
+                      {isCollege && <Table.Td>{studentActions(student)}</Table.Td>}
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          )}
+
+          {notice && (
+            <Text size="sm" c={color.success} role="status">
+              {notice}
+            </Text>
+          )}
+
+          {canAmend && (
+            <>
+              <Divider />
+              <Stack gap={spacing.sm}>
+                <TextInput
+                  label="Reason for the change"
+                  description="Recorded in the audit log"
+                  maxLength={MAX_REASON}
+                  value={amendReason}
+                  onChange={(event) => setAmendReason(event.currentTarget.value)}
+                  disabled={busy !== null}
+                />
+                {amendBlock && (
                   <Text size="sm" c={color.textSecondary}>
-                    {readOnlyLine(row)}
+                    {amendBlock}
                   </Text>
                 )}
               </Stack>
-            );
-          })
-        )}
+            </>
+          )}
 
-        <Divider />
-        <Title order={4}>Students</Title>
-        {!detail ? null : students.length === 0 ? (
-          <Text c={color.textSecondary}>Nobody is placed in this section.</Text>
-        ) : students.length < LIST_LIMIT ? (
-          students.map((student, index) => (
-            <Stack key={student.studentId} gap={spacing.sm}>
-              {index > 0 && <Divider />}
-              <Group justify="space-between" wrap="nowrap">
-                <Text>
-                  {student.studentNumber}, {student.fullName}
-                </Text>
-                {isCollege && moveControl(student)}
-              </Group>
-            </Stack>
-          ))
-        ) : (
-          <Table.ScrollContainer minWidth={640}>
-            <Table>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Student number</Table.Th>
-                  <Table.Th>Student</Table.Th>
-                  {isCollege && <Table.Th />}
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {students.map((student) => (
-                  <Table.Tr key={student.studentId}>
-                    <Table.Td>{student.studentNumber}</Table.Td>
-                    <Table.Td>{student.fullName}</Table.Td>
-                    {isCollege && <Table.Td>{moveControl(student)}</Table.Td>}
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
-        )}
+          {error && (
+            <Text size="sm" c={color.error} role="alert">
+              {error}
+            </Text>
+          )}
 
-        {notice && (
-          <Text size="sm" c={color.success} role="status">
-            {notice}
-          </Text>
-        )}
-
-        {canAmend && (
-          <>
-            <Divider />
+          {rejecting && (
             <Stack gap={spacing.sm}>
               <TextInput
-                label="Reason for the change"
-                description="Recorded in the audit log"
+                label="Reason"
+                description="The Secretary sees this when the schedule is back in draft"
                 maxLength={MAX_REASON}
-                value={amendReason}
-                onChange={(event) => setAmendReason(event.currentTarget.value)}
+                value={reason}
+                onChange={(event) => setReason(event.currentTarget.value)}
                 disabled={busy !== null}
+                required
               />
-              {amendBlock && (
-                <Text size="sm" c={color.textSecondary}>
-                  {amendBlock}
-                </Text>
-              )}
+              <Group justify="space-between">
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    setRejecting(false);
+                    setReason('');
+                  }}
+                  disabled={busy !== null}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  color="red"
+                  loading={busy === 'reject'}
+                  disabled={!reasonCheck.ok || busy !== null}
+                  onClick={() => {
+                    if (reasonCheck.ok) void run('reject', () => rejectSchedule(section.id, reasonCheck.value), { close: true });
+                  }}
+                >
+                  Send back to draft
+                </Button>
+              </Group>
             </Stack>
-          </>
-        )}
+          )}
 
-        {error && (
-          <Text size="sm" c={color.error} role="alert">
-            {error}
-          </Text>
-        )}
-
-        {rejecting && (
-          <Stack gap={spacing.sm}>
-            <TextInput
-              label="Reason"
-              description="The Secretary sees this when the schedule is back in draft"
-              maxLength={MAX_REASON}
-              value={reason}
-              onChange={(event) => setReason(event.currentTarget.value)}
-              disabled={busy !== null}
-              required
-            />
-            <Group justify="space-between">
+          {canAmend && (
+            <Group justify="flex-end">
               <Button
-                variant="default"
+                loading={busy === 'amend'}
+                disabled={amendBlock !== null || busy !== null}
                 onClick={() => {
-                  setRejecting(false);
-                  setReason('');
-                }}
-                disabled={busy !== null}
-              >
-                Cancel
-              </Button>
-              <Button
-                color="red"
-                loading={busy === 'reject'}
-                disabled={!reasonCheck.ok || busy !== null}
-                onClick={() => {
-                  if (reasonCheck.ok) void run('reject', () => rejectSchedule(section.id, reasonCheck.value), { close: true });
+                  setNotice(null);
+                  void run('amend', amendAll, { reload: 'all' }).then((ok) => {
+                    if (ok) {
+                      setNotice('Schedule changed. The students in this section were told.');
+                      setAmendReason('');
+                    }
+                  });
                 }}
               >
-                Send back to draft
+                Change schedule
               </Button>
             </Group>
-          </Stack>
-        )}
+          )}
 
-        {canAmend && (
-          <Group justify="flex-end">
-            <Button
-              loading={busy === 'amend'}
-              disabled={amendBlock !== null || busy !== null}
-              onClick={() => {
-                setNotice(null);
-                void run('amend', amendAll, { reload: 'all' }).then((ok) => {
-                  if (ok) {
-                    setNotice('Schedule changed. The students in this section were told.');
-                    setAmendReason('');
-                  }
-                });
-              }}
-            >
-              Change schedule
-            </Button>
-          </Group>
-        )}
-
-        {!rejecting && (canEditLoading || canSignOff || canApprove) && (
-          <>
-            <Divider />
-            {canEditLoading && submitBlock && (
-              <Text size="sm" c={color.textSecondary}>
-                {submitBlock}
-              </Text>
-            )}
-            <Group justify="space-between">
-              <Group gap={spacing.sm}>
-                {canReject && (
-                  <Button variant="default" onClick={() => setRejecting(true)} disabled={busy !== null}>
-                    Reject
+          {!rejecting && (canEditLoading || canSignOff || canApprove) && (
+            <>
+              <Divider />
+              {canEditLoading && submitBlock && (
+                <Text size="sm" c={color.textSecondary}>
+                  {submitBlock}
+                </Text>
+              )}
+              <Group justify="space-between">
+                <Group gap={spacing.sm}>
+                  {canReject && (
+                    <Button variant="default" onClick={() => setRejecting(true)} disabled={busy !== null}>
+                      Reject
+                    </Button>
+                  )}
+                </Group>
+                {canEditLoading && (
+                  <Button
+                    loading={busy === 'submit'}
+                    disabled={submitBlock !== null || busy !== null}
+                    onClick={() => void run('submit', () => submitSchedule(section.id), { close: true })}
+                  >
+                    Submit for sign-off
+                  </Button>
+                )}
+                {canSignOff && (
+                  <Button
+                    loading={busy === 'sign'}
+                    disabled={busy !== null}
+                    onClick={() => void run('sign', () => signOffSchedule(section.id), { close: true })}
+                  >
+                    Sign off professor loading
+                  </Button>
+                )}
+                {canApprove && (
+                  <Button
+                    loading={busy === 'approve'}
+                    disabled={busy !== null}
+                    onClick={() => void run('approve', () => approveSchedule(section.id), { close: true })}
+                  >
+                    Approve schedule
                   </Button>
                 )}
               </Group>
-              {canEditLoading && (
-                <Button
-                  loading={busy === 'submit'}
-                  disabled={submitBlock !== null || busy !== null}
-                  onClick={() => void run('submit', () => submitSchedule(section.id), { close: true })}
-                >
-                  Submit for sign-off
-                </Button>
-              )}
-              {canSignOff && (
-                <Button
-                  loading={busy === 'sign'}
-                  disabled={busy !== null}
-                  onClick={() => void run('sign', () => signOffSchedule(section.id), { close: true })}
-                >
-                  Sign off professor loading
-                </Button>
-              )}
-              {canApprove && (
-                <Button
-                  loading={busy === 'approve'}
-                  disabled={busy !== null}
-                  onClick={() => void run('approve', () => approveSchedule(section.id), { close: true })}
-                >
-                  Approve schedule
-                </Button>
-              )}
-            </Group>
-          </>
-        )}
-      </Stack>
-    </Modal>
+            </>
+          )}
+        </Stack>
+      </Modal>
+      {creditsFor && (
+        <CreditsModal
+          student={creditsFor}
+          onClose={() => setCreditsFor(null)}
+          onDone={(result) => {
+            setCreditsFor(null);
+            if ('ok' in result) setNotice(result.message);
+          }}
+        />
+      )}
+    </>
   );
 }

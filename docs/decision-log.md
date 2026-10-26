@@ -592,3 +592,22 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A. Nothing is seeded, so grade entry stays closed until Admin sets the scale. A trigger refuses every write to the grading tables outside the grading functions, Admin included. An incomplete that is not completed within Admin's window becomes a failed 5.0 by itself the next time the Dean or Registrar opens Grades.
 
 **Consequences:** Changing the scale later never rewrites an earlier grade. The lapse runs when a page loads, not on a timer. Two numeric bands that overlap are refused, but a gap between bands is allowed: a grade in the gap is simply not on the scale.
+
+---
+
+**#:** 33
+**Date:** 2026-10-27
+**Milestone:** Build step 20, prerequisites and credits
+
+**Context:** Returning students must not take a subject whose prerequisite they did not pass, and a transferee's earlier subjects must count. Steps 21 and 22 need one answer to "may this student take this subject".
+
+**Options Considered:**
+- Option A: A table of subject and required subject, a table of credits, and database functions that are the only way to write them. One function answers eligibility and names every blocking prerequisite. A trigger refuses any other write, Admin included.
+- Option B: Let the Dean write the table directly through row level security. Fewer functions, but the same-program, earlier-in-curriculum and loop rules would live in the app.
+- Option C: A list of required subject ids on each subject row. No new table, but no foreign keys, and deleting a subject could not name the subjects that need it.
+
+**Community Consensus:** Not searched.
+
+**Decision:** Option A. Admin and the Dean of the program's college set prerequisites (decision G); the Registrar and the Secretary only read. All listed prerequisites are required. A prerequisite must be in the same program and earlier in the curriculum (a lower year level, or the same year level and an earlier semester). Only a pass in an approved grade sheet, or an approved credit, satisfies one; any passing attempt counts, so a retake unblocks. The Dean or the Secretary records a credit with a reason, the Registrar approves it. A subject that others require cannot be deleted, and the message names them.
+
+**Consequences:** Eligibility is not used by any screen yet. The check is read-only and does not run the INC lapse, so a lapsed incomplete shows as incomplete until the next Grades page load, which blocks the same way. A credit can only be recorded for a student who is in a section. A rejected credit can be recorded again. Nothing in this step was executed.
