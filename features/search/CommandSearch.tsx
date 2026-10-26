@@ -155,7 +155,7 @@ export function CommandSearch({ items }: { items: NavItem[] }) {
             right: 0,
             zIndex: 200,
             boxShadow: shadow.floating,
-            background: color.surfacePage,
+            background: color.surfaceFloating,
           }}
         >
           <Stack gap={2}>
@@ -205,7 +205,7 @@ export function CommandSearch({ items }: { items: NavItem[] }) {
             right: 0,
             zIndex: 200,
             boxShadow: shadow.floating,
-            background: color.surfacePage,
+            background: color.surfaceFloating,
           }}
         >
           <Text size="sm" c={color.textSecondary}>

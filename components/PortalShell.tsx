@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Box, Button, Card, Divider, Group, Menu, NavLink, Stack, Text, Tooltip, UnstyledButton, useComputedColorScheme } from '@mantine/core';
-import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { signOut } from '@/lib/auth/actions';
 import { SIDEBAR_COOKIE, flattenNav, isActive, type NavGroup, type NavItem } from '@/lib/nav';
 import { NAV_ICONS } from '@/components/NavIcons';
@@ -15,7 +15,7 @@ import { CommandSearch } from '@/features/search/CommandSearch';
 import { SettingsModal } from '@/features/settings/SettingsModal';
 import { SettingsProvider } from '@/features/settings/SettingsContext';
 import { WithdrawMyEnrollmentModal } from '@/features/withdraw-enrollment/WithdrawMyEnrollmentModal';
-import { color, fontWeight, green, layout, padding, radius, spacing } from '@/styles/tokens';
+import { color, fontWeight, layout, padding, radius, spacing } from '@/styles/tokens';
 
 const LOGO_SIZE = 32;
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -92,7 +92,7 @@ export function PortalShell({
     const styles = {
       root: { justifyContent: collapsed ? 'center' : undefined },
       section: { marginInlineEnd: collapsed ? 'unset' : undefined },
-      label: { color: active ? green[7] : textPrimary },
+      label: { color: active ? color.accentText : textPrimary },
     };
 
     if (children.length > 0 && collapsed) {
@@ -170,7 +170,7 @@ export function PortalShell({
             <Group gap={spacing.sm} wrap="nowrap">
               <Box
                 bg={color.accentSubtleBg}
-                c={green[7]}
+                c={color.accentText}
                 fw={fontWeight.semibold}
                 style={{
                   width: layout.avatarSize,
@@ -194,6 +194,16 @@ export function PortalShell({
           <Menu.Item leftSection={<Cog6ToothIcon width={layout.iconSize} height={layout.iconSize} />} onClick={() => setSettingsOpen(true)}>
             Settings
           </Menu.Item>
+          {/* The manual is for staff. Only staff roles have a sidebar, so that is the test. */}
+          {hasSidebar && (
+            <Menu.Item
+              component={Link}
+              href="/manual"
+              leftSection={<BookOpenIcon width={layout.iconSize} height={layout.iconSize} />}
+            >
+              User manual
+            </Menu.Item>
+          )}
           {canWithdraw && (
             <Menu.Item color={color.error} onClick={() => setWithdrawOpen(true)}>
               Withdraw enrollment

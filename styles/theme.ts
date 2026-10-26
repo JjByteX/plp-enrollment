@@ -1,6 +1,6 @@
 // styles/theme.ts
 import { createTheme, type MantineColorsTuple } from '@mantine/core';
-import { gray, green, fontFamily, fontWeight, radius } from './tokens';
+import { darkScale, gray, green, fontFamily, fontWeight, radius } from './tokens';
 
 // Mantine requires a 10-shade tuple per color. Primer's scales are 11/10
 // steps; we map them onto Mantine's 0(lightest)-9(darkest) ordering.
@@ -34,6 +34,7 @@ export const theme = createTheme({
   colors: {
     gray: primerGray,
     green: primerGreen,
+    dark: [...darkScale] as unknown as MantineColorsTuple,
   },
   primaryColor: 'green',
   primaryShade: 5,
@@ -60,6 +61,11 @@ export const theme = createTheme({
     },
     Paper: {
       defaultProps: { shadow: undefined, withBorder: true },
+    },
+    // Every modal opens centered (ux-ui-guidelines.md, modal vs panel rule).
+    // Set once here so no modal can forget it.
+    Modal: {
+      defaultProps: { centered: true },
     },
   },
 });

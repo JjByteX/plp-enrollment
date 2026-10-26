@@ -59,21 +59,40 @@ export const color = {
   // 10% — accent: buttons, active states, highlights, badges
   accent: green[5],
   accentHover: green[6],
-  accentSubtleBg: green[0], // pill/badge backgrounds, active nav item
-
-  // text
-  textPrimary: gray[900],
-  textPrimaryDark: gray[100],
-  textSecondary: gray[600],
-  textSecondaryDark: gray[400],
   textOnAccent: gray[0],
+  textPrimaryDark: gray[100],
+  textSecondaryDark: gray[400],
 
-  // semantic (reserve: pull from Primer's green/yellow/red scales when needed,
-  // do not invent new hues — see decision-log.md entry #7)
-  success: green[5],
-  warning: '#9A6700',
-  error: '#CF222E',
+  // Tokens that must change with the color scheme are CSS variables. Their
+  // light and dark values are set once in styles/global.css (from the Primer
+  // scales above), so a component never picks a color per scheme by itself.
+  accentSubtleBg: 'var(--plp-accent-subtle-bg)', // pill/badge backgrounds, active search row, avatar
+  accentText: 'var(--plp-accent-text)', // accent-colored text on the page or on accentSubtleBg
+  surfaceFloating: 'var(--mantine-color-default)', // menus and the search results list
+  textPrimary: 'var(--plp-text-primary)',
+  textSecondary: 'var(--plp-text-secondary)',
+
+  // semantic (Primer's green/yellow/red; light and dark values in global.css)
+  success: 'var(--plp-success)',
+  warning: 'var(--plp-warning)',
+  error: 'var(--plp-error)',
 } as const;
+
+// Mantine's own dark surfaces (cards, inputs, modals, menus, borders) read
+// this scale, so dark mode uses Primer's neutral grays instead of Mantine's
+// default dark palette. 0 is text, 6 is card and input surface, 7 is the body.
+export const darkScale = [
+  gray[100],
+  gray[200],
+  gray[400],
+  gray[500],
+  gray[700],
+  gray[800],
+  gray[1000],
+  gray[1000],
+  gray[1000],
+  gray[1000],
+] as const;
 
 // ---------------------------------------------------------------
 // SPACING — 8px grid (ux-ui-guidelines.md Spacing and Symmetry Rules)
@@ -153,4 +172,7 @@ export const layout = {
   avatarSize: 32,
   iconSize: 20,
   barHeight: 8, // progress and capacity bars on the dashboards
+  manualIndexWidth: 240, // section index beside the user manual
+  readingWidth: 720, // longest comfortable line for long text
+  manualTableMinWidth: 640, // below this the manual's tables scroll sideways
 } as const;

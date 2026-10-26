@@ -6,8 +6,29 @@
  * Colors/weights/sizes still come from styles/tokens.ts inline; this file
  * only adds the :hover behavior itself.
  */
+/* Color tokens that change with the color scheme (styles/tokens.ts, color.*).
+ * Light values first, then dark. All from GitHub Primer's scales in tokens.ts.
+ */
+:root {
+  --plp-text-primary: #24292F; /* gray[900] */
+  --plp-text-secondary: #57606A; /* gray[600] */
+  --plp-accent-subtle-bg: #DAFBE1; /* green[0] */
+  --plp-accent-text: #044F1E; /* green[7] */
+  --plp-success: #1A7F37; /* green[5] */
+  --plp-warning: #9A6700;
+  --plp-error: #CF222E;
+}
+:root[data-mantine-color-scheme='dark'] {
+  --plp-text-primary: #EAEEF2; /* gray[100] */
+  --plp-text-secondary: #8C959F; /* gray[400] */
+  --plp-accent-subtle-bg: #003D16; /* green[8] */
+  --plp-accent-text: #6FDD8B; /* green[2] */
+  --plp-success: #4AC26B; /* green[3] */
+  --plp-warning: #D29922; /* Primer dark attention */
+  --plp-error: #F85149; /* Primer dark danger */
+}
 .plp-breadcrumb-link:hover {
-  color: #24292F; /* color.textPrimary (gray[900]) — see styles/tokens.ts */
+  color: var(--plp-text-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
