@@ -12,7 +12,7 @@
 //               a label such as INC. Descriptive bands never match.
 import { parseChoice, type Parsed } from '@/lib/validate';
 
-export { UUID, parseReason } from '@/lib/validate';
+export { MAX_REASON, UUID, parseReason } from '@/lib/validate';
 
 export const OUTCOMES = ['passed', 'incomplete', 'failed', 'dropped'] as const;
 export type Outcome = (typeof OUTCOMES)[number];

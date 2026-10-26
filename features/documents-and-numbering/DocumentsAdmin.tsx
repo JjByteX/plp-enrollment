@@ -10,7 +10,8 @@
 // promotion (features/correct-student-details).
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput } from '@mantine/core';
+import { Button, Divider, Group, Select, Stack, Tabs, Text, TextInput } from '@mantine/core';
+import { ListOrTable } from '@/components/ListOrTable';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
@@ -28,7 +29,6 @@ import {
   type Requirement,
 } from './schema';
 
-const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
 const SEARCH_DELAY = 300;
 
 function visitText(date: string | null): string {
@@ -149,73 +149,67 @@ function PendingRows({
     );
   }
 
-  if (rows.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {rows.map((row, index) => (
-          <Stack key={row.applicantId} gap={spacing.sm}>
-            {index > 0 && <Divider />}
-            <Group justify="space-between" wrap="nowrap">
-              <Stack gap={spacing.xs}>
-                <Text fw={fontWeight.semibold}>
-                  {row.fullName} ({row.applicantRef})
-                </Text>
-                <Text size="sm" c={color.textSecondary}>
-                  {row.programCode}, {ADMISSION_TYPE_LABEL[row.admissionType]}, {visitText(row.visitDate)}
-                </Text>
-                <Text size="sm" c={color.textSecondary}>
-                  Required documents: {progressLabel(row.progress)}
-                </Text>
-              </Stack>
-              <Group gap={spacing.sm} wrap="nowrap">
-                <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.applicantRef} />
-                <Button variant="default" onClick={() => onOpen(row)}>
-                  Open
-                </Button>
-              </Group>
-            </Group>
-          </Stack>
-        ))}
-      </Stack>
-    );
-  }
-
   return (
-    <Table.ScrollContainer minWidth={900}>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Applicant</Table.Th>
-            <Table.Th>Reference</Table.Th>
-            <Table.Th>Program</Table.Th>
-            <Table.Th>Type</Table.Th>
-            <Table.Th>Visit</Table.Th>
-            <Table.Th>Required</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr key={row.applicantId}>
-              <Table.Td>{row.fullName}</Table.Td>
-              <Table.Td>{row.applicantRef}</Table.Td>
-              <Table.Td>{row.programCode}</Table.Td>
-              <Table.Td>{ADMISSION_TYPE_LABEL[row.admissionType]}</Table.Td>
-              <Table.Td>{visitText(row.visitDate)}</Table.Td>
-              <Table.Td>{progressLabel(row.progress)}</Table.Td>
-              <Table.Td>
-                <Group justify="flex-end" gap={spacing.sm} wrap="nowrap">
-                  <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.applicantRef} />
-                  <Button variant="default" size="xs" onClick={() => onOpen(row)}>
-                    Open
-                  </Button>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <ListOrTable
+      rows={rows}
+      rowKey={(row) => row.applicantId}
+      minWidth={900}
+      item={(row) => (
+        <Group justify="space-between" wrap="nowrap">
+          <Stack gap={spacing.xs}>
+            <Text fw={fontWeight.semibold}>
+              {row.fullName} ({row.applicantRef})
+            </Text>
+            <Text size="sm" c={color.textSecondary}>
+              {row.programCode}, {ADMISSION_TYPE_LABEL[row.admissionType]}, {visitText(row.visitDate)}
+            </Text>
+            <Text size="sm" c={color.textSecondary}>
+              Required documents: {progressLabel(row.progress)}
+            </Text>
+          </Stack>
+          <Group gap={spacing.sm} wrap="nowrap">
+            <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.applicantRef} />
+            <Button variant="default" onClick={() => onOpen(row)}>
+              Open
+            </Button>
+          </Group>
+        </Group>
+      )}
+      columns={[
+        { header: 'Applicant', cell: (row) => row.fullName },
+        { header: 'Reference', cell: (row) => row.applicantRef },
+        { header: 'Program', cell: (row) => row.programCode },
+        { header: 'Type', cell: (row) => ADMISSION_TYPE_LABEL[row.admissionType] },
+        { header: 'Visit', cell: (row) => visitText(row.visitDate) },
+        { header: 'Required', cell: (row) => progressLabel(row.progress) },
+        {
+          header: '',
+          cell: (row) => (
+            <Group justify="flex-end" gap={spacing.sm} wrap="nowrap">
+              <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.applicantRef} />
+              <Button variant="default" size="xs" onClick={() => onOpen(row)}>
+                Open
+              </Button>
+            </Group>
+          ),
+        },
+      ]}
+    />
+  );
+}
+
+// The Correct and Withdraw buttons of a Received row, shared by its list and table forms.
+function ReceivedButtons({ row }: { row: ReceivedStudent }) {
+  return (
+    <>
+      <CorrectDetailsButton
+        applicantId={row.applicantId}
+        studentNumber={row.studentNumber}
+        fullName={row.fullName}
+        email={row.email}
+      />
+      <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.studentNumber} />
+    </>
   );
 }
 
@@ -224,82 +218,50 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
     return <Text c={color.textSecondary}>{filtered ? 'No students match.' : 'No documents received yet.'}</Text>;
   }
 
-  if (rows.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {rows.map((row, index) => (
-          <Stack key={row.studentId} gap={spacing.xs}>
-            {index > 0 && <Divider />}
-            <Group justify="space-between" wrap="nowrap">
-              <Stack gap={spacing.xs}>
-                <Text fw={fontWeight.semibold}>
-                  {row.studentNumber}, {row.fullName}
-                </Text>
-                <Text size="sm" c={color.textSecondary}>
-                  {row.programCode}, {ADMISSION_TYPE_LABEL[row.admissionType]}, received {formatWeekdayDate(row.receivedAt)}
-                  {row.receivedByName ? ` by ${row.receivedByName}` : ''}
-                </Text>
-                {row.openLateItems.length > 0 && (
-                  <Text size="sm" c={color.warning}>
-                    Still to submit: {row.openLateItems.join('; ')}
-                  </Text>
-                )}
-              </Stack>
-              <Group gap={spacing.sm} wrap="nowrap">
-                <CorrectDetailsButton
-                  applicantId={row.applicantId}
-                  studentNumber={row.studentNumber}
-                  fullName={row.fullName}
-                  email={row.email}
-                />
-                <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.studentNumber} />
-              </Group>
-            </Group>
-          </Stack>
-        ))}
-      </Stack>
-    );
-  }
-
   return (
-    <Table.ScrollContainer minWidth={900}>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Student number</Table.Th>
-            <Table.Th>Student</Table.Th>
-            <Table.Th>Program</Table.Th>
-            <Table.Th>Received</Table.Th>
-            <Table.Th>Received by</Table.Th>
-            <Table.Th>Still to submit</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr key={row.studentId}>
-              <Table.Td>{row.studentNumber}</Table.Td>
-              <Table.Td>{row.fullName}</Table.Td>
-              <Table.Td>{row.programCode}</Table.Td>
-              <Table.Td>{formatWeekdayDate(row.receivedAt)}</Table.Td>
-              <Table.Td>{row.receivedByName ?? ''}</Table.Td>
-              <Table.Td>{row.openLateItems.join('; ')}</Table.Td>
-              <Table.Td>
-                <Group justify="flex-end" gap={spacing.sm} wrap="nowrap">
-                  <CorrectDetailsButton
-                    applicantId={row.applicantId}
-                    studentNumber={row.studentNumber}
-                    fullName={row.fullName}
-                    email={row.email}
-                  />
-                  <WithdrawApplicantButton applicantId={row.applicantId} name={row.fullName} identifier={row.studentNumber} />
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <ListOrTable
+      rows={rows}
+      rowKey={(row) => row.studentId}
+      minWidth={900}
+      itemGap={spacing.xs}
+      item={(row) => (
+        <Group justify="space-between" wrap="nowrap">
+          <Stack gap={spacing.xs}>
+            <Text fw={fontWeight.semibold}>
+              {row.studentNumber}, {row.fullName}
+            </Text>
+            <Text size="sm" c={color.textSecondary}>
+              {row.programCode}, {ADMISSION_TYPE_LABEL[row.admissionType]}, received {formatWeekdayDate(row.receivedAt)}
+              {row.receivedByName ? ` by ${row.receivedByName}` : ''}
+            </Text>
+            {row.openLateItems.length > 0 && (
+              <Text size="sm" c={color.warning}>
+                Still to submit: {row.openLateItems.join('; ')}
+              </Text>
+            )}
+          </Stack>
+          <Group gap={spacing.sm} wrap="nowrap">
+            <ReceivedButtons row={row} />
+          </Group>
+        </Group>
+      )}
+      columns={[
+        { header: 'Student number', cell: (row) => row.studentNumber },
+        { header: 'Student', cell: (row) => row.fullName },
+        { header: 'Program', cell: (row) => row.programCode },
+        { header: 'Received', cell: (row) => formatWeekdayDate(row.receivedAt) },
+        { header: 'Received by', cell: (row) => row.receivedByName ?? '' },
+        { header: 'Still to submit', cell: (row) => row.openLateItems.join('; ') },
+        {
+          header: '',
+          cell: (row) => (
+            <Group justify="flex-end" gap={spacing.sm} wrap="nowrap">
+              <ReceivedButtons row={row} />
+            </Group>
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -308,53 +270,33 @@ function WithdrawnRows({ rows, filtered }: { rows: WithdrawnApplicant[]; filtere
     return <Text c={color.textSecondary}>{filtered ? 'No one matches.' : 'Nobody has withdrawn.'}</Text>;
   }
 
-  if (rows.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {rows.map((row, index) => (
-          <Stack key={row.applicantId} gap={spacing.xs}>
-            {index > 0 && <Divider />}
-            <Text fw={fontWeight.semibold}>
-              {row.studentNumber ?? row.applicantRef}, {row.fullName}
-            </Text>
-            <Text size="sm" c={color.textSecondary}>
-              {row.programCode}, {row.byStaff ? 'withdrawn by the Registrar' : 'withdrew themselves'} on {row.withdrawnOn}
-            </Text>
-            <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
-              Reason: {row.reason}
-            </Text>
-          </Stack>
-        ))}
-      </Stack>
-    );
-  }
-
   return (
-    <Table.ScrollContainer minWidth={900}>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Person</Table.Th>
-            <Table.Th>Number</Table.Th>
-            <Table.Th>Program</Table.Th>
-            <Table.Th>Withdrawn</Table.Th>
-            <Table.Th>By</Table.Th>
-            <Table.Th>Reason</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr key={row.applicantId}>
-              <Table.Td>{row.fullName}</Table.Td>
-              <Table.Td>{row.studentNumber ?? row.applicantRef}</Table.Td>
-              <Table.Td>{row.programCode}</Table.Td>
-              <Table.Td>{row.withdrawnOn}</Table.Td>
-              <Table.Td>{row.byStaff ? 'Registrar' : 'Themselves'}</Table.Td>
-              <Table.Td style={{ whiteSpace: 'pre-line' }}>{row.reason}</Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <ListOrTable
+      rows={rows}
+      rowKey={(row) => row.applicantId}
+      minWidth={900}
+      itemGap={spacing.xs}
+      item={(row) => (
+        <>
+          <Text fw={fontWeight.semibold}>
+            {row.studentNumber ?? row.applicantRef}, {row.fullName}
+          </Text>
+          <Text size="sm" c={color.textSecondary}>
+            {row.programCode}, {row.byStaff ? 'withdrawn by the Registrar' : 'withdrew themselves'} on {row.withdrawnOn}
+          </Text>
+          <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+            Reason: {row.reason}
+          </Text>
+        </>
+      )}
+      columns={[
+        { header: 'Person', cell: (row) => row.fullName },
+        { header: 'Number', cell: (row) => row.studentNumber ?? row.applicantRef },
+        { header: 'Program', cell: (row) => row.programCode },
+        { header: 'Withdrawn', cell: (row) => row.withdrawnOn },
+        { header: 'By', cell: (row) => (row.byStaff ? 'Registrar' : 'Themselves') },
+        { header: 'Reason', cell: (row) => row.reason, style: { whiteSpace: 'pre-line' } },
+      ]}
+    />
   );
 }

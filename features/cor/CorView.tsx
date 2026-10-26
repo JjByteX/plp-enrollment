@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { formatDate, formatPeso } from '@/lib/format';
+import { DetailField as Field } from '@/components/DetailField';
 import {
   ADMISSION_TYPE_LABEL,
   scheduleText,
@@ -41,17 +42,6 @@ const CERTIFICATION =
   'This is to certify that the student whose name appears on this document is officially enrolled this term with the subject load listed above.';
 const NOTICE =
   'Notice to all students: present this certificate of registration for any claim or transaction that you engage in within the University.';
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <Stack gap={spacing.xs}>
-      <Text size="sm" c={color.textSecondary}>
-        {label}
-      </Text>
-      <Text fw={fontWeight.semibold}>{value}</Text>
-    </Stack>
-  );
-}
 
 export function CorView({ cor }: { cor: CorData }) {
   const registrarCaption = cor.issuedByRole === 'admin' ? 'Admin' : 'University Registrar';

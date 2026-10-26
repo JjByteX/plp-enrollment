@@ -6,17 +6,16 @@
 // holds the per-program payment toggle. All changes go through ./actions.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Stack, Switch, Table, Tabs, Text } from '@mantine/core';
+import { Button, Divider, Group, Stack, Switch, Tabs, Text } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
+import { ListOrTable } from '@/components/ListOrTable';
 import { formatDate, formatPeso } from '@/lib/format';
 import { setPaymentRequired, type PaymentActionResult } from './actions';
 import type { PaymentRow, ProgramSetting } from './queries';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import type { PaymentTab } from './schema';
-
-const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
 
 export function PaymentsAdmin({
   tab,
@@ -82,118 +81,79 @@ export function PaymentsAdmin({
 function PendingRows({ rows, onOpen }: { rows: PaymentRow[]; onOpen: (row: PaymentRow) => void }) {
   if (rows.length === 0) return <Text c={color.textSecondary}>No payment is waiting.</Text>;
 
-  if (rows.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {rows.map((row, index) => (
-          <Stack key={row.studentId} gap={spacing.sm}>
-            {index > 0 && <Divider />}
-            <Group justify="space-between" wrap="nowrap">
-              <Stack gap={spacing.xs}>
-                <Text fw={fontWeight.semibold}>
-                  {row.studentNumber}, {row.fullName}
-                </Text>
-                <Text size="sm" c={color.textSecondary}>
-                  {row.section}
-                </Text>
-              </Stack>
-              <Button variant="default" onClick={() => onOpen(row)}>
-                Record
-              </Button>
-            </Group>
-          </Stack>
-        ))}
-      </Stack>
-    );
-  }
-
   return (
-    <Table.ScrollContainer minWidth={720}>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Student number</Table.Th>
-            <Table.Th>Student</Table.Th>
-            <Table.Th>Section</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr key={row.studentId}>
-              <Table.Td>{row.studentNumber}</Table.Td>
-              <Table.Td>{row.fullName}</Table.Td>
-              <Table.Td>{row.section}</Table.Td>
-              <Table.Td>
-                <Group justify="flex-end">
-                  <Button variant="default" size="xs" onClick={() => onOpen(row)}>
-                    Record
-                  </Button>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
-  );
-}
-
-function ClearedRows({ rows }: { rows: PaymentRow[] }) {
-  if (rows.length === 0) return <Text c={color.textSecondary}>No payment has been recorded yet.</Text>;
-
-  if (rows.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {rows.map((row, index) => (
-          <Stack key={row.studentId} gap={spacing.xs}>
-            {index > 0 && <Divider />}
+    <ListOrTable
+      rows={rows}
+      rowKey={(row) => row.studentId}
+      minWidth={720}
+      item={(row) => (
+        <Group justify="space-between" wrap="nowrap">
+          <Stack gap={spacing.xs}>
             <Text fw={fontWeight.semibold}>
               {row.studentNumber}, {row.fullName}
             </Text>
             <Text size="sm" c={color.textSecondary}>
               {row.section}
             </Text>
-            <Text size="sm" c={color.textSecondary}>
-              Paid {formatPeso(row.amountPaid)} of {formatPeso(row.amountDue ?? 0)}
-              {row.receiptNo ? `, receipt ${row.receiptNo}` : ''}
-              {row.clearedAt ? `, ${formatDate(row.clearedAt)}` : ''}
-            </Text>
           </Stack>
-        ))}
-      </Stack>
-    );
-  }
+          <Button variant="default" onClick={() => onOpen(row)}>
+            Record
+          </Button>
+        </Group>
+      )}
+      columns={[
+        { header: 'Student number', cell: (row) => row.studentNumber },
+        { header: 'Student', cell: (row) => row.fullName },
+        { header: 'Section', cell: (row) => row.section },
+        {
+          header: '',
+          cell: (row) => (
+            <Group justify="flex-end">
+              <Button variant="default" size="xs" onClick={() => onOpen(row)}>
+                Record
+              </Button>
+            </Group>
+          ),
+        },
+      ]}
+    />
+  );
+}
+
+function ClearedRows({ rows }: { rows: PaymentRow[] }) {
+  if (rows.length === 0) return <Text c={color.textSecondary}>No payment has been recorded yet.</Text>;
 
   return (
-    <Table.ScrollContainer minWidth={900}>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Student number</Table.Th>
-            <Table.Th>Student</Table.Th>
-            <Table.Th>Section</Table.Th>
-            <Table.Th>Amount due</Table.Th>
-            <Table.Th>Amount paid</Table.Th>
-            <Table.Th>Receipt</Table.Th>
-            <Table.Th>Cleared</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr key={row.studentId}>
-              <Table.Td>{row.studentNumber}</Table.Td>
-              <Table.Td>{row.fullName}</Table.Td>
-              <Table.Td>{row.section}</Table.Td>
-              <Table.Td>{formatPeso(row.amountDue ?? 0)}</Table.Td>
-              <Table.Td>{formatPeso(row.amountPaid)}</Table.Td>
-              <Table.Td>{row.receiptNo ?? ''}</Table.Td>
-              <Table.Td>{row.clearedAt ? formatDate(row.clearedAt) : ''}</Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <ListOrTable
+      rows={rows}
+      rowKey={(row) => row.studentId}
+      minWidth={900}
+      itemGap={spacing.xs}
+      item={(row) => (
+        <>
+          <Text fw={fontWeight.semibold}>
+            {row.studentNumber}, {row.fullName}
+          </Text>
+          <Text size="sm" c={color.textSecondary}>
+            {row.section}
+          </Text>
+          <Text size="sm" c={color.textSecondary}>
+            Paid {formatPeso(row.amountPaid)} of {formatPeso(row.amountDue ?? 0)}
+            {row.receiptNo ? `, receipt ${row.receiptNo}` : ''}
+            {row.clearedAt ? `, ${formatDate(row.clearedAt)}` : ''}
+          </Text>
+        </>
+      )}
+      columns={[
+        { header: 'Student number', cell: (row) => row.studentNumber },
+        { header: 'Student', cell: (row) => row.fullName },
+        { header: 'Section', cell: (row) => row.section },
+        { header: 'Amount due', cell: (row) => formatPeso(row.amountDue ?? 0) },
+        { header: 'Amount paid', cell: (row) => formatPeso(row.amountPaid) },
+        { header: 'Receipt', cell: (row) => row.receiptNo ?? '' },
+        { header: 'Cleared', cell: (row) => (row.clearedAt ? formatDate(row.clearedAt) : '') },
+      ]}
+    />
   );
 }
 
@@ -208,69 +168,47 @@ function ProgramRows({
 }) {
   if (programs.length === 0) return <Text c={color.textSecondary}>No program is set up yet.</Text>;
 
-  const note = (
-    <Text size="sm" c={color.textSecondary}>
-      A change applies to slips issued from now on. Slips already issued keep their own setting.
-    </Text>
-  );
-
-  if (programs.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {note}
-        {programs.map((program, index) => (
-          <Stack key={program.programId} gap={spacing.sm}>
-            {index > 0 && <Divider />}
-            <Group justify="space-between" wrap="nowrap">
-              <Stack gap={spacing.xs}>
-                <Text fw={fontWeight.semibold}>{program.code}</Text>
-                <Text size="sm" c={color.textSecondary}>
-                  {program.name}
-                </Text>
-              </Stack>
+  return (
+    <Stack gap={spacing.md}>
+      <Text size="sm" c={color.textSecondary}>
+        A change applies to slips issued from now on. Slips already issued keep their own setting.
+      </Text>
+      <ListOrTable
+        rows={programs}
+        rowKey={(program) => program.programId}
+        minWidth={720}
+        item={(program) => (
+          <Group justify="space-between" wrap="nowrap">
+            <Stack gap={spacing.xs}>
+              <Text fw={fontWeight.semibold}>{program.code}</Text>
+              <Text size="sm" c={color.textSecondary}>
+                {program.name}
+              </Text>
+            </Stack>
+            <Switch
+              label="Payment required"
+              checked={program.paymentRequired}
+              disabled={busy !== null}
+              onChange={(event) => onToggle(program, event.currentTarget.checked)}
+            />
+          </Group>
+        )}
+        columns={[
+          { header: 'Program', cell: (program) => program.code },
+          { header: 'Name', cell: (program) => program.name },
+          {
+            header: 'Payment required',
+            cell: (program) => (
               <Switch
-                label="Payment required"
+                aria-label={`Payment required for ${program.code}`}
                 checked={program.paymentRequired}
                 disabled={busy !== null}
                 onChange={(event) => onToggle(program, event.currentTarget.checked)}
               />
-            </Group>
-          </Stack>
-        ))}
-      </Stack>
-    );
-  }
-
-  return (
-    <Stack gap={spacing.md}>
-      {note}
-      <Table.ScrollContainer minWidth={720}>
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Program</Table.Th>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Payment required</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {programs.map((program) => (
-              <Table.Tr key={program.programId}>
-                <Table.Td>{program.code}</Table.Td>
-                <Table.Td>{program.name}</Table.Td>
-                <Table.Td>
-                  <Switch
-                    aria-label={`Payment required for ${program.code}`}
-                    checked={program.paymentRequired}
-                    disabled={busy !== null}
-                    onChange={(event) => onToggle(program, event.currentTarget.checked)}
-                  />
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </Table.ScrollContainer>
+            ),
+          },
+        ]}
+      />
     </Stack>
   );
 }

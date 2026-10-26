@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Modal, Pagination, Select, Stack, Table, Text } from '@mantine/core';
+import { ListOrTable } from '@/components/ListOrTable';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { ROLE_LABEL, isRole } from '@/lib/auth/roles';
@@ -22,8 +23,6 @@ import {
   type AuditAction,
   type AuditFilters,
 } from './schema';
-
-const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
 
 export type AuditRow = AuditEntry & { when: string }; // when: formatted on the server
 
@@ -85,65 +84,49 @@ export function AuditLogView({
 
       {rows.length === 0 ? (
         <Text c={color.textSecondary}>Nothing was logged for this view.</Text>
-      ) : rows.length < LIST_LIMIT ? (
-        <Stack gap={spacing.md}>
-          {rows.map((row, index) => (
-            <Stack key={row.id} gap={spacing.sm}>
-              {index > 0 && <Divider />}
-              <Group justify="space-between" wrap="nowrap">
-                <Stack gap={spacing.xs}>
-                  <Text fw={fontWeight.semibold}>
-                    {actionLabel(row.action)} in {tableLabel(row.table)}
-                  </Text>
-                  <Text size="sm" c={color.textSecondary}>
-                    {row.when}, {actorText(row)}
-                  </Text>
-                  {row.reason && (
-                    <Text size="sm" c={color.textSecondary}>
-                      {row.reason}
-                    </Text>
-                  )}
-                </Stack>
-                <Button variant="default" onClick={() => setOpen(row)}>
-                  Details
-                </Button>
-              </Group>
-            </Stack>
-          ))}
-        </Stack>
       ) : (
-        <Table.ScrollContainer minWidth={840}>
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>When</Table.Th>
-                <Table.Th>Who</Table.Th>
-                <Table.Th>Action</Table.Th>
-                <Table.Th>Table</Table.Th>
-                <Table.Th>Reason</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.map((row) => (
-                <Table.Tr key={row.id}>
-                  <Table.Td>{row.when}</Table.Td>
-                  <Table.Td>{actorText(row)}</Table.Td>
-                  <Table.Td>{actionLabel(row.action)}</Table.Td>
-                  <Table.Td>{tableLabel(row.table)}</Table.Td>
-                  <Table.Td>{row.reason ?? ''}</Table.Td>
-                  <Table.Td>
-                    <Group justify="flex-end">
-                      <Button variant="default" size="xs" onClick={() => setOpen(row)}>
-                        Details
-                      </Button>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListOrTable
+          rows={rows}
+          rowKey={(row) => row.id}
+          minWidth={840}
+          item={(row) => (
+            <Group justify="space-between" wrap="nowrap">
+              <Stack gap={spacing.xs}>
+                <Text fw={fontWeight.semibold}>
+                  {actionLabel(row.action)} in {tableLabel(row.table)}
+                </Text>
+                <Text size="sm" c={color.textSecondary}>
+                  {row.when}, {actorText(row)}
+                </Text>
+                {row.reason && (
+                  <Text size="sm" c={color.textSecondary}>
+                    {row.reason}
+                  </Text>
+                )}
+              </Stack>
+              <Button variant="default" onClick={() => setOpen(row)}>
+                Details
+              </Button>
+            </Group>
+          )}
+          columns={[
+            { header: 'When', cell: (row) => row.when },
+            { header: 'Who', cell: actorText },
+            { header: 'Action', cell: (row) => actionLabel(row.action) },
+            { header: 'Table', cell: (row) => tableLabel(row.table) },
+            { header: 'Reason', cell: (row) => row.reason ?? '' },
+            {
+              header: '',
+              cell: (row) => (
+                <Group justify="flex-end">
+                  <Button variant="default" size="xs" onClick={() => setOpen(row)}>
+                    Details
+                  </Button>
+                </Group>
+              ),
+            },
+          ]}
+        />
       )}
 
       {pages > 1 && (

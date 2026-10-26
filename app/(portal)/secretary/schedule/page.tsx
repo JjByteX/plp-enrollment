@@ -2,8 +2,9 @@ import { SchedulesBoard } from '@/features/section-scheduling/SchedulesBoard';
 import { loadBoard, isScheduleStatus } from '@/features/section-scheduling/queries';
 import { UUID } from '@/features/section-scheduling/schema';
 import { requireUser } from '@/lib/auth/session';
+import { pageTitle } from '@/lib/pageTitle';
 
-export const metadata = { title: 'Schedules | PLP Enrollment' };
+export const metadata = pageTitle('Schedules');
 
 // The College Secretary prepares sections and professor loading, the Dean signs off and can do the same work. The secretary layout already checks the role.
 export default async function SchedulesPage({

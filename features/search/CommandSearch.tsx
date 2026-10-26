@@ -12,7 +12,7 @@
 // applicants, accounts, sections, subjects and rooms by name or number
 // (./actions, under the person's own session so row level security decides
 // what they can see). Pages come first, records follow.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import Fuse from 'fuse.js';
 import { Box, Group, Kbd, Paper, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
@@ -22,6 +22,31 @@ import { color, fontWeight, layout, radius, shadow, spacing } from '@/styles/tok
 import { NAV_ICONS } from '@/components/NavIcons';
 import type { NavItem } from '@/lib/nav';
 import { searchRecords, type RecordHit } from './actions';
+
+// The floating panel under the search box: the results list and the "no
+// matches" message share the same absolute-positioned, bordered, shadowed
+// shell, so it lives here once instead of being repeated for each.
+function DropdownPanel({ padding, children }: { padding: string | number; children: ReactNode }) {
+  return (
+    <Paper
+      withBorder
+      radius={radius.default}
+      p={padding}
+      style={{
+        position: 'absolute',
+        top: '100%',
+        marginTop: spacing.xs,
+        left: 0,
+        right: 0,
+        zIndex: 200,
+        boxShadow: shadow.floating,
+        background: color.surfaceFloating,
+      }}
+    >
+      {children}
+    </Paper>
+  );
+}
 
 const MAX_RESULTS = 8;
 const MIN_RECORD_CHARS = 2;
@@ -143,21 +168,7 @@ export function CommandSearch({ items }: { items: NavItem[] }) {
       />
 
       {open && results.length > 0 && (
-        <Paper
-          withBorder
-          radius={radius.default}
-          p={spacing.xs}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            marginTop: spacing.xs,
-            left: 0,
-            right: 0,
-            zIndex: 200,
-            boxShadow: shadow.floating,
-            background: color.surfaceFloating,
-          }}
-        >
+        <DropdownPanel padding={spacing.xs}>
           <Stack gap={2}>
             {results.map((item, index) => {
               const Icon = NAV_ICONS[item.icon];
@@ -189,29 +200,15 @@ export function CommandSearch({ items }: { items: NavItem[] }) {
               );
             })}
           </Stack>
-        </Paper>
+        </DropdownPanel>
       )}
 
       {open && query.trim().length > 0 && results.length === 0 && (
-        <Paper
-          withBorder
-          radius={radius.default}
-          p={spacing.md}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            marginTop: spacing.xs,
-            left: 0,
-            right: 0,
-            zIndex: 200,
-            boxShadow: shadow.floating,
-            background: color.surfaceFloating,
-          }}
-        >
+        <DropdownPanel padding={spacing.md}>
           <Text size="sm" c={color.textSecondary}>
             No matches for &ldquo;{query}&rdquo;.
           </Text>
-        </Paper>
+        </DropdownPanel>
       )}
     </Box>
   );

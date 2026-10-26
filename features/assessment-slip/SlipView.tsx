@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { formatDate } from '@/lib/format';
+import { DetailField } from '@/components/DetailField';
 import { scheduleText, subjectName, totalUnits, type SlipData } from './schema';
 
 export function SlipView({ slip }: { slip: SlipData }) {
@@ -27,17 +28,11 @@ export function SlipView({ slip }: { slip: SlipData }) {
 
       <Group gap={spacing.xl} align="flex-start">
         <Stack gap={spacing.xs}>
-          <Text size="sm" c={color.textSecondary}>
-            Student
-          </Text>
-          <Text fw={fontWeight.semibold}>{slip.fullName}</Text>
+          <DetailField label="Student" value={slip.fullName} />
           <Text>{slip.studentNumber}</Text>
         </Stack>
         <Stack gap={spacing.xs}>
-          <Text size="sm" c={color.textSecondary}>
-            Program and section
-          </Text>
-          <Text fw={fontWeight.semibold}>{slip.programName}</Text>
+          <DetailField label="Program and section" value={slip.programName} />
           <Text>{slip.section}</Text>
         </Stack>
         <Stack gap={spacing.xs}>

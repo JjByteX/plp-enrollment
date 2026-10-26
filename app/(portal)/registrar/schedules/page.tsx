@@ -2,8 +2,9 @@ import { SchedulesBoard } from '@/features/section-scheduling/SchedulesBoard';
 import { loadBoard, isScheduleStatus } from '@/features/section-scheduling/queries';
 import { UUID } from '@/features/section-scheduling/schema';
 import { requireUser } from '@/lib/auth/session';
+import { pageTitle } from '@/lib/pageTitle';
 
-export const metadata = { title: 'Schedules | PLP Enrollment' };
+export const metadata = pageTitle('Schedules');
 
 // The Registrar approves or rejects schedules the Dean signed (Admin too, through the registrar area). The registrar layout already checks the role.
 export default async function SchedulesPage({

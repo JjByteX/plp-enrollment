@@ -6,10 +6,11 @@
 // changes go through the feature actions.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Stack, Table, Tabs, Text } from '@mantine/core';
+import { Button, Divider, Group, Stack, Tabs, Text } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
+import { ListOrTable } from '@/components/ListOrTable';
 import { formatDate } from '@/lib/format';
 import { MassReschedulePanel } from '@/features/reschedule-mass/MassReschedulePanel';
 import type { BookedVisit } from '@/features/reschedule-mass/queries';
@@ -18,8 +19,6 @@ import type { RescheduleActionResult } from './actions';
 import { DecideRescheduleModal } from './DecideRescheduleModal';
 import type { PendingRequest } from './queries';
 import { formatSlotDate, windowLabel } from './schema';
-
-const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
 
 export type ReschedulesTab = 'requests' | 'mass';
 
@@ -87,72 +86,53 @@ function visitText(request: PendingRequest): string {
 function RequestRows({ requests, onOpen }: { requests: PendingRequest[]; onOpen: (request: PendingRequest) => void }) {
   if (requests.length === 0) return <Text c={color.textSecondary}>No request is waiting.</Text>;
 
-  if (requests.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {requests.map((request, index) => (
-          <Stack key={request.requestId} gap={spacing.sm}>
-            {index > 0 && <Divider />}
-            <Group justify="space-between" wrap="nowrap" align="flex-start">
-              <Stack gap={spacing.xs}>
-                <Text fw={fontWeight.semibold}>
-                  {request.fullName} ({request.applicantRef})
-                </Text>
-                <Text size="sm" c={color.textSecondary}>
-                  {request.programCode}, {visitText(request)}
-                </Text>
-                <Text size="sm" lineClamp={2}>
-                  {request.reason}
-                </Text>
-              </Stack>
-              <Button variant="default" onClick={() => onOpen(request)}>
+  return (
+    <ListOrTable
+      rows={requests}
+      rowKey={(request) => request.requestId}
+      minWidth={900}
+      item={(request) => (
+        <Group justify="space-between" wrap="nowrap" align="flex-start">
+          <Stack gap={spacing.xs}>
+            <Text fw={fontWeight.semibold}>
+              {request.fullName} ({request.applicantRef})
+            </Text>
+            <Text size="sm" c={color.textSecondary}>
+              {request.programCode}, {visitText(request)}
+            </Text>
+            <Text size="sm" lineClamp={2}>
+              {request.reason}
+            </Text>
+          </Stack>
+          <Button variant="default" onClick={() => onOpen(request)}>
+            Review
+          </Button>
+        </Group>
+      )}
+      columns={[
+        { header: 'Applicant', cell: (request) => `${request.fullName} (${request.applicantRef})` },
+        { header: 'Program', cell: (request) => request.programCode },
+        { header: 'Visit', cell: visitText },
+        {
+          header: 'Reason',
+          cell: (request) => (
+            <Text size="sm" lineClamp={2}>
+              {request.reason}
+            </Text>
+          ),
+        },
+        { header: 'Sent', cell: (request) => formatDate(request.requestedAt) },
+        {
+          header: '',
+          cell: (request) => (
+            <Group justify="flex-end">
+              <Button variant="default" size="xs" onClick={() => onOpen(request)}>
                 Review
               </Button>
             </Group>
-          </Stack>
-        ))}
-      </Stack>
-    );
-  }
-
-  return (
-    <Table.ScrollContainer minWidth={900}>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Applicant</Table.Th>
-            <Table.Th>Program</Table.Th>
-            <Table.Th>Visit</Table.Th>
-            <Table.Th>Reason</Table.Th>
-            <Table.Th>Sent</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {requests.map((request) => (
-            <Table.Tr key={request.requestId}>
-              <Table.Td>
-                {request.fullName} ({request.applicantRef})
-              </Table.Td>
-              <Table.Td>{request.programCode}</Table.Td>
-              <Table.Td>{visitText(request)}</Table.Td>
-              <Table.Td>
-                <Text size="sm" lineClamp={2}>
-                  {request.reason}
-                </Text>
-              </Table.Td>
-              <Table.Td>{formatDate(request.requestedAt)}</Table.Td>
-              <Table.Td>
-                <Group justify="flex-end">
-                  <Button variant="default" size="xs" onClick={() => onOpen(request)}>
-                    Review
-                  </Button>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+          ),
+        },
+      ]}
+    />
   );
 }
