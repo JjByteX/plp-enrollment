@@ -4,7 +4,6 @@
 // signed-in person's session, so row level security applies: the Registrar
 // and Admin read every student, a student reads only their own slip.
 import { createClient } from '@/lib/supabase/server';
-import { sectionLabel } from '@/features/section-scheduling/schema';
 import type { SlipData } from './schema';
 
 export type ReadyStudent = {
@@ -15,16 +14,6 @@ export type ReadyStudent = {
   section: string;
 };
 
-type RawStudent = {
-  id: string;
-  student_number: string;
-  applicants: { programs: { code: string } | null; users: { full_name: string } | null } | null;
-  student_sections: unknown;
-  assessment_slips: unknown;
-};
-
-type RawPlacement = { sections: { name: string; year_level: number; schedule_status: string } | null };
-
 // PostgREST returns an array for one to many and an object (or null) for one
 // to one, so accept both.
 export function first<T>(value: unknown): T | null {
@@ -32,32 +21,33 @@ export function first<T>(value: unknown): T | null {
   return (value as T | null) ?? null;
 }
 
+type RawReady = {
+  student_id: string;
+  student_number: string;
+  full_name: string;
+  program_code: string;
+  section: string;
+};
+
+// The rows of slip_ready_students / cor_ready_students (step 18): the same
+// definition "Issue all" uses, so a list and its button never disagree.
+export function toReadyStudents(data: unknown): ReadyStudent[] {
+  return ((data ?? []) as RawReady[]).map((row) => ({
+    studentId: row.student_id,
+    studentNumber: row.student_number,
+    fullName: row.full_name,
+    programCode: row.program_code,
+    section: row.section,
+  }));
+}
+
 // Students placed in a section whose schedule is approved and who have no slip
-// yet, lowest student number first (the order "Issue all" uses).
+// for their current term yet, lowest student number first (the order "Issue
+// all" uses).
 export async function listReadyStudents(): Promise<ReadyStudent[]> {
   const supabase = createClient();
-  const { data } = await supabase
-    .from('students')
-    .select(
-      'id, student_number, applicants(programs(code), users(full_name)), ' +
-        'student_sections(sections(name, year_level, schedule_status)), assessment_slips(id)'
-    )
-    .order('student_number');
-
-  return ((data ?? []) as unknown as RawStudent[]).flatMap((row) => {
-    const section = first<RawPlacement>(row.student_sections)?.sections ?? null;
-    if (!section || section.schedule_status !== 'approved' || first(row.assessment_slips)) return [];
-    const code = row.applicants?.programs?.code ?? '';
-    return [
-      {
-        studentId: row.id,
-        studentNumber: row.student_number,
-        fullName: row.applicants?.users?.full_name ?? '',
-        programCode: code,
-        section: sectionLabel(code, section.year_level, section.name),
-      },
-    ];
-  });
+  const { data } = await supabase.rpc('slip_ready_students');
+  return toReadyStudents(data);
 }
 
 // The signed-in student's own id (row level security shows a student only

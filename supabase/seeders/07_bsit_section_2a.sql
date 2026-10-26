@@ -3,12 +3,13 @@
 -- Section BSIT 2A (Year 2, 1st semester) with the weekly schedule from the
 -- sample COR. Run after 02 (faculty), 03 (rooms) and 05 (subjects).
 -- Days: 1 Monday ... 7 Sunday (T = 2, W = 3, TH = 4, F = 5).
--- The section stays in 'draft' (see 06_bsit_section_1a.sql). Safe to re-run.
+-- The section stays in 'draft' (see 06_bsit_section_1a.sql) and belongs to the
+-- current term. Safe to re-run.
 -- ============================================================
-INSERT INTO sections (program_id, name, year_level, capacity)
-SELECT p.id, '2A', 2, 40
-FROM programs p WHERE p.code = 'BSIT'
-ON CONFLICT (program_id, year_level, name) DO NOTHING;
+INSERT INTO sections (program_id, name, year_level, capacity, school_year, semester)
+SELECT p.id, '2A', 2, 40, t.school_year, t.semester
+FROM programs p CROSS JOIN enrollment_term t WHERE p.code = 'BSIT'
+ON CONFLICT (program_id, year_level, name, school_year, semester) DO NOTHING;
 
 UPDATE section_subjects ss
    SET professor_id = (SELECT u.id FROM users u WHERE u.email = v.prof_email),
@@ -34,6 +35,7 @@ UPDATE section_subjects ss
   JOIN subjects sub ON sub.code = v.code
   JOIN programs p   ON p.id = sub.program_id AND p.code = 'BSIT'
   JOIN sections sec ON sec.program_id = p.id AND sec.year_level = 2 AND sec.name = '2A'
+  JOIN enrollment_term t ON t.school_year = sec.school_year AND t.semester = sec.semester
  WHERE ss.section_id = sec.id
    AND ss.subject_id = sub.id
    AND ss.meeting = v.meeting

@@ -1,6 +1,7 @@
 import { ContentAdmin } from '@/features/content/ContentAdmin';
 import { getTerm, listColleges, listRooms, listSubjects } from '@/features/content/queries';
 import { UUID, parseTab } from '@/features/content/schema';
+import { getScale } from '@/features/grading/queries';
 import { listPrograms } from '@/features/visit-scheduling/queries';
 
 export const metadata = { title: 'Content | PLP Enrollment' };
@@ -18,11 +19,12 @@ export default async function ContentPage({
   const chosen = searchParams.program && UUID.test(searchParams.program) ? searchParams.program : null;
   const programId = programs.find((program) => program.id === chosen)?.id ?? programs[0]?.id ?? null;
 
-  const [subjects, rooms, colleges, term] = await Promise.all([
+  const [subjects, rooms, colleges, term, scale] = await Promise.all([
     tab === 'subjects' && programId ? listSubjects(programId) : Promise.resolve([]),
     tab === 'rooms' ? listRooms() : Promise.resolve([]),
     tab === 'rooms' ? listColleges() : Promise.resolve([]),
     tab === 'term' ? getTerm() : Promise.resolve(null),
+    tab === 'grading' ? getScale() : Promise.resolve({ incWindowDays: 14, bands: [] }),
   ]);
 
   return (
@@ -34,6 +36,7 @@ export default async function ContentPage({
       rooms={rooms}
       colleges={colleges}
       term={term}
+      scale={scale}
     />
   );
 }

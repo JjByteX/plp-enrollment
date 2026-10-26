@@ -23,6 +23,14 @@
 -- Also checks step 16 in 20261025180000_schedule_changes.sql: the slip and COR keep their own saved
 -- schedule, amend_schedule (roles, college, reason, draft, clashes, notifications, audit), the lock once
 -- a COR exists, my_schedule_changed and the function grants.
+-- Also checks step 18 in 20261026010000_terms_foundation.sql: the term on subjects, sections and
+-- enrollments, a section only once the term is set, one slip, payment and COR per student per term,
+-- and the placement and move rules across terms. The term is set at the top of the fixtures because a
+-- section needs it. The one earlier expectation that changed: a COR carries the term of the student's
+-- enrollment, not the term current on the day it is issued.
+-- Also checks step 19 in 20261026020000_grading.sql: the grading scale (overlap refused, one outcome per
+-- grade), grade entry and the draft, submitted, approved sheet, the Dean's approval, the INC lapse, and a
+-- grade change through the Professor, the Dean and the Registrar.
 -- Blocked actions print 'ok   blocked'. Any 'FAIL' line is a broken rule.
 \set ON_ERROR_STOP on
 SET search_path = public, extensions;
@@ -70,6 +78,9 @@ INSERT INTO students (id,applicant_id,student_number,documents_received_by) VALU
 SELECT 'number assigned', student_number, (SELECT role FROM users WHERE id=md5('ap')::uuid) AS role_now FROM students;
 SELECT expect_fail('edit student number', $$UPDATE students SET student_number='1'$$);
 
+-- the term (step 18): a section takes the current term, so Admin sets it before any section exists
+SELECT act('ad'); INSERT INTO enrollment_term (school_year, semester) VALUES ('2026-2027','1st');
+
 -- schedule chain
 SELECT act('sc');
 INSERT INTO subjects (id,program_id,code,title,units) VALUES (md5('SUB')::uuid,'00000000-0000-0000-0000-0000000000a1','ED101','Intro',3);
@@ -89,8 +100,7 @@ SELECT 'section approved', schedule_status, dean_signed_by IS NOT NULL AS dean_s
 -- ST1 was promoted before section A existed; creating the section placed it automatically (step 8)
 SELECT 'ST1 placed by the new section', (SELECT section_id = md5('SEC')::uuid FROM student_sections WHERE student_id = md5('ST1')::uuid) AS in_sec;
 
--- slip, payment, COR (toggle on). A COR needs the term (step 11), so Admin sets it first.
-SELECT act('ad'); INSERT INTO enrollment_term (school_year, semester) VALUES ('2026-2027','1st');
+-- slip, payment, COR (toggle on). The term was set above (steps 11 and 18).
 SELECT act('fn'); UPDATE program_payment_settings SET payment_required = true;
 SELECT act('rg');
 SELECT expect_fail('COR before slip', $$INSERT INTO cors (student_id,issued_by) VALUES (md5('ST1')::uuid, md5('rg')::uuid)$$);
@@ -474,7 +484,7 @@ SELECT expect_eq('new section placed 2 of 3 waiting (capacity 2)',
 SELECT expect_eq('placed students were told',
   (SELECT count(*)::text FROM notifications WHERE kind = 'section_placed' AND user_id IN (md5('e1')::uuid,md5('e2')::uuid,md5('e3')::uuid)), '2');
 SELECT expect_eq('placement notification names the section',
-  (SELECT (min(message) LIKE 'You are placed in BSY Year 1 - A.%')::text FROM notifications WHERE kind = 'section_placed' AND user_id IN (md5('e1')::uuid,md5('e2')::uuid,md5('e3')::uuid)), 'true');
+  (SELECT (min(message) LIKE 'You are placed in BSY 1A.%')::text FROM notifications WHERE kind = 'section_placed' AND user_id IN (md5('e1')::uuid,md5('e2')::uuid,md5('e3')::uuid)), 'true');
 INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SYB')::uuid,'00000000-0000-0000-0000-0000000000a3','B',1,1);
 SELECT expect_eq('second section took the last waiting student',
   (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SYB')::uuid), '1');
@@ -553,7 +563,7 @@ SELECT expect_msg('dean cannot approve', $$UPDATE sections SET schedule_status =
 SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('SYA')::uuid;
 SELECT expect_eq('approved with both stamps', (SELECT schedule_status||'/'||(dean_signed_by IS NOT NULL)::text||'/'||(approved_by = md5('rg')::uuid)::text FROM sections WHERE id = md5('SYA')::uuid), 'approved/true/true');
 SELECT expect_eq('approval told every placed student',
-  (SELECT count(*)::text FROM notifications WHERE kind = 'schedule_approved' AND message LIKE 'The schedule for BSY Year 1 - A is approved.%'),
+  (SELECT count(*)::text FROM notifications WHERE kind = 'schedule_approved' AND message LIKE 'The schedule for BSY 1A is approved.%'),
   (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SYA')::uuid));
 SELECT expect_msg('reject an approved schedule', $$SELECT reject_schedule(md5('SYA')::uuid, 'too late')$$, 'Only a schedule waiting');
 SELECT expect_msg('registrar edits capacity', $$UPDATE sections SET capacity = 3 WHERE id = md5('SYA')::uuid$$, 'cannot edit section details');
@@ -658,7 +668,7 @@ SELECT expect_eq('issued slips are audited with the registrar',
 SELECT expect_eq('registrar reads a slip: number, section and 3 subjects',
   (SELECT (s->>'studentNumber' IS NOT NULL)::text||'/'||(s->>'section')||'/'||jsonb_array_length(s->'subjects')::text
      FROM (SELECT assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid)) s) t),
-  'true/BSY Year 1 - A/3');
+  'true/BSY 1A/3');
 SELECT expect_eq('slip subjects carry professor, room and time',
   (SELECT (sub->>'professor' = 'pf2' AND sub->>'room' = 'Room Y1' AND sub->>'start' IS NOT NULL)::text
      FROM (SELECT jsonb_array_elements(assessment_slip((SELECT id FROM students WHERE applicant_id = md5('Ae5')::uuid))->'subjects') sub LIMIT 1) t), 'true');
@@ -869,13 +879,15 @@ SELECT expect_eq('nobody ready is left without a COR',
   (SELECT count(*)::text FROM assessment_slips sl WHERE NOT EXISTS (SELECT 1 FROM cors c WHERE c.student_id = sl.student_id)
      AND (NOT sl.payment_required OR EXISTS (SELECT 1 FROM payments p WHERE p.student_id = sl.student_id AND p.status = 'cleared'))), '0');
 SELECT expect_eq('issue all again does nothing', (SELECT issued::text FROM issue_all_ready_cors()), '0');
-SELECT expect_eq('v2 got the new term', (SELECT semester FROM cors WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av2')::uuid)), '2nd');
+-- Changed in step 18: a COR carries the term of the enrollment it belongs to. v2 enrolled in the 1st
+-- semester, so the COR says 1st even though the term is now the 2nd. It used to say 2nd.
+SELECT expect_eq('v2 COR carries the term of v2 enrollment', (SELECT semester FROM cors WHERE student_id = (SELECT id FROM students WHERE applicant_id = md5('Av2')::uuid)), '1st');
 
 -- what the COR shows, and who may read it
 SELECT expect_eq('registrar reads a COR: term, section, 1 subject, payment shown',
   (SELECT (c->>'schoolYear')||'/'||(c->>'semester')||'/'||(c->>'section')||'/'||jsonb_array_length(c->'subjects')::text||'/'||(c->>'amountPaid')||'/'||(c->>'receiptNo')||'/'||(c->>'collegeName')
      FROM (SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)) c) t),
-  '2026-2027/1st/BSV Year 1 - A/1/1500.50/OR-1/College of Ed');
+  '2026-2027/1st/BSV 1A/1/1500.50/OR-1/College of Ed');
 SELECT expect_eq('COR names the issuer and the student type',
   (SELECT (c->>'issuedByName')||'/'||(c->>'issuedByRole')||'/'||(c->>'admissionType')||'/'||(c->>'yearLevel')
      FROM (SELECT certificate_of_registration((SELECT id FROM students WHERE applicant_id = md5('Av1')::uuid)) c) t), 'rg/registrar/new/1');
@@ -1388,6 +1400,192 @@ RESET ROLE;
 \else
 SELECT 'skipped: no authenticated role, step 17 grant checks not run';
 \endif
+
+-- ============================================================
+-- terms foundation (step 18), 20261026010000_terms_foundation.sql.
+-- Own program BST18. One student gets a slip, a payment and a COR in the 1st
+-- semester, then the same three in the 2nd semester, in a section that has the same
+-- name as the first one. The current term is the 2nd semester again at the end.
+-- ============================================================
+SELECT act('ad');
+UPDATE enrollment_term SET school_year = '2026-2027', semester = '1st';
+INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000f8','BST18','Test Program T18','00000000-0000-0000-0000-0000000000c1');
+UPDATE program_payment_settings SET payment_required = true WHERE program_id = '00000000-0000-0000-0000-0000000000f8';
+INSERT INTO auth.users (id,email) VALUES (md5('pf18')::uuid,'pf18@x.ph');
+INSERT INTO users (id,auth_id,full_name,email,role,college_id)
+  VALUES (md5('pf18')::uuid, md5('pf18')::uuid,'pf18','pf18@x.ph','professor',NULL);
+INSERT INTO rooms (id,name,college_id) VALUES (md5('RM18')::uuid,'Room 18',NULL);
+INSERT INTO subjects (id,program_id,code,title,units,year_level,semester) VALUES
+  (md5('T181')::uuid,'00000000-0000-0000-0000-0000000000f8','T181','T one',3,1,'1st'),
+  (md5('T182')::uuid,'00000000-0000-0000-0000-0000000000f8','T182','T two',3,1,'2nd');
+INSERT INTO subjects (id,program_id,code,title,units,year_level) VALUES
+  (md5('T183')::uuid,'00000000-0000-0000-0000-0000000000f8','T183','T three',3,1);
+SELECT expect_eq('a subject added without a semester takes the semester of the term', (SELECT semester FROM subjects WHERE id = md5('T183')::uuid), '1st');
+SELECT expect_fail('a summer-only subject cannot also be flagged for summer', $$INSERT INTO subjects (program_id,code,title,units,year_level,semester,offered_in_summer) VALUES ('00000000-0000-0000-0000-0000000000f8','T184','T four',3,1,'summer',true)$$);
+SELECT mk_applicant('t1','00000000-0000-0000-0000-0000000000f8', mnl_today());
+
+-- the 1st semester section
+SELECT act('sc');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('ST18A')::uuid,'00000000-0000-0000-0000-0000000000f8','A',1,10);
+SELECT expect_eq('a new section takes the current term', (SELECT school_year||'/'||semester FROM sections WHERE id = md5('ST18A')::uuid), '2026-2027/1st');
+SELECT expect_eq('the section holds only the subjects of its semester',
+  (SELECT string_agg(sub.code, ',' ORDER BY sub.code) FROM section_subjects ss JOIN subjects sub ON sub.id = ss.subject_id WHERE ss.section_id = md5('ST18A')::uuid), 'T181,T183');
+UPDATE section_subjects SET professor_id=md5('pf18')::uuid, room_id=md5('RM18')::uuid, day_of_week=1, start_time='08:00', end_time='09:00' WHERE section_id=md5('ST18A')::uuid AND subject_id=md5('T181')::uuid;
+UPDATE section_subjects SET professor_id=md5('pf18')::uuid, room_id=md5('RM18')::uuid, day_of_week=1, start_time='09:00', end_time='10:00' WHERE section_id=md5('ST18A')::uuid AND subject_id=md5('T183')::uuid;
+UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('ST18A')::uuid;
+SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('ST18A')::uuid;
+SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('ST18A')::uuid;
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('At1')::uuid,'x',md5('rg')::uuid);
+SELECT id AS t18_student FROM students WHERE applicant_id = md5('At1')::uuid \gset
+SELECT expect_eq('the new student is enrolled in the 1st semester section',
+  (SELECT section_id::text||'/'||school_year||'/'||semester FROM student_sections WHERE student_id = :'t18_student'),
+  md5('ST18A')::uuid::text||'/2026-2027/1st');
+SELECT issue_assessment_slip(:'t18_student');
+SELECT act('fn'); SELECT record_payment(:'t18_student', 1000, 1000, 'T18-1');
+SELECT act('rg'); SELECT issue_cor(:'t18_student');
+SELECT expect_eq('1st semester: one slip, one payment, one COR, each stamped with the term',
+  (SELECT (SELECT count(*) FROM assessment_slips WHERE student_id = :'t18_student' AND school_year = '2026-2027' AND semester = '1st')::text||'/'||
+          (SELECT count(*) FROM payments WHERE student_id = :'t18_student' AND school_year = '2026-2027' AND semester = '1st')::text||'/'||
+          (SELECT count(*) FROM cors WHERE student_id = :'t18_student' AND school_year = '2026-2027' AND semester = '1st')::text), '1/1/1');
+
+-- the 2nd semester: the same section name is allowed, and a student already enrolled is not placed again
+SELECT act('ad'); UPDATE enrollment_term SET semester = '2nd';
+SELECT act('sc');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('ST18B')::uuid,'00000000-0000-0000-0000-0000000000f8','A',1,10);
+SELECT expect_eq('the same section name exists in two terms',
+  (SELECT count(*)::text FROM sections WHERE program_id = '00000000-0000-0000-0000-0000000000f8' AND year_level = 1 AND name = 'A'), '2');
+SELECT expect_eq('the 2nd semester section holds only 2nd semester subjects',
+  (SELECT string_agg(sub.code, ',' ORDER BY sub.code) FROM section_subjects ss JOIN subjects sub ON sub.id = ss.subject_id WHERE ss.section_id = md5('ST18B')::uuid), 'T182');
+SELECT expect_eq('a student who is enrolled is not placed again by a new section',
+  (SELECT count(*)::text FROM student_sections WHERE student_id = :'t18_student'), '1');
+UPDATE section_subjects SET professor_id=md5('pf18')::uuid, room_id=md5('RM18')::uuid, day_of_week=2, start_time='08:00', end_time='09:00' WHERE section_id=md5('ST18B')::uuid;
+UPDATE sections SET schedule_status = 'pending_dean' WHERE id = md5('ST18B')::uuid;
+SELECT act('dn'); UPDATE sections SET schedule_status = 'dean_signed' WHERE id = md5('ST18B')::uuid;
+SELECT act('rg'); UPDATE sections SET schedule_status = 'approved' WHERE id = md5('ST18B')::uuid;
+
+-- a second enrollment for the same student (promotion is step 21, so it is inserted directly)
+INSERT INTO student_sections (student_id, section_id) VALUES (:'t18_student', md5('ST18B')::uuid);
+SELECT expect_eq('the second enrollment takes the term of its section',
+  (SELECT school_year||'/'||semester FROM student_sections WHERE student_id = :'t18_student' AND section_id = md5('ST18B')::uuid), '2026-2027/2nd');
+SELECT expect_eq('the student holds two enrollments', (SELECT count(*)::text FROM student_sections WHERE student_id = :'t18_student'), '2');
+SELECT act('sc');
+SELECT expect_msg('move into a section of an earlier term',
+  format($$SELECT move_student_section(%L, %L)$$, :'t18_student', md5('ST18A')::uuid), 'current term');
+SELECT act('rg');
+SELECT expect_eq('the student is ready for a slip in the new term', (SELECT count(*)::text FROM slip_ready_students() WHERE student_id = :'t18_student'), '1');
+SELECT issue_assessment_slip(:'t18_student');
+SELECT expect_msg('slip issued twice in one term', format($$SELECT issue_assessment_slip(%L)$$, :'t18_student'), 'already issued');
+SELECT act('fn'); SELECT record_payment(:'t18_student', 2000, 2000, 'T18-2');
+SELECT act('rg');
+SELECT expect_eq('the student is ready for a COR in the new term', (SELECT count(*)::text FROM cor_ready_students() WHERE student_id = :'t18_student'), '1');
+SELECT issue_cor(:'t18_student');
+SELECT expect_msg('COR issued twice in one term', format($$SELECT issue_cor(%L)$$, :'t18_student'), 'already issued');
+SELECT expect_eq('one student, two terms: two slips, two payments, two CORs',
+  (SELECT (SELECT count(*) FROM assessment_slips WHERE student_id = :'t18_student')::text||'/'||
+          (SELECT count(*) FROM payments WHERE student_id = :'t18_student')::text||'/'||
+          (SELECT count(*) FROM cors WHERE student_id = :'t18_student')::text), '2/2/2');
+SELECT expect_eq('the payment of each term kept its own amounts',
+  (SELECT string_agg(semester||':'||amount_paid::text, ',' ORDER BY semester) FROM payments WHERE student_id = :'t18_student'), '1st:1000.00,2nd:2000.00');
+SELECT expect_eq('the 1st semester slip kept its own schedule',
+  (SELECT schedule->0->>'code' FROM assessment_slips WHERE student_id = :'t18_student' AND semester = '1st'), 'T181');
+SELECT expect_eq('the slip read for the student is the 2nd semester one', (SELECT assessment_slip(:'t18_student')->'subjects'->0->>'code'), 'T182');
+SELECT expect_eq('the COR read for the student is the 2nd semester one',
+  (SELECT (certificate_of_registration(:'t18_student')->>'semester')||'/'||(certificate_of_registration(:'t18_student')->>'amountPaid')), '2nd/2000.00');
+SELECT expect_eq('nobody is left ready after both CORs', (SELECT count(*)::text FROM cor_ready_students() WHERE student_id = :'t18_student'), '0');
+
+-- a section needs the term, and its term never changes
+SELECT act('ad'); DELETE FROM enrollment_term;
+SELECT act('sc');
+SELECT expect_msg('a section before the term is set',
+  $$INSERT INTO sections (program_id,name,year_level,capacity) VALUES ('00000000-0000-0000-0000-0000000000f8','Z',1,5)$$, 'not set');
+SELECT act('ad'); INSERT INTO enrollment_term (school_year, semester) VALUES ('2026-2027','2nd');
+SELECT act('sc');
+SELECT expect_msg('change the term of a section',
+  format($$UPDATE sections SET semester = '1st' WHERE id = %L$$, md5('ST18B')::uuid), 'cannot be changed');
+
+-- a section made without a name takes the next letter
+INSERT INTO sections (program_id,year_level,capacity) VALUES ('00000000-0000-0000-0000-0000000000f8',3,5);
+INSERT INTO sections (program_id,year_level,capacity) VALUES ('00000000-0000-0000-0000-0000000000f8',3,5);
+SELECT expect_eq('sections made without a name are A then B',
+  (SELECT string_agg(name, ',' ORDER BY name) FROM sections WHERE program_id = '00000000-0000-0000-0000-0000000000f8' AND year_level = 3), 'A,B');
+
+-- step 19: the grading scale, grade sheets, approval chain, changes and the INC lapse
+-- (ST18B holds the student's 2nd semester subject T182, taught by pf18; the Dean's college matches)
+SELECT act('pf18');
+SELECT expect_msg('grades before the scale is set',
+  format($$SELECT save_grades(%L, %L, '[]'::jsonb)$$, md5('ST18B')::uuid, md5('T182')::uuid), 'scale is not set');
+SELECT act('ad');
+SELECT expect_msg('overlapping bands are refused',
+  $$SELECT save_grade_scale('[{"label":"Pass","outcome":"passed","from":1,"to":3},{"label":"Fail","outcome":"failed","from":3,"to":5}]'::jsonb, 14)$$, 'overlap');
+SELECT act('dn');
+SELECT expect_msg('the Dean cannot set the scale', $$SELECT save_grade_scale('[]'::jsonb, 14)$$, 'Only Admin');
+SELECT act('ad');
+SELECT save_grade_scale('[{"label":"Pass","outcome":"passed","from":1,"to":3},{"label":"Fail","outcome":"failed","from":5,"to":5},{"label":"INC","outcome":"incomplete"}]'::jsonb, 14);
+SELECT expect_eq('2.5 resolves to passed', (SELECT r_outcome FROM resolve_grade('2.5')), 'passed');
+SELECT expect_eq('5 resolves to failed', (SELECT r_outcome FROM resolve_grade('5')), 'failed');
+SELECT expect_eq('inc resolves to incomplete', (SELECT r_outcome FROM resolve_grade('inc')), 'incomplete');
+SELECT expect_eq('4 is not on the scale', (SELECT count(*)::text FROM resolve_grade('4')), '0');
+
+SELECT act('pf');
+SELECT expect_msg('another professor cannot enter grades',
+  format($$SELECT save_grades(%L, %L, '[]'::jsonb)$$, md5('ST18B')::uuid, md5('T182')::uuid), 'Only the Professor of this subject');
+SELECT act('pf18');
+SELECT expect_msg('a grade off the scale is refused',
+  format($$SELECT save_grades(%L, %L, (SELECT jsonb_agg(jsonb_build_object('studentId', ss.student_id, 'grade', '4')) FROM student_sections ss WHERE ss.section_id = %L))$$,
+    md5('ST18B')::uuid, md5('T182')::uuid, md5('ST18B')::uuid), 'not on the grading scale');
+SELECT save_grades(md5('ST18B')::uuid, md5('T182')::uuid,
+  (SELECT jsonb_agg(jsonb_build_object('studentId', ss.student_id, 'grade', CASE WHEN ss.student_id = :'t18_student'::uuid THEN 'INC' ELSE '2.0' END))
+     FROM student_sections ss WHERE ss.section_id = md5('ST18B')::uuid));
+SELECT expect_eq('INC is saved as incomplete',
+  (SELECT outcome FROM grades WHERE student_id = :'t18_student' AND subject_id = md5('T182')::uuid), 'incomplete');
+SELECT expect_fail('a grade edited by hand', $$UPDATE grades SET grade_text = '1'$$);
+SELECT act('dn');
+SELECT expect_msg('the Dean cannot approve a draft',
+  format($$SELECT approve_grades(%L, %L)$$, md5('ST18B')::uuid, md5('T182')::uuid), 'not waiting for approval');
+SELECT act('pf18');
+SELECT submit_grades(md5('ST18B')::uuid, md5('T182')::uuid);
+SELECT expect_msg('submitted grades cannot be edited',
+  format($$SELECT save_grades(%L, %L, '[]'::jsonb)$$, md5('ST18B')::uuid, md5('T182')::uuid), 'submitted');
+SELECT act('dn');
+SELECT approve_grades(md5('ST18B')::uuid, md5('T182')::uuid);
+SELECT act('pf18');
+SELECT expect_msg('approved grades cannot be edited',
+  format($$SELECT save_grades(%L, %L, '[]'::jsonb)$$, md5('ST18B')::uuid, md5('T182')::uuid), 'approved');
+
+-- an INC past the window lapses to a failed 5.0
+SELECT set_config('app.grade_write', 'on', false);
+UPDATE grades SET outcome_since = now() - interval '20 days' WHERE student_id = :'t18_student' AND subject_id = md5('T182')::uuid;
+SELECT set_config('app.grade_write', 'off', false);
+SELECT act('pf18');
+SELECT expect_msg('a professor cannot run the lapse', $$SELECT lapse_incomplete_grades()$$, 'cannot run');
+SELECT act('rg');
+SELECT lapse_incomplete_grades();
+SELECT expect_eq('the INC lapsed to a failed 5.0',
+  (SELECT grade_text||'/'||outcome||'/'||lapsed::text FROM grades WHERE student_id = :'t18_student' AND subject_id = md5('T182')::uuid), '5.0/failed/true');
+
+-- a grade change: the Professor proposes, the Dean signs, the Registrar approves
+SELECT id AS t19_grade FROM grades WHERE student_id = :'t18_student' AND subject_id = md5('T182')::uuid \gset
+SELECT act('pf18');
+SELECT expect_msg('a change needs a reason', format($$SELECT propose_grade_change(%L, '2.5', '')$$, :'t19_grade'), 'reason');
+SELECT propose_grade_change(:'t19_grade', '2.5', 'Recorded the wrong grade') AS t19_change \gset
+SELECT expect_msg('only one change waits per grade', format($$SELECT propose_grade_change(%L, '2.0', 'Again')$$, :'t19_grade'), 'already waiting');
+SELECT act('rg');
+SELECT expect_msg('the Registrar cannot approve before the Dean signs', format($$SELECT approve_grade_change(%L)$$, :'t19_change'), 'not waiting for the Registrar');
+SELECT act('dn');
+SELECT sign_grade_change(:'t19_change');
+SELECT expect_eq('the grade stays until the Registrar approves',
+  (SELECT grade_text FROM grades WHERE id = :'t19_grade'), '5.0');
+SELECT act('rg');
+SELECT approve_grade_change(:'t19_change');
+SELECT expect_eq('the approved change is applied',
+  (SELECT grade_text||'/'||outcome||'/'||lapsed::text FROM grades WHERE id = :'t19_grade'), '2.5/passed/false');
+
+-- a withdrawal releases the current enrollment only; the earlier term stays as history
+SELECT act('rg');
+SELECT withdraw_applicant(md5('At1')::uuid, 'Step 18 check');
+SELECT expect_eq('only the current enrollment was released',
+  (SELECT string_agg(semester, ',' ORDER BY semester) FROM student_sections WHERE student_id = :'t18_student'), '1st');
+SELECT expect_eq('the CORs of both terms stay as history', (SELECT count(*)::text FROM cors WHERE student_id = :'t18_student'), '2');
 
 -- audit
 SELECT 'audit rows', count(*), count(DISTINCT table_name) AS tables FROM audit_log;

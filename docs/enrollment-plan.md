@@ -20,7 +20,7 @@ Also found at PLP, not in this system for now:
 - Assign the student ID automatically and finalize the enrollment (the COR)
 
 ## Scope
-- Newly admitted students only, for now. Returning students come later.
+- Newly admitted students first. Returning students are planned in `docs/step-18-returning-students-plan.md` (steps 18 to 23); step 18 makes sections, slips, payments and CORs per term.
 - The enrollment slip belongs to the Admissions side, not this system.
 - This system produces two documents:
   - Assessment slip: the light version. Issued by the Registrar.
@@ -122,7 +122,7 @@ Other rules:
 - Enrollment slip: Admissions side, not here
 - Visit slots: set up by staff, never by the student. A student can only request a reschedule.
 - Reschedules: the Registrar and Admin can set a mass reschedule (my recommendation). The Registrar approves or declines student requests (my recommendation, because the Registrar runs the visits).
-- Scope: newly admitted students first
+- Scope: newly admitted students first, returning students from step 18 on
 - Real applicants or school project: does not matter
 
 ## What PLP does (the reason for the recommendations)

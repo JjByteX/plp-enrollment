@@ -68,12 +68,12 @@ export async function createSection(input: SectionInput): Promise<ScheduleAction
 
   const parsed = parseSectionInput(input);
   if (!parsed.ok) return { error: parsed.reason };
-  const { programId, yearLevel, name, capacity } = parsed.value;
+  const { programId, yearLevel, capacity } = parsed.value;
 
   const supabase = createClient();
   const { error } = await supabase
     .from('sections')
-    .insert({ program_id: programId, year_level: yearLevel, name, capacity });
+    .insert({ program_id: programId, year_level: yearLevel, capacity }); // the database picks the next letter
   if (error) return failure(error, 'The section could not be saved.');
 
   refresh();

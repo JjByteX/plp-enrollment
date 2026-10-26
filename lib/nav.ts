@@ -11,7 +11,7 @@ import type { Role } from '@/lib/auth/roles';
 // suffix. components/NavIcons.tsx maps each name to its component.
 export type NavIconName =
   | 'home' | 'visits' | 'reschedules' | 'documents' | 'schedules' | 'slips' | 'cor' | 'payments'
-  | 'accounts' | 'content' | 'admissions' | 'audit' | 'registrar' | 'finance' | 'dean' | 'secretary' | 'professor';
+  | 'grades' | 'accounts' | 'content' | 'admissions' | 'audit' | 'registrar' | 'finance' | 'dean' | 'secretary' | 'professor';
 
 // `keywords` are extra search-only terms (abbreviations, synonyms, the full
 // name behind an acronym) that feed the top-bar search alongside the label,
@@ -35,6 +35,7 @@ const REGISTRAR: NavItem[] = [
   { label: 'Schedules', href: '/registrar/schedules', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
   { label: 'Slips', href: '/registrar/slips', icon: 'slips', keywords: ['assessment slip', 'fees', 'tuition'] },
   { label: 'COR', href: '/registrar/cors', icon: 'cor', keywords: ['certificate of registration', 'registration'] },
+  { label: 'Grades', href: '/registrar/grades', icon: 'grades', keywords: ['grade changes', 'marks', 'incomplete', 'inc'] },
 ];
 
 const SECRETARY_SCHEDULES: NavItem = {
@@ -42,6 +43,18 @@ const SECRETARY_SCHEDULES: NavItem = {
   href: '/secretary/schedule',
   icon: 'schedules',
   keywords: ['sections', 'classes', 'timetable'],
+};
+const DEAN_GRADES: NavItem = {
+  label: 'Grades',
+  href: '/dean/grades',
+  icon: 'grades',
+  keywords: ['approve grades', 'grade changes', 'marks'],
+};
+const PROFESSOR_GRADES: NavItem = {
+  label: 'Grades',
+  href: '/professor/grades',
+  icon: 'grades',
+  keywords: ['enter grades', 'submit grades', 'marks', 'incomplete', 'inc'],
 };
 const FINANCE_PAYMENTS: NavItem = {
   label: 'Payments',
@@ -71,6 +84,7 @@ export function navFor(role: Role): NavGroup[] {
           items: [
             { label: 'Home', href: '/dean', icon: 'home', exact: true },
             { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
+            DEAN_GRADES,
           ],
         },
       ];
@@ -85,7 +99,7 @@ export function navFor(role: Role): NavGroup[] {
         },
       ];
     case 'professor':
-      return [{ label: null, items: [{ label: 'Home', href: '/professor', icon: 'home', exact: true }] }];
+      return [{ label: null, items: [{ label: 'Home', href: '/professor', icon: 'home', exact: true }, PROFESSOR_GRADES] }];
     case 'admin':
       return [
         {
@@ -93,7 +107,7 @@ export function navFor(role: Role): NavGroup[] {
           items: [
             { label: 'Home', href: '/admin', icon: 'home', exact: true },
             { label: 'Accounts', href: '/admin/accounts', icon: 'accounts', keywords: ['users', 'staff accounts', 'people'] },
-            { label: 'Content', href: '/admin/content', icon: 'content', keywords: ['subjects', 'rooms', 'programs'] },
+            { label: 'Content', href: '/admin/content', icon: 'content', keywords: ['subjects', 'rooms', 'programs', 'grading scale', 'grade bands'] },
             { label: 'Admissions', href: '/admin/admissions', icon: 'admissions', keywords: ['intake', 'applicants', 'enroll'] },
             { label: 'Audit log', href: '/admin/audit', icon: 'audit', keywords: ['history', 'activity log'] },
           ],
@@ -103,9 +117,9 @@ export function navFor(role: Role): NavGroup[] {
           items: [
             { label: 'Registrar', href: '/registrar', icon: 'registrar', keywords: ['visits', 'documents', 'cor', 'slips'], children: REGISTRAR },
             { label: 'Finance', href: '/finance', icon: 'finance', keywords: ['payments', 'billing', 'tuition'], children: [FINANCE_PAYMENTS] },
-            { label: 'Dean', href: '/dean', icon: 'dean', keywords: ['college', 'approval'] },
+            { label: 'Dean', href: '/dean', icon: 'dean', keywords: ['college', 'approval'], children: [DEAN_GRADES] },
             { label: 'College Secretary', href: '/secretary', icon: 'secretary', keywords: ['secretary', 'college', 'schedules'], children: [SECRETARY_SCHEDULES] },
-            { label: 'Professor', href: '/professor', icon: 'professor', keywords: ['faculty', 'teacher', 'instructor'] },
+            { label: 'Professor', href: '/professor', icon: 'professor', keywords: ['faculty', 'teacher', 'instructor'], children: [PROFESSOR_GRADES] },
           ],
         },
       ];

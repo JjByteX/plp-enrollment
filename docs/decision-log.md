@@ -555,3 +555,40 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A. After a COR the enrollment is official, so only the Registrar or Admin can record the withdrawal (answered by the project owner). The audit log keeps every deleted row with the reason. The three columns change only inside the withdraw function (a trigger refuses any other write, Admin included). `withdrawn_by` has no foreign key to `users`, like `audit_log.actor_id`, because a second link from `applicants` to `users` would make every `users(...)` embed in the app ambiguous. Functions that could hand a withdrawn person a slot, a seat or a COR each got one guard. The dashboard funnel leaves withdrawn people out of every stage.
 
 **Consequences:** A withdrawal cannot be undone from the app. Reversing one needs SQL, and the seat may already be taken. Reinstatement was left out on purpose: it needs its own decisions (restoring a slip and a payment, what if the seat is gone). A cleared payment stays and nothing tells Finance to refund it. A withdrawn person's slip and COR pages show nothing, because their section is gone, but the records stay. Admissions is not told about withdrawals (it has no such status), and a withdrawn applicant sent again from Admissions is ignored, so re-admitting someone needs a decision.
+
+---
+
+**#:** 31
+**Date:** 2026-10-26
+**Milestone:** Build step 18, terms foundation
+
+**Context:** Returning students need a section, slip, payment and COR for every term, but each was stored once per student.
+
+**Options Considered:**
+- Option A: Keep `student_sections` as the enrollments table and give it, the slips, payments and CORs a school year and semester. The primary key becomes student, school year and semester.
+- Option B: A new `enrollments` table. Cleaner name, but every policy, audit trigger, the class-list view and many queries would be rewritten.
+
+**Community Consensus:** Not searched.
+
+**Decision:** Option A. A section belongs to a term and is created in the current term, so the term must be set first. A subject has a semester, and may also be offered in summer. A COR takes the term of the student's enrollment (it used to take the current term). "Waiting for a seat" still means no enrollment in any term, so a term change never places existing students.
+
+**Consequences:** `student_sections` now means one enrollment per term. The old COR expectation in `gates_check.sql` (term of the new term row) changed to the enrollment's term. The dashboard funnel counts rows and will double count once students hold two terms. A legacy COR whose term differs from its enrollment's term is reported as a NOTICE by the migration. Nothing in this step was executed.
+
+---
+
+**#:** 32
+**Date:** 2026-10-27
+**Milestone:** Build step 19, grading
+
+**Context:** Grades must exist before promotion (step 21) can use them. Different programs use different scales, and an approved grade must not be edited by hand.
+
+**Options Considered:**
+- Option A: Admin sets a grading scale of bands (label, outcome, optional numeric range). Each grade keeps the outcome its band gave when it was entered. Grades go through draft, submitted and approved sheets. After approval only a grade change (Professor proposes, Dean signs, Registrar approves) can alter a grade.
+- Option B: Fixed Philippine 1.00 to 5.00 scale built into the code. Simpler, but wrong for a program that grades differently.
+- Option C: Let the Registrar edit approved grades directly. Fewer steps, but no second signature.
+
+**Community Consensus:** Not searched.
+
+**Decision:** Option A. Nothing is seeded, so grade entry stays closed until Admin sets the scale. A trigger refuses every write to the grading tables outside the grading functions, Admin included. An incomplete that is not completed within Admin's window becomes a failed 5.0 by itself the next time the Dean or Registrar opens Grades.
+
+**Consequences:** Changing the scale later never rewrites an earlier grade. The lapse runs when a page loads, not on a timer. Two numeric bands that overlap are refused, but a gap between bands is allowed: a grade in the gap is simply not on the scale.

@@ -7,7 +7,8 @@
 // message before the request is sent.
 //
 // Subject input:  programId, code (1 to 30), title (1 to 200), units (0 to 99.9,
-//                 one decimal), yearLevel (1 to 6), hasLaboratory
+//                 one decimal), yearLevel (1 to 6), semester (1st, 2nd or summer),
+//                 hasLaboratory, offeredInSummer
 // Room input:     name (1 to 80), capacity (whole number from 1, or none), collegeId (or none)
 // Term input:     schoolYear (2026-2027), semester (1st, 2nd or summer)
 export { UUID } from '@/features/visit-scheduling/schema';
@@ -23,11 +24,11 @@ export const MAX_ROOM_NAME = 80;
 export const MAX_ROOM_CAPACITY = 5000;
 export const MAX_UNITS = 99.9; // numeric(3,1)
 
-export type ContentTab = 'subjects' | 'rooms' | 'term';
+export type ContentTab = 'subjects' | 'rooms' | 'term' | 'grading';
 
 export function parseTab(raw: unknown): ContentTab {
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return value === 'rooms' || value === 'term' ? value : 'subjects';
+  return value === 'rooms' || value === 'term' || value === 'grading' ? value : 'subjects';
 }
 
 function text(raw: Record<string, unknown>, key: string): string {
@@ -39,8 +40,8 @@ function asObject(raw: unknown): Record<string, unknown> | null {
   return typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
 }
 
-export type SubjectFields = { code: string; title: string; units: number; hasLaboratory: boolean };
-export type SubjectInput = SubjectFields & { programId: string; yearLevel: number };
+export type SubjectFields = { code: string; title: string; units: number; hasLaboratory: boolean; offeredInSummer: boolean };
+export type SubjectInput = SubjectFields & { programId: string; yearLevel: number; semester: Semester };
 
 function parseSubjectFields(body: Record<string, unknown>): Parsed<SubjectFields> {
   const code = text(body, 'code');
@@ -62,7 +63,16 @@ function parseSubjectFields(body: Record<string, unknown>): Parsed<SubjectFields
     return { ok: false, reason: `Units must be from 0 to ${MAX_UNITS}, with one decimal at most.` };
   }
 
-  return { ok: true, value: { code, title, units, hasLaboratory: body.hasLaboratory === true } };
+  return {
+    ok: true,
+    value: {
+      code,
+      title,
+      units,
+      hasLaboratory: body.hasLaboratory === true,
+      offeredInSummer: body.offeredInSummer === true,
+    },
+  };
 }
 
 // Adding a subject also needs its program and year level. A subject with no
@@ -79,13 +89,21 @@ export function parseSubjectInput(raw: unknown): Parsed<SubjectInput> {
     return { ok: false, reason: `Year level must be a whole number from 1 to ${MAX_YEAR}.` };
   }
 
+  const semester = text(body, 'semester');
+  if (semester !== '1st' && semester !== '2nd' && semester !== 'summer') {
+    return { ok: false, reason: 'Choose the semester.' };
+  }
+
   const fields = parseSubjectFields(body);
   if (!fields.ok) return fields;
-  return { ok: true, value: { ...fields.value, programId, yearLevel } };
+  // A summer subject runs in summer already, so the summer flag does not apply.
+  const offeredInSummer = semester === 'summer' ? false : fields.value.offeredInSummer;
+  return { ok: true, value: { ...fields.value, offeredInSummer, programId, yearLevel, semester } };
 }
 
-// Editing a subject changes its code, title, units and laboratory flag. The
-// program and year level stay, because sections were filled from them.
+// Editing a subject changes its code, title, units, laboratory flag and summer
+// flag. The program, year level and semester stay, because sections were filled
+// from them.
 export function parseSubjectEdit(raw: unknown): Parsed<SubjectFields> {
   const body = asObject(raw);
   if (!body) return { ok: false, reason: 'The subject details are missing.' };

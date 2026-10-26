@@ -39,7 +39,7 @@ export async function addSubject(input: unknown): Promise<ContentActionResult> {
   if (!(await isAdmin())) return { error: 'Only Admin can change the subjects.' };
   const parsed = parseSubjectInput(input);
   if (!parsed.ok) return { error: parsed.reason };
-  const { programId, code, title, units, yearLevel, hasLaboratory } = parsed.value;
+  const { programId, code, title, units, yearLevel, semester, hasLaboratory, offeredInSummer } = parsed.value;
 
   const supabase = createClient();
   const { error } = await supabase.from('subjects').insert({
@@ -48,12 +48,14 @@ export async function addSubject(input: unknown): Promise<ContentActionResult> {
     title,
     units,
     year_level: yearLevel,
+    semester,
     has_laboratory: hasLaboratory,
+    offered_in_summer: offeredInSummer,
   });
   if (error) return failure(error, DUPLICATE_SUBJECT, SUBJECT_IN_USE, 'The subject could not be added.');
 
   revalidatePath(PAGE);
-  return { ok: true, message: 'Subject added. It is in the draft sections of its year level.' };
+  return { ok: true, message: 'Subject added. It is in the draft sections of its year level and semester in the current term.' };
 }
 
 export async function editSubject(subjectId: string, input: unknown): Promise<ContentActionResult> {
@@ -61,12 +63,12 @@ export async function editSubject(subjectId: string, input: unknown): Promise<Co
   if (typeof subjectId !== 'string' || !UUID.test(subjectId)) return { error: 'That subject was not found.' };
   const parsed = parseSubjectEdit(input);
   if (!parsed.ok) return { error: parsed.reason };
-  const { code, title, units, hasLaboratory } = parsed.value;
+  const { code, title, units, hasLaboratory, offeredInSummer } = parsed.value;
 
   const supabase = createClient();
   const { data, error } = await supabase
     .from('subjects')
-    .update({ code, title, units, has_laboratory: hasLaboratory })
+    .update({ code, title, units, has_laboratory: hasLaboratory, offered_in_summer: offeredInSummer })
     .eq('id', subjectId)
     .select('id');
   if (error) return failure(error, DUPLICATE_SUBJECT, SUBJECT_IN_USE, 'The subject could not be saved.');
@@ -126,8 +128,8 @@ export async function deleteRoom(roomId: string): Promise<ContentActionResult> {
   return { ok: true, message: 'Room deleted.' };
 }
 
-// The one term row. A COR keeps the term it was issued with, so changing the
-// term never alters an issued COR.
+// The one term row. New sections are created in this term. An issued slip, payment
+// and COR keep the term they belong to, so changing the term never alters them.
 export async function saveTerm(input: unknown): Promise<ContentActionResult> {
   if (!(await isAdmin())) return { error: 'Only Admin can set the term.' };
   const parsed = parseTermInput(input);
@@ -140,5 +142,5 @@ export async function saveTerm(input: unknown): Promise<ContentActionResult> {
   if (error) return { error: 'The term could not be saved.' };
 
   revalidatePath(PAGE);
-  return { ok: true, message: 'Term saved. It applies to COR issued from now on.' };
+  return { ok: true, message: 'Term saved. New sections are created in this term.' };
 }

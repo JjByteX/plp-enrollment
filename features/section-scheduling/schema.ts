@@ -7,7 +7,7 @@
 // Section input, as typed in the form:
 //   programId   programs.id
 //   yearLevel   whole number, 1 to MAX_YEAR
-//   name        1 to MAX_NAME characters, unique per program and year level
+//   (no name: the database names a new section with the next letter, A, B, C ...)
 //   capacity    seats for automatic placement, 1 to MAX_CAPACITY
 //
 // Loading input (one subject of one section):
@@ -52,7 +52,6 @@ export const DAY_LABEL: Record<number, string> = {
 export type SectionInput = {
   programId: string;
   yearLevel: number;
-  name: string;
   capacity: number;
 };
 
@@ -98,16 +97,12 @@ export function parseSectionInput(raw: unknown): Parsed<SectionInput> {
     return { ok: false, reason: `Year level must be a whole number from 1 to ${MAX_YEAR}.` };
   }
 
-  const name = text(body, 'name');
-  if (name.length === 0) return { ok: false, reason: 'Enter the section name.' };
-  if (name.length > MAX_NAME) return { ok: false, reason: `The section name is longer than ${MAX_NAME} characters.` };
-
   const capacity = body.capacity;
   if (typeof capacity !== 'number' || !Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY) {
     return { ok: false, reason: `Capacity must be a whole number from 1 to ${MAX_CAPACITY}.` };
   }
 
-  return { ok: true, value: { programId, yearLevel, name, capacity } };
+  return { ok: true, value: { programId, yearLevel, capacity } };
 }
 
 // Editing a section changes its name and capacity only: the program and year
@@ -176,9 +171,9 @@ export function parseReason(raw: unknown): Parsed<string> {
   return { ok: true, value: reason };
 }
 
-// "BSIT Year 1 - A": the same wording the database writes into notifications.
+// "BSIT 3A": program, year level and section letter.
 export function sectionLabel(programCode: string, yearLevel: number, name: string): string {
-  return `${programCode} Year ${yearLevel} - ${name}`;
+  return `${programCode} ${yearLevel}${name}`;
 }
 
 // A subject is ready for sign-off when it has a professor, a room and a time.

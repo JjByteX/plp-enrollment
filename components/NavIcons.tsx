@@ -32,6 +32,7 @@ export const NAV_ICONS: Record<NavIconName, ComponentType<SVGProps<SVGSVGElement
   reschedules: ArrowPathIcon, // circular arrows: Reschedules
   documents: DocumentTextIcon, // page with lines: Documents
   schedules: CalendarDaysIcon, // calendar: Schedules
+  grades: AcademicCapIcon, // graduation cap: Grades
   slips: TicketIcon, // ticket: Slips
   cor: DocumentCheckIcon, // page with check: COR
   payments: CreditCardIcon, // card: Payments

@@ -33,17 +33,18 @@ export function SectionFormModal({
   const parsed = parseSectionInput({
     programId: programId ?? '',
     yearLevel: typeof yearLevel === 'number' ? yearLevel : Number.NaN,
-    name,
     capacity: typeof capacity === 'number' ? capacity : Number.NaN,
   });
 
+  const blankName = section !== null && name.trim() === '';
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!parsed.ok || loading) return;
+    if (!parsed.ok || blankName || loading) return;
     setLoading(true);
     setError(null);
     const result = section
-      ? await updateSection(section.id, { name: parsed.value.name, capacity: parsed.value.capacity })
+      ? await updateSection(section.id, { name: name.trim(), capacity: parsed.value.capacity })
       : await createSection(parsed.value);
     setLoading(false);
     if ('error' in result) {
@@ -85,17 +86,23 @@ export function SectionFormModal({
               disabled={section !== null}
               required
             />
-            <TextInput
-              label="Name"
-              value={name}
-              onChange={(event) => setName(event.currentTarget.value)}
-              maxLength={MAX_NAME}
-              required
-            />
+            {section && (
+              <TextInput
+                label="Name"
+                value={name}
+                onChange={(event) => setName(event.currentTarget.value)}
+                maxLength={MAX_NAME}
+                required
+              />
+            )}
           </Group>
           <NumberInput
             label="Capacity"
-            description="Seats for automatic placement. A student can still be moved in by hand."
+            description={
+              section
+                ? 'Seats for automatic placement. A student can still be moved in by hand.'
+                : 'Seats for automatic placement. The section is named with the next letter. A student can still be moved in by hand.'
+            }
             value={capacity}
             onChange={setCapacity}
             min={1}
@@ -118,7 +125,7 @@ export function SectionFormModal({
             <Button variant="default" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" loading={loading} disabled={!parsed.ok}>
+            <Button type="submit" loading={loading} disabled={!parsed.ok || blankName}>
               {section ? 'Save section' : 'Create section'}
             </Button>
           </Group>

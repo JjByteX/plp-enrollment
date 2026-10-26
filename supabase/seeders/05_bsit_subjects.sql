@@ -6,13 +6,12 @@
 -- has_laboratory = true means the section also gets a unit-less laboratory
 -- meeting row (the "COMP 101 Lab" line on a COR).
 --
--- subjects has no semester column and a new section takes every subject of
--- its year level, so only ONE semester per year level is loaded here (the
--- current term, 1st). The 1st year 2nd semester subjects are in
--- optional/bsit_year1_2nd_sem.sql. Safe to re-run.
+-- Every subject here is tagged semester '1st' (step 18). A section takes the
+-- subjects of its year level and semester, so the 2nd semester subjects can
+-- sit in the same catalog: see optional/bsit_year1_2nd_sem.sql. Safe to re-run.
 -- ============================================================
-INSERT INTO subjects (program_id, code, title, units, year_level, has_laboratory)
-SELECT p.id, v.code, v.title, v.units, v.year_level, v.has_lab
+INSERT INTO subjects (program_id, code, title, units, year_level, has_laboratory, semester)
+SELECT p.id, v.code, v.title, v.units, v.year_level, v.has_lab, '1st'
 FROM (VALUES
     -- Year 1, 1st semester (20 units)
     ('COMP 101',  'Introduction to Computing',                                        3.0, 1, true),
@@ -38,4 +37,5 @@ ON CONFLICT (program_id, code) DO UPDATE
    SET title = EXCLUDED.title,
        units = EXCLUDED.units,
        year_level = EXCLUDED.year_level,
-       has_laboratory = EXCLUDED.has_laboratory;
+       has_laboratory = EXCLUDED.has_laboratory,
+       semester = EXCLUDED.semester;

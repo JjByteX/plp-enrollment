@@ -144,6 +144,12 @@ export async function listSections(filter: BoardFilter = {}): Promise<SectionRow
   if (filter.programId) query = query.eq('program_id', filter.programId);
   if (filter.status) query = query.eq('schedule_status', filter.status);
 
+  // The board shows the sections of the current term only. Sections of earlier
+  // terms stay in the database for the students who were in them.
+  const { data: term } = await supabase.rpc('current_term');
+  const current = (Array.isArray(term) ? term[0] : term) as { school_year: string; semester: string } | null;
+  if (current?.school_year) query = query.eq('school_year', current.school_year).eq('semester', current.semester);
+
   const { data } = await query;
   const rows = (data ?? []) as unknown as RawSection[];
 

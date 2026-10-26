@@ -15,6 +15,8 @@ import { saveTerm, type ContentActionResult } from './actions';
 import type { CollegeOption, RoomRow, SubjectRow, TermRow } from './queries';
 import { RoomModal } from './RoomModal';
 import { SubjectModal } from './SubjectModal';
+import { GradingTab } from '@/features/grading/GradingTab';
+import type { Scale } from '@/features/grading/schema';
 import { parseTermInput, type ContentTab } from './schema';
 
 const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
@@ -32,6 +34,7 @@ export function ContentAdmin({
   rooms,
   colleges,
   term,
+  scale,
 }: {
   tab: ContentTab;
   programs: ProgramOption[];
@@ -40,6 +43,7 @@ export function ContentAdmin({
   rooms: RoomRow[];
   colleges: CollegeOption[];
   term: TermRow | null;
+  scale: Scale;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<ContentActionResult | null>(null);
@@ -72,6 +76,7 @@ export function ContentAdmin({
           <Tabs.Tab value="subjects">Subjects</Tabs.Tab>
           <Tabs.Tab value="rooms">Rooms</Tabs.Tab>
           <Tabs.Tab value="term">Term</Tabs.Tab>
+          <Tabs.Tab value="grading">Grading</Tabs.Tab>
         </Tabs.List>
       </Tabs>
 
@@ -115,6 +120,8 @@ export function ContentAdmin({
 
       {tab === 'term' && <TermForm term={term} onDone={setMessage} />}
 
+      {tab === 'grading' && <GradingTab scale={scale} onDone={setMessage} />}
+
       {subjectModal && program && (
         <SubjectModal
           program={program}
@@ -134,6 +141,7 @@ function SubjectRows({ subjects, onEdit }: { subjects: SubjectRow[]; onEdit: (su
   if (subjects.length === 0) return <Text c={color.textSecondary}>No subject is set up for this program.</Text>;
 
   const year = (subject: SubjectRow) => (subject.yearLevel === null ? 'None' : yearLabel(subject.yearLevel));
+  const semesterText = (subject: SubjectRow) => SEMESTER_LABEL[subject.semester as Semester] ?? subject.semester;
 
   if (subjects.length < LIST_LIMIT) {
     return (
@@ -147,7 +155,9 @@ function SubjectRows({ subjects, onEdit }: { subjects: SubjectRow[]; onEdit: (su
                   {subject.code}, {subject.title}
                 </Text>
                 <Text size="sm" c={color.textSecondary}>
-                  {year(subject)}, {subject.units} units{subject.hasLaboratory ? ', with laboratory' : ''}
+                  {year(subject)}, {semesterText(subject)}, {subject.units} units
+                  {subject.hasLaboratory ? ', with laboratory' : ''}
+                  {subject.offeredInSummer ? ', also in summer' : ''}
                 </Text>
               </Stack>
               <Button variant="default" onClick={() => onEdit(subject)}>
@@ -166,6 +176,7 @@ function SubjectRows({ subjects, onEdit }: { subjects: SubjectRow[]; onEdit: (su
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Year level</Table.Th>
+            <Table.Th>Semester</Table.Th>
             <Table.Th>Code</Table.Th>
             <Table.Th>Title</Table.Th>
             <Table.Th>Units</Table.Th>
@@ -177,6 +188,10 @@ function SubjectRows({ subjects, onEdit }: { subjects: SubjectRow[]; onEdit: (su
           {subjects.map((subject) => (
             <Table.Tr key={subject.id}>
               <Table.Td>{year(subject)}</Table.Td>
+              <Table.Td>
+                {semesterText(subject)}
+                {subject.offeredInSummer ? ', also in summer' : ''}
+              </Table.Td>
               <Table.Td>{subject.code}</Table.Td>
               <Table.Td>{subject.title}</Table.Td>
               <Table.Td>{subject.units}</Table.Td>
@@ -274,7 +289,7 @@ function TermForm({ term, onDone }: { term: TermRow | null; onDone: (result: Con
     <form onSubmit={onSubmit}>
       <Stack gap={spacing.md} maw={400}>
         <Text c={color.textSecondary}>
-          {term ? termLabel(term.schoolYear, term.semester) : 'No term is set. No COR can be issued until one is.'}
+          {term ? termLabel(term.schoolYear, term.semester) : 'No term is set. No section or COR can be made until one is.'}
         </Text>
         <TextInput
           label="School year"

@@ -10,12 +10,13 @@
 --
 -- The section stays in 'draft'. The College Secretary submits it, the Dean
 -- signs it, and it is approved in the app, the same as in real use.
+-- The section belongs to the current term (04_enrollment_term.sql runs first).
 -- Safe to re-run.
 -- ============================================================
-INSERT INTO sections (program_id, name, year_level, capacity)
-SELECT p.id, '1A', 1, 40
-FROM programs p WHERE p.code = 'BSIT'
-ON CONFLICT (program_id, year_level, name) DO NOTHING;
+INSERT INTO sections (program_id, name, year_level, capacity, school_year, semester)
+SELECT p.id, '1A', 1, 40, t.school_year, t.semester
+FROM programs p CROSS JOIN enrollment_term t WHERE p.code = 'BSIT'
+ON CONFLICT (program_id, year_level, name, school_year, semester) DO NOTHING;
 
 UPDATE section_subjects ss
    SET professor_id = (SELECT u.id FROM users u WHERE u.email = v.prof_email),
@@ -38,6 +39,7 @@ UPDATE section_subjects ss
   JOIN subjects sub ON sub.code = v.code
   JOIN programs p   ON p.id = sub.program_id AND p.code = 'BSIT'
   JOIN sections sec ON sec.program_id = p.id AND sec.year_level = 1 AND sec.name = '1A'
+  JOIN enrollment_term t ON t.school_year = sec.school_year AND t.semester = sec.semester
  WHERE ss.section_id = sec.id
    AND ss.subject_id = sub.id
    AND ss.meeting = v.meeting

@@ -56,7 +56,7 @@ A newly admitted applicant sent from PLP Admissions can be received into Enrollm
 
 **What This Is NOT:**
 - Not the enrollment slip (that stays on the Admissions side)
-- Not for returning students — newly admitted students only, for now
+- Not yet for returning students — newly admitted students only until steps 19 to 22 of docs/step-18-returning-students-plan.md are built
 - Not the Admissions system itself — Enrollment only receives applicant data from it via one secure HTTPS call; the two systems keep separate databases and logins
 - Does not let students pick their own visit slot — staff/system assign it; students may only request a reschedule
 - Does not include the Admissions Officer or Student Success Office as system users (they exist at PLP but are outside this system for now)

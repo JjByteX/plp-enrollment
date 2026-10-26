@@ -14,7 +14,9 @@ export type SubjectRow = {
   title: string;
   units: number;
   yearLevel: number | null;
+  semester: string;
   hasLaboratory: boolean;
+  offeredInSummer: boolean;
 };
 
 export type RoomRow = {
@@ -37,7 +39,7 @@ export async function listSubjects(programId: string): Promise<SubjectRow[]> {
   const supabase = createClient();
   const { data } = await supabase
     .from('subjects')
-    .select('id, code, title, units, year_level, has_laboratory')
+    .select('id, code, title, units, year_level, semester, has_laboratory, offered_in_summer')
     .eq('program_id', programId)
     .order('year_level', { nullsFirst: false })
     .order('code');
@@ -48,14 +50,18 @@ export async function listSubjects(programId: string): Promise<SubjectRow[]> {
     title: string;
     units: number | string;
     year_level: number | null;
+    semester: string;
     has_laboratory: boolean;
+    offered_in_summer: boolean;
   }[]).map((row) => ({
     id: row.id,
     code: row.code,
     title: row.title,
     units: Number(row.units),
     yearLevel: row.year_level,
+    semester: row.semester,
     hasLaboratory: row.has_laboratory,
+    offeredInSummer: row.offered_in_summer,
   }));
 }
 
@@ -84,7 +90,7 @@ export async function listRooms(): Promise<RoomRow[]> {
   });
 }
 
-// The one term row, or null before Admin sets it (no COR can be issued until then).
+// The one term row, or null before Admin sets it (no section or COR can be made until then).
 export async function getTerm(): Promise<TermRow | null> {
   const supabase = createClient();
   const { data } = await supabase.from('enrollment_term').select('school_year, semester').maybeSingle();

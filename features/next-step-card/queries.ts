@@ -51,6 +51,8 @@ export type NextStep =
 export type RescheduleState = { status: 'none' } | { status: 'pending' } | { status: 'declined'; note: string };
 
 type PlacementRow = {
+  school_year: string;
+  semester: string;
   sections: { name: string; year_level: number; schedule_status: string; programs: { code: string } | null } | null;
 };
 
@@ -105,24 +107,43 @@ async function getStudentStep(): Promise<NextStep> {
 
   const { data: late } = await supabase.rpc('my_open_late_items');
 
-  // Row level security lets a student read only their own placement and section.
+  // Row level security lets a student read only their own enrollments. A student
+  // can hold one per term (step 18); the card shows the latest. The semester names
+  // sort in term order ('1st', '2nd', 'summer').
   const { data: placed } = await supabase
     .from('student_sections')
-    .select('sections(name, year_level, schedule_status, programs(code))')
+    .select('school_year, semester, sections(name, year_level, schedule_status, programs(code))')
+    .order('school_year', { ascending: false })
+    .order('semester', { ascending: false })
+    .limit(1)
     .maybeSingle();
-  const section = (placed as unknown as PlacementRow | null)?.sections ?? null;
+  const placement = placed as unknown as PlacementRow | null;
+  const section = placement?.sections ?? null;
 
-  // The slip is readable by its own student (step 9).
-  const { data: slipRow } = await supabase.from('assessment_slips').select('payment_required').maybeSingle();
-  const slip = slipRow as { payment_required: boolean } | null;
+  // The slip and the COR of that same term, readable by their own student (steps 9 and 11).
+  let slip: { payment_required: boolean } | null = null;
+  let cor: { school_year: string; semester: string } | null = null;
+  if (placement) {
+    const { data: slipRow } = await supabase
+      .from('assessment_slips')
+      .select('payment_required')
+      .eq('school_year', placement.school_year)
+      .eq('semester', placement.semester)
+      .maybeSingle();
+    slip = slipRow as { payment_required: boolean } | null;
+
+    const { data: corRow } = await supabase
+      .from('cors')
+      .select('school_year, semester')
+      .eq('school_year', placement.school_year)
+      .eq('semester', placement.semester)
+      .maybeSingle();
+    cor = corRow as { school_year: string; semester: string } | null;
+  }
 
   // A student cannot read payments, so a function answers for them (step 10).
   const { data: paymentStatus } = await supabase.rpc('my_payment_status');
   const payment = paymentStatus === 'pending' || paymentStatus === 'cleared' ? paymentStatus : null;
-
-  // A COR row means the student is enrolled; they read their own (step 11).
-  const { data: corRow } = await supabase.from('cors').select('school_year, semester').maybeSingle();
-  const cor = corRow as { school_year: string; semester: string } | null;
 
   // A student cannot read subjects, rooms or professors, so a function compares the slip's saved schedule (step 16).
   const { data: changed } = await supabase.rpc('my_schedule_changed');

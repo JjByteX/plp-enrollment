@@ -3,19 +3,18 @@
 -- BSIT Year 1, 2nd semester (from the sample COR). NOT loaded automatically:
 -- the seeder runner only reads seeders/*.sql, not this folder.
 --
--- WHY OPTIONAL: subjects has no semester column, and section 1A takes every
--- Year 1 subject. Loading this on top of 05_bsit_subjects.sql would put both
--- semesters (43 units) in one section. Use it for a database that is
--- running the 2nd semester, in place of the Year 1 part of 05 (that is,
--- seed 05 with the Year 1 rows removed), or after adding a semester to
--- subjects.
+-- WHY OPTIONAL: it is the 2nd semester catalog and schedule. Since step 18 the
+-- subjects carry a semester ('2nd' here), so loading the subjects next to the
+-- 1st semester ones is safe: a section takes only the subjects of its own
+-- semester. The section and schedule part below applies only while the current
+-- term is a 2nd semester; in any other term it changes nothing.
 --
 -- Run after 02, 03 and 05. GEE 302 meets Tuesday and Thursday 9:00-10:30 on
 -- the COR, but a schedule row holds one day, so only Tuesday is seeded.
 -- Days: 1 Monday ... 7 Sunday. Safe to re-run.
 -- ============================================================
-INSERT INTO subjects (program_id, code, title, units, year_level, has_laboratory)
-SELECT p.id, v.code, v.title, v.units, 1, v.has_lab
+INSERT INTO subjects (program_id, code, title, units, year_level, has_laboratory, semester)
+SELECT p.id, v.code, v.title, v.units, 1, v.has_lab, '2nd'
 FROM (VALUES
     ('COMP 103',   'Intermediate Programming (Java)',                                  3.0, true),
     ('GE 001',     'Understanding the Self',                                           3.0, false),
@@ -30,11 +29,13 @@ CROSS JOIN programs p
 WHERE p.code = 'BSIT'
 ON CONFLICT (program_id, code) DO UPDATE
    SET title = EXCLUDED.title, units = EXCLUDED.units,
-       year_level = EXCLUDED.year_level, has_laboratory = EXCLUDED.has_laboratory;
+       year_level = EXCLUDED.year_level, has_laboratory = EXCLUDED.has_laboratory,
+       semester = EXCLUDED.semester;
 
-INSERT INTO sections (program_id, name, year_level, capacity)
-SELECT p.id, '1A', 1, 40 FROM programs p WHERE p.code = 'BSIT'
-ON CONFLICT (program_id, year_level, name) DO NOTHING;
+INSERT INTO sections (program_id, name, year_level, capacity, school_year, semester)
+SELECT p.id, '1A', 1, 40, t.school_year, t.semester
+FROM programs p CROSS JOIN enrollment_term t WHERE p.code = 'BSIT' AND t.semester = '2nd'
+ON CONFLICT (program_id, year_level, name, school_year, semester) DO NOTHING;
 
 UPDATE section_subjects ss
    SET professor_id = (SELECT u.id FROM users u WHERE u.email = v.prof_email),
@@ -56,6 +57,7 @@ UPDATE section_subjects ss
   JOIN subjects sub ON sub.code = v.code
   JOIN programs p   ON p.id = sub.program_id AND p.code = 'BSIT'
   JOIN sections sec ON sec.program_id = p.id AND sec.year_level = 1 AND sec.name = '1A'
+  JOIN enrollment_term t ON t.school_year = sec.school_year AND t.semester = sec.semester AND t.semester = '2nd'
  WHERE ss.section_id = sec.id
    AND ss.subject_id = sub.id
    AND ss.meeting = v.meeting

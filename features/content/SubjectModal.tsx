@@ -7,7 +7,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button, Group, Modal, NumberInput, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { color, padding, spacing } from '@/styles/tokens';
-import { yearLabel } from '@/features/cor/schema';
+import { SEMESTER_LABEL, yearLabel, type Semester } from '@/features/cor/schema';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { addSubject, deleteSubject, editSubject, type ContentActionResult } from './actions';
 import type { SubjectRow } from './queries';
@@ -16,6 +16,11 @@ import { MAX_CODE, MAX_TITLE, MAX_UNITS, MAX_YEAR, parseSubjectEdit, parseSubjec
 const YEAR_OPTIONS = Array.from({ length: MAX_YEAR }, (_, index) => ({
   value: String(index + 1),
   label: yearLabel(index + 1),
+}));
+
+const SEMESTER_OPTIONS = (Object.keys(SEMESTER_LABEL) as Semester[]).map((value) => ({
+  value,
+  label: SEMESTER_LABEL[value],
 }));
 
 function asNumber(value: number | string): number {
@@ -37,15 +42,18 @@ export function SubjectModal({
   const [title, setTitle] = useState(subject?.title ?? '');
   const [units, setUnits] = useState<number | string>(subject?.units ?? '');
   const [year, setYear] = useState<string | null>(null);
+  const [semester, setSemester] = useState<string | null>(null);
   const [hasLaboratory, setHasLaboratory] = useState(subject?.hasLaboratory ?? false);
+  const [offeredInSummer, setOfferedInSummer] = useState(subject?.offeredInSummer ?? false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const fields = { code, title, units: asNumber(units), hasLaboratory };
+  const summerOnly = (subject ? subject.semester : semester) === 'summer';
+  const fields = { code, title, units: asNumber(units), hasLaboratory, offeredInSummer: summerOnly ? false : offeredInSummer };
   const parsed = subject
     ? parseSubjectEdit(fields)
-    : parseSubjectInput({ ...fields, programId: program.id, yearLevel: year === null ? null : Number(year) });
+    : parseSubjectInput({ ...fields, programId: program.id, yearLevel: year === null ? null : Number(year), semester });
 
   async function run(action: () => Promise<ContentActionResult>) {
     if (loading) return;
@@ -80,7 +88,9 @@ export function SubjectModal({
         <Stack gap={spacing.md}>
           <Text size="sm" c={color.textSecondary}>
             {program.code}
-            {subject ? `, ${subject.yearLevel === null ? 'no year level' : yearLabel(subject.yearLevel)}` : ''}
+            {subject
+              ? `, ${subject.yearLevel === null ? 'no year level' : yearLabel(subject.yearLevel)}, ${SEMESTER_LABEL[subject.semester as Semester] ?? subject.semester}`
+              : ''}
           </Text>
           <TextInput
             label="Code"
@@ -107,11 +117,19 @@ export function SubjectModal({
             required
           />
           {!subject && <Select label="Year level" data={YEAR_OPTIONS} value={year} onChange={setYear} required />}
+          {!subject && <Select label="Semester" data={SEMESTER_OPTIONS} value={semester} onChange={setSemester} required />}
           <Switch
             label="Has a laboratory"
             checked={hasLaboratory}
             onChange={(event) => setHasLaboratory(event.currentTarget.checked)}
           />
+          {!summerOnly && (
+            <Switch
+              label="Also offered in summer"
+              checked={offeredInSummer}
+              onChange={(event) => setOfferedInSummer(event.currentTarget.checked)}
+            />
+          )}
           {error && (
             <Text size="sm" c={color.error} role="alert">
               {error}
