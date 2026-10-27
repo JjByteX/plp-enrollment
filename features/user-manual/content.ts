@@ -408,6 +408,18 @@ A credit marks a subject as passed because the student finished it in earlier sc
 
 The credit waits for the Registrar. Until the Registrar approves it, it does not count. Only the Dean, the Secretary and Admin can record a credit, and only for a student of their own college. You cannot credit a subject the student has already passed or has already been credited, or one that has a credit waiting. The student must be in a section to appear in the list.
 
+### Building a load for a student who needs review
+
+After a term closes, a student who did not pass everything is on the **Needs review** tab of [Schedules](/secretary/schedule), with the reason.
+
+1. Press **Open** beside the student.
+2. If the student has no section in this term, choose one under **Place** and press it first.
+3. Under **Can be added**, choose a section for a subject and press **Add**. Any section of this term that offers the subject will do.
+4. Under **In the load**, press **Remove** beside a subject you added by mistake. A subject copied from the student's section stays.
+5. Press **Credits** at the bottom left to record a credit for a transferee (see above). It counts only after the Registrar approves it.
+
+**Blocked** subjects name the prerequisite that is not passed, and cannot be added by anyone, Admin included. A subject that is not offered in this semester, one the student already passed, a full section, a clash in time, or a slip that was already issued also stops the add, and the window says why. The student is told when a subject is added or removed.
+
 ---
 
 ## 7. Reschedules

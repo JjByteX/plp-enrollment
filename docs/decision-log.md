@@ -630,3 +630,21 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A. Close term is refused while any section subject that has students lacks Dean-approved grades, and once only. Only enrolled, non-withdrawn students get a result; every subject of the section counts. A student who passed the last semester of the last year (highest year level with subjects) is completed. Summer is closed without deciding anything. Promotion goes to the next regular term (1st to 2nd, 2nd to 1st of the next school year, summer skipped), the section of the same name first. A student who cannot be seated moves to the review list with that reason. A review student leaves the list when they have an enrollment in a later term. The student sees only a line to go to their college (decision S).
 
 **Consequences:** Close the term before Admin sets the next one; if Admin moves the term first, the old term cannot be closed. Section copying from a 2nd semester shifts each section up one year level while the program has that year. The list has no action until step 22. Nothing in this step was executed.
+
+---
+
+**#:** 35
+**Date:** 2026-10-27
+**Milestone:** Build step 22, irregular loads
+
+**Context:** A student on the review list, or a transferee, must take a subject outside their own section, but every slip, COR, class list and seat count read the section's subjects.
+
+**Options Considered:**
+- Option A: A `student_subjects` table, one row per meeting of a section subject the student takes, copied from the section by the database and added to by staff. Everything that read the section's subjects reads this list.
+- Option B: Keep reading the section and store only the exceptions (extra and removed subjects) per student. Smaller table, but every reader needs the merge.
+
+**Community Consensus:** Not searched.
+
+**Decision:** Option A. The list is written only through database functions (a trigger refuses any other insert or update, Admin included). A subject is added from any section of the current term that offers it, and refused for every role when a prerequisite is not passed, it is already passed, its semester is not this term's, the section subject has no free seat, it clashes in time, or the assessment slip was issued. A section subject whose prerequisite is not passed is left out of a regular student's copied list. Staff remove only what they added.
+
+**Consequences:** A seat in a section and a seat in one subject of a section are now different: capacity limits placement, and an added subject counts the students who take it. A slip needs every section the load draws from to be approved. A schedule change notifies everyone who takes the section subject. Closing a term counts every subject in the student's own list. A student must be placed in a section before a load is built; the load builder does the placing. Nothing in this step was executed.

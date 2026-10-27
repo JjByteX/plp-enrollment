@@ -45,11 +45,12 @@ export function SlipView({ slip }: { slip: SlipData }) {
 
       <Divider />
 
-      <TableScrollContainer minWidth={640}>
+      <TableScrollContainer minWidth={720}>
         <Table>
           <TableThead>
             <TableTr>
               <TableTh>Subject</TableTh>
+              <TableTh>Section</TableTh>
               <TableTh>Units</TableTh>
               <TableTh>Professor</TableTh>
               <TableTh>Room</TableTh>
@@ -62,6 +63,7 @@ export function SlipView({ slip }: { slip: SlipData }) {
                 <TableTd>
                   {subjectName(subject.code, subject.meeting)}, {subject.title}
                 </TableTd>
+                <TableTd>{subject.section ?? slip.section}</TableTd>
                 <TableTd>{subject.units}</TableTd>
                 <TableTd>{subject.professor ?? ''}</TableTd>
                 <TableTd>{subject.room ?? ''}</TableTd>

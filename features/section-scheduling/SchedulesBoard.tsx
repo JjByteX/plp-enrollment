@@ -14,6 +14,8 @@ import { FormMessage } from '@/components/FormMessage';
 import type { Role } from '@/lib/auth/roles';
 import { ReviewList } from '@/features/term-close/ReviewList';
 import type { ReviewStudent } from '@/features/term-close/schema';
+import { LoadModal } from '@/features/irregular-loads/LoadModal';
+import type { LoadStudent } from '@/features/irregular-loads/schema';
 
 // The role's own home page, as the "previous page" ancestor (matches the
 // role's "Home" sidebar entry and the title its own home page shows).
@@ -75,6 +77,7 @@ export function SchedulesBoard({
   const [openId, setOpenId] = useState<string | null>(null);
   const [picks, setPicks] = useState<Record<string, string | null>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [loadStudent, setLoadStudent] = useState<LoadStudent | null>(null);
 
   const isCollege = viewerRole === 'college_secretary' || viewerRole === 'dean' || viewerRole === 'admin';
   const visible = sections.filter(
@@ -149,7 +152,13 @@ export function SchedulesBoard({
         <PageHeading title="Schedules" parent={HOME_CRUMB[viewerRole]} />
         {tabs}
         <Divider />
-        <ReviewList students={review} />
+        <ReviewList
+          students={review}
+          onOpen={(student) =>
+            setLoadStudent({ studentId: student.studentId, studentNumber: student.studentNumber, fullName: student.fullName })
+          }
+        />
+        {loadStudent && <LoadModal student={loadStudent} onClose={() => setLoadStudent(null)} />}
       </Stack>
     );
   }

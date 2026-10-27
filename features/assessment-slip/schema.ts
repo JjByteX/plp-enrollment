@@ -12,6 +12,7 @@ export type SlipSubject = {
   title: string;
   meeting: Meeting;
   units: number; // 0 on a laboratory row: units count once
+  section?: string; // the section this subject is taken in (step 22); older slips and CORs do not carry it
   professor: string | null;
   room: string | null;
   day: number | null;

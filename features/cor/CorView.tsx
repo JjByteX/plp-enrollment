@@ -95,7 +95,7 @@ export function CorView({ cor }: { cor: CorData }) {
               <TableTr key={`${subject.code}-${subject.meeting}`}>
                 <TableTd>{subjectName(subject.code, subject.meeting)}</TableTd>
                 <TableTd>{subject.title}</TableTd>
-                <TableTd>{cor.section}</TableTd>
+                <TableTd>{subject.section ?? cor.section}</TableTd>
                 <TableTd>{Number(subject.units).toFixed(2)}</TableTd>
                 <TableTd>{subject.room ?? ''}</TableTd>
                 <TableTd>{scheduleText(subject.day, subject.start, subject.end)}</TableTd>

@@ -277,3 +277,12 @@ Risks:
 - Results are stored (`term_results`), not recomputed, so a grade change after closing does not move anyone (see the risk on grade changes after promotion).
 - The Needs review tab shows the reason and has no Open button; the load builder is step 22.
 - Not done: a Prerequisites-style count on the home lists. Nothing was run.
+
+## As built (phase 5, step 22)
+
+- The per-student list is `student_subjects`, one row per meeting of a section subject, written only through the database functions (decision #35).
+- The load window opens from the Open button on the Needs review tab. It places a student with no section first (the existing placement), then groups every subject of the program: in the load, can be added, blocked (prerequisite named), already passed, not offered this term. It is one centered modal, so passed and not offered subjects are shown as code lists only.
+- Each subject on the slip and COR names its own section; older slips and CORs fall back to the document's section.
+- Seats: a section's capacity limits placement; an added subject counts the students who take it in that section.
+- The load window has a Credits button that opens the step 20 credits window, so a transferee can be credited before the load is built. A credit still waits for the Registrar and only counts once approved.
+- Not done: a count on the home lists. Nothing was run.

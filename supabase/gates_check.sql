@@ -1983,6 +1983,112 @@ RESET ROLE;
 SELECT 'skipped: no authenticated role, step 21 grant checks not run';
 \endif
 
+-- ============================================================
+-- irregular loads (step 22), 20261026060000_irregular_loads.sql.
+-- Own program BST22 in the term 2032-2033, 1st. Subjects: R221 and R223 (year 1, 1st), R222 (year 1,
+-- 2nd, needs R221) and R224 (year 2, 1st, needs R221). Section A (year 1) holds R221 and R223,
+-- section B (year 2) holds R224. Student z22 is placed in A, has not passed R221, and gets R224 as
+-- a back subject only after the Registrar approves a credit for R221. dn2 is the Dean of the other college.
+-- ============================================================
+SELECT act('ad');
+UPDATE enrollment_term SET school_year = '2032-2033', semester = '1st';
+INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000fa','BST22','Test Program T22','00000000-0000-0000-0000-0000000000c1');
+INSERT INTO subjects (id,program_id,code,title,units,year_level,semester) VALUES
+  (md5('R221')::uuid,'00000000-0000-0000-0000-0000000000fa','R221','R one',3,1,'1st'),
+  (md5('R222')::uuid,'00000000-0000-0000-0000-0000000000fa','R222','R two',3,1,'2nd'),
+  (md5('R223')::uuid,'00000000-0000-0000-0000-0000000000fa','R223','R three',3,1,'1st'),
+  (md5('R224')::uuid,'00000000-0000-0000-0000-0000000000fa','R224','R four',3,2,'1st');
+SELECT save_prerequisites(md5('R222')::uuid, ARRAY[md5('R221')]::uuid[]);
+SELECT save_prerequisites(md5('R224')::uuid, ARRAY[md5('R221')]::uuid[]);
+SELECT mk_applicant('z22','00000000-0000-0000-0000-0000000000fa', mnl_today());
+SELECT act('sc');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SC22A')::uuid,'00000000-0000-0000-0000-0000000000fa','A',1,5);
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SC22B')::uuid,'00000000-0000-0000-0000-0000000000fa','B',2,5);
+SELECT act('rg');
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Az22')::uuid,'x',md5('rg')::uuid);
+SELECT id AS t22_s FROM students WHERE applicant_id = md5('Az22')::uuid \gset
+
+-- the list is copied from the section, and nobody writes it by hand
+SELECT expect_eq('the student is placed in section A', (SELECT section_id::text FROM student_sections WHERE student_id = :'t22_s'), md5('SC22A')::uuid::text);
+SELECT expect_eq('the list holds the two subjects of the section',
+  (SELECT string_agg(sub.code, ',' ORDER BY sub.code) FROM student_subjects ls JOIN section_subjects x ON x.id = ls.section_subject_id JOIN subjects sub ON sub.id = x.subject_id WHERE ls.student_id = :'t22_s'), 'R221,R223');
+SELECT expect_msg('a direct insert into the list',
+  format($$INSERT INTO student_subjects (student_id, school_year, semester, section_subject_id, source) SELECT %L, '2032-2033', '1st', id, 'added' FROM section_subjects WHERE section_id = %L LIMIT 1$$, :'t22_s', md5('SC22B')::uuid),
+  'only through the load builder');
+
+-- who may read and change a load
+SELECT act('rg');
+SELECT expect_msg('the Registrar cannot read a load', format($$SELECT student_load(%L)$$, :'t22_s'), 'cannot read a student');
+SELECT act('dn2');
+SELECT expect_msg('a Dean of another college cannot read a load', format($$SELECT student_load(%L)$$, :'t22_s'), 'not in your college');
+SELECT expect_msg('a Dean of another college cannot add a subject',
+  format($$SELECT add_subject_to_load(%L, %L, %L)$$, :'t22_s', md5('SC22B')::uuid, md5('R224')::uuid), 'belongs to another college');
+SELECT act('sc');
+
+-- eligibility: R224 is blocked by R221, R222 is not offered in a 1st semester term
+SELECT expect_eq('R224 is blocked',
+  (SELECT x->>'status' FROM jsonb_array_elements(student_load(:'t22_s')->'subjects') x WHERE x->>'code' = 'R224'), 'blocked');
+SELECT expect_eq('R224 names R221 as the blocking prerequisite',
+  (SELECT x->'blockedBy'->0->>'code' FROM jsonb_array_elements(student_load(:'t22_s')->'subjects') x WHERE x->>'code' = 'R224'), 'R221');
+SELECT expect_eq('R222 is not offered this term',
+  (SELECT x->>'status' FROM jsonb_array_elements(student_load(:'t22_s')->'subjects') x WHERE x->>'code' = 'R222'), 'not_offered');
+SELECT expect_eq('R221 is in the load',
+  (SELECT x->>'status' FROM jsonb_array_elements(student_load(:'t22_s')->'subjects') x WHERE x->>'code' = 'R221'), 'in_load');
+SELECT expect_msg('a blocked subject cannot be added',
+  format($$SELECT add_subject_to_load(%L, %L, %L)$$, :'t22_s', md5('SC22B')::uuid, md5('R224')::uuid), 'needs a passed prerequisite: R221');
+SELECT expect_msg('a subject already in the load',
+  format($$SELECT add_subject_to_load(%L, %L, %L)$$, :'t22_s', md5('SC22A')::uuid, md5('R223')::uuid), 'already takes R223');
+SELECT expect_msg('a section that does not offer the subject',
+  format($$SELECT add_subject_to_load(%L, %L, %L)$$, :'t22_s', md5('SC22B')::uuid, md5('R223')::uuid), 'does not offer R223');
+SELECT expect_msg('a subject of a semester that is not this term',
+  format($$SELECT add_subject_to_load(%L, %L, %L)$$, :'t22_s', md5('SC22A')::uuid, md5('R222')::uuid), 'not offered in the 1st semester');
+SELECT act('ad');
+SELECT expect_msg('Admin cannot add past a prerequisite either',
+  format($$SELECT add_subject_to_load(%L, %L, %L)$$, :'t22_s', md5('SC22B')::uuid, md5('R224')::uuid), 'needs a passed prerequisite');
+
+-- a credit for R221 unblocks R224, and the subject is added from the other section
+SELECT act('dn');
+SELECT record_credit(:'t22_s', md5('R221')::uuid, 'TOR page 1, line 2') AS t22_credit \gset
+SELECT act('rg');
+SELECT approve_credit(:'t22_credit');
+SELECT act('sc');
+SELECT expect_eq('R224 is allowed after the credit',
+  (SELECT x->>'status' FROM jsonb_array_elements(student_load(:'t22_s')->'subjects') x WHERE x->>'code' = 'R224'), 'allowed');
+SELECT add_subject_to_load(:'t22_s', md5('SC22B')::uuid, md5('R224')::uuid);
+SELECT expect_eq('the load now holds R221, R223 and R224',
+  (SELECT string_agg(sub.code, ',' ORDER BY sub.code) FROM student_subjects ls JOIN section_subjects x ON x.id = ls.section_subject_id JOIN subjects sub ON sub.id = x.subject_id WHERE ls.student_id = :'t22_s'), 'R221,R223,R224');
+SELECT expect_eq('the added subject is marked added',
+  (SELECT ls.source FROM student_subjects ls JOIN section_subjects x ON x.id = ls.section_subject_id WHERE ls.student_id = :'t22_s' AND x.subject_id = md5('R224')::uuid), 'added');
+SELECT expect_eq('the schedule names the section of the retake',
+  (SELECT x->>'section' FROM jsonb_array_elements(student_schedule_json(:'t22_s')) x WHERE x->>'code' = 'R224'), 'BST22 2B');
+SELECT expect_eq('the professor class list source counts the student once in section B',
+  (SELECT count(DISTINCT ls.student_id)::text FROM student_subjects ls JOIN section_subjects x ON x.id = ls.section_subject_id WHERE x.section_id = md5('SC22B')::uuid), '1');
+SELECT expect_eq('the student is told',
+  (SELECT count(*)::text FROM notifications n JOIN applicants a ON a.user_id = n.user_id WHERE a.id = md5('Az22')::uuid AND n.kind = 'load_changed'), '1');
+
+-- removing: only what staff added
+SELECT expect_msg('a section subject cannot be removed',
+  format($$SELECT remove_subject_from_load(%L, %L)$$, :'t22_s', md5('R221')::uuid), 'stays in the load');
+SELECT remove_subject_from_load(:'t22_s', md5('R224')::uuid);
+SELECT expect_eq('the added subject is gone',
+  (SELECT count(*)::text FROM student_subjects ls JOIN section_subjects x ON x.id = ls.section_subject_id WHERE ls.student_id = :'t22_s' AND x.subject_id = md5('R224')::uuid), '0');
+
+-- audit and grants
+SELECT expect_eq('the add is audited with its actor',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'student_subjects' AND action = 'INSERT' AND actor_id = md5('sc')::uuid AND new_data->>'source' = 'added'), '1');
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('sc');
+SELECT expect_eq('authenticated Secretary reads the load', (student_load(:'t22_s')->>'programCode'), 'BST22');
+SELECT expect_fail('authenticated calls in_section_subject',
+  format($$SELECT in_section_subject(%L, %L, %L)$$, :'t22_s', md5('SC22A')::uuid, md5('R221')::uuid));
+SELECT expect_fail('authenticated calls copy_section_load', format($$SELECT copy_section_load(%L, %L)$$, :'t22_s', md5('SC22A')::uuid));
+SELECT expect_fail('authenticated writes the list directly', format($$DELETE FROM student_subjects WHERE student_id = %L$$, :'t22_s'));
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 22 grant checks not run';
+\endif
+
 -- audit
 SELECT 'audit rows', count(*), count(DISTINCT table_name) AS tables FROM audit_log;
 SELECT 'toggle audited', actor_role, old_data->>'payment_required' AS was, new_data->>'payment_required' AS now FROM audit_log WHERE table_name='program_payment_settings';

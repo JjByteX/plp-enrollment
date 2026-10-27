@@ -44,6 +44,7 @@ export const AUDIT_TABLE_LABEL: Record<string, string> = {
   sections: 'Sections',
   student_credits: 'Student credits',
   student_sections: 'Student sections',
+  student_subjects: 'Student subjects',
   students: 'Students',
   subject_prerequisites: 'Subject prerequisites',
   subjects: 'Subjects',
