@@ -18,7 +18,7 @@ export const ACTION_LABEL: Record<AuditAction, string> = {
 
 // Every table with the log_audit trigger: the init migration's list, plus
 // document_requirements (step 7), enrollment_term (step 11), the grading tables (step 19), subject_prerequisites and
-// student_credits (step 20), and term_closures and term_results (step 21). A table added
+// student_credits (step 20), and term_closures and term_results (step 21), and leaves (step 23). A table added
 // later with the trigger needs one line here to appear in the filter.
 export const AUDIT_TABLE_LABEL: Record<string, string> = {
   applicants: 'Applicants',
@@ -34,6 +34,7 @@ export const AUDIT_TABLE_LABEL: Record<string, string> = {
   grade_sheets: 'Grade sheets',
   grades: 'Grades',
   grading_settings: 'Grading settings',
+  leaves: 'Leaves of absence',
   mass_reschedules: 'Mass reschedules',
   payments: 'Payments',
   program_payment_settings: 'Payment settings',

@@ -6,12 +6,14 @@
 // prerequisite named), already passed, or not offered this term. A student with no section yet is
 // placed first. A subject is added from any section of the current term that offers it. The
 // database refuses a blocked subject for every role, so the screen only explains it. A Credits
-// button opens the credits window of step 20, so a transferee can be credited from here. Once the
+// button opens the credits window of step 20, so a transferee can be credited from here, and a
+// Leave button opens the leave of absence window of step 23. Once the
 // assessment slip is issued the load is fixed and the controls are hidden.
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Divider, Group, Modal, Select, Stack, Text, Title } from '@mantine/core';
 import { FormMessage, type FormMessageValue } from '@/components/FormMessage';
 import { termLabel } from '@/features/cor/schema';
+import { LeaveModal } from '@/features/leave-of-absence/LeaveModal';
 import { CreditsModal } from '@/features/prerequisites/CreditsModal';
 import { moveStudent } from '@/features/section-scheduling/actions';
 import { color, fontWeight, padding, spacing } from '@/styles/tokens';
@@ -38,6 +40,7 @@ export function LoadModal({ student, onClose }: { student: LoadStudent; onClose:
   const [placePick, setPlacePick] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [credits, setCredits] = useState(false);
+  const [leave, setLeave] = useState(false);
 
   const reload = useCallback(async () => {
     const result = await loadStudentLoad(student.studentId);
@@ -255,15 +258,30 @@ export function LoadModal({ student, onClose }: { student: LoadStudent; onClose:
         )}
 
         <Group justify="space-between">
-          <Button variant="default" onClick={() => setCredits(true)} disabled={busy !== null || load === null}>
-            Credits
-          </Button>
+          <Group gap={spacing.sm}>
+            <Button variant="default" onClick={() => setCredits(true)} disabled={busy !== null || load === null}>
+              Credits
+            </Button>
+            <Button variant="default" onClick={() => setLeave(true)} disabled={busy !== null || load === null}>
+              Leave
+            </Button>
+          </Group>
           <Button variant="default" onClick={onClose} disabled={busy !== null}>
             Close
           </Button>
         </Group>
       </Stack>
 
+      {leave && (
+        <LeaveModal
+          student={student}
+          onClose={() => setLeave(false)}
+          onDone={(result) => {
+            setLeave(false);
+            setMessage(result);
+          }}
+        />
+      )}
       {credits && (
         <CreditsModal
           student={student}

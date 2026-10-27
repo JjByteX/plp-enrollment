@@ -9,6 +9,11 @@ import { termLabel } from '@/features/cor/schema';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import type { ReviewStudent } from './schema';
 
+function termText(student: ReviewStudent): string {
+  const term = termLabel(student.schoolYear, student.semester);
+  return student.kind === 'leave' ? `Returns ${term}` : `Closed ${term}`;
+}
+
 const LIST_LIMIT = 5;
 
 export function ReviewList({
@@ -32,7 +37,7 @@ export function ReviewList({
                   {student.studentNumber}, {student.fullName}
                 </Text>
                 <Text size="sm" c={color.textSecondary}>
-                  {student.programCode}, year {student.yearLevel}, {termLabel(student.schoolYear, student.semester)}
+                  {student.programCode}, year {student.yearLevel}, {termText(student)}
                 </Text>
                 <Text size="sm">{student.reason}</Text>
               </Stack>
@@ -53,7 +58,7 @@ export function ReviewList({
           <Table.Tr>
             <Table.Th>Student</Table.Th>
             <Table.Th>Program</Table.Th>
-            <Table.Th>Closed term</Table.Th>
+            <Table.Th>Term</Table.Th>
             <Table.Th>Reason</Table.Th>
             <Table.Th />
           </Table.Tr>
@@ -67,7 +72,7 @@ export function ReviewList({
               <Table.Td>
                 {student.programCode}, year {student.yearLevel}
               </Table.Td>
-              <Table.Td>{termLabel(student.schoolYear, student.semester)}</Table.Td>
+              <Table.Td>{termText(student)}</Table.Td>
               <Table.Td>{student.reason}</Table.Td>
               <Table.Td>
                 <Group justify="flex-end">

@@ -12,7 +12,7 @@ export default async function GradesPage({
   searchParams: { tab?: string; section?: string; subject?: string };
 }) {
   const user = await requireUser();
-  const { tab, ready, sections, changes, sheet, termStatus, completed } = await loadGradesPage(searchParams, {
+  const { tab, ready, sections, changes, sheet, termStatus, completed, onLeave } = await loadGradesPage(searchParams, {
     lapse: true,
     registrar: true,
   });
@@ -31,6 +31,7 @@ export default async function GradesPage({
       credits={credits}
       termStatus={termStatus}
       completed={completed}
+      onLeave={onLeave}
     />
   );
 }

@@ -9,7 +9,7 @@
 // (step 7 decision C) and, under it, where their reschedule request stands
 // (step 12): none, waiting for the Registrar, or declined with the Registrar's
 // note. An approved request needs no line, the visit itself has moved. Students see their student number and any late item
-// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10), their COR (step 11) whether the schedule changed after the slip (step 16) and whether they must see their college for advising after a closed term (step 21, no grade shown). Every other role has no card (kind 'staff'); their home
+// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10), their COR (step 11) whether the schedule changed after the slip (step 16) and whether they must see their college for advising after a closed term (step 21, no grade shown), an approved leave of absence that has not started and, after a return, the readmission slip (step 23). Every other role has no card (kind 'staff'); their home
 // screen lists what is waiting (step 14).
 //
 // A person who withdrew (step 17) sees that and nothing else, whatever stage they
@@ -43,6 +43,8 @@ export type NextStep =
       cor: { schoolYear: string; semester: string } | null; // set once the student is enrolled
       scheduleChanged: boolean; // the schedule changed after the slip and the COR is not issued yet (step 16)
       needsAdvising: boolean; // on the review list after a closed term; no grade is shown (step 21, decision S)
+      leave: { startYear: string; startSemester: string; returnYear: string; returnSemester: string } | null; // approved, not started (step 23)
+      readmitted: boolean; // returned from leave into the term of the latest enrollment: the slip is ready (step 23)
     }
   // Staff and Professors have no step of their own: their home screen lists what is waiting (step 14).
   | { kind: 'staff' };
@@ -151,6 +153,16 @@ async function getStudentStep(): Promise<NextStep> {
   // A student who did not pass everything in a closed term goes to their college (step 21).
   const { data: advising } = await supabase.rpc('my_needs_advising');
 
+  // An approved leave of absence that has not started, and the readmission slip after a return (step 23).
+  const { data: leaveRow } = await supabase.rpc('my_leave');
+  const leave = leaveRow as { startYear: string; startSemester: string; returnYear: string; returnSemester: string } | null;
+  const { data: readmission } = await supabase.rpc('my_readmission');
+  const readmitted =
+    placement !== null &&
+    readmission !== null &&
+    (readmission as { returnedYear: string; returnedSemester: string }).returnedYear === placement.school_year &&
+    (readmission as { returnedYear: string; returnedSemester: string }).returnedSemester === placement.semester;
+
   return {
     kind: 'student_waiting',
     studentNumber: student.student_number,
@@ -166,6 +178,8 @@ async function getStudentStep(): Promise<NextStep> {
     cor: cor ? { schoolYear: cor.school_year, semester: cor.semester } : null,
     scheduleChanged: changed === true,
     needsAdvising: advising === true,
+    leave: leave ?? null,
+    readmitted,
   };
 }
 

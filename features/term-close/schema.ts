@@ -16,7 +16,10 @@ export type TermStatus = {
   missingTotal: number;
 };
 
+// kind 'leave' is a student whose leave of absence ended and who has not returned yet (step 23); the
+// term is then the return term, and the year level is the last one the student was enrolled in.
 export type ReviewStudent = {
+  kind: 'review' | 'leave';
   studentId: string;
   studentNumber: string;
   fullName: string;

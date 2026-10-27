@@ -7,12 +7,13 @@
 // subject's professor, room, day or time with a reason (step 16), until a
 // student of the section has a COR. Which controls show depends on the person's
 // role and the status; the database enforces the same rules. The Dean, the Secretary and Admin also
-// get a Credits button on each student (step 20). Fewer than 5 students render as a list, 5
+// get a Credits button and a Leave button on each student (steps 20 and 23). Fewer than 5 students render as a list, 5
 // or more as a table (ux-ui-guidelines.md).
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { color, fontWeight, padding, spacing } from '@/styles/tokens';
 import type { Role } from '@/lib/auth/roles';
+import { LeaveModal } from '@/features/leave-of-absence/LeaveModal';
 import { CreditsModal } from '@/features/prerequisites/CreditsModal';
 import {
   amendLoading,
@@ -97,6 +98,7 @@ export function SectionDetailsModal({
   const [amendReason, setAmendReason] = useState('');
   const [picks, setPicks] = useState<Record<string, string | null>>({});
   const [creditsFor, setCreditsFor] = useState<SectionStudent | null>(null);
+  const [leaveFor, setLeaveFor] = useState<SectionStudent | null>(null);
 
   const isCollege = viewerRole === 'college_secretary' || viewerRole === 'dean' || viewerRole === 'admin';
   const isDean = viewerRole === 'dean' || viewerRole === 'admin';
@@ -270,6 +272,17 @@ export function SectionDetailsModal({
           }}
         >
           Credits
+        </Button>
+        <Button
+          variant="default"
+          size="xs"
+          disabled={busy !== null}
+          onClick={() => {
+            setNotice(null);
+            setLeaveFor(student);
+          }}
+        >
+          Leave
         </Button>
         {moveControl(student)}
       </Group>
@@ -577,6 +590,16 @@ export function SectionDetailsModal({
           )}
         </Stack>
       </Modal>
+      {leaveFor && (
+        <LeaveModal
+          student={leaveFor}
+          onClose={() => setLeaveFor(null)}
+          onDone={(result) => {
+            setLeaveFor(null);
+            if ('ok' in result) setNotice(result.message);
+          }}
+        />
+      )}
       {creditsFor && (
         <CreditsModal
           student={creditsFor}

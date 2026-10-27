@@ -1,6 +1,7 @@
 // The server-side body shared by the Secretary / Dean schedules page and the
 // Registrar schedules page. Each page only says which base path it lives at.
 import { requireUser } from '@/lib/auth/session';
+import { catchUpLeaves } from '@/features/leave-of-absence/queries';
 import { listReviewStudents } from '@/features/term-close/queries';
 import { SchedulesBoard } from './SchedulesBoard';
 import { isScheduleStatus, loadBoard } from './queries';
@@ -18,6 +19,8 @@ export async function SchedulesPageContent({
   const status = isScheduleStatus(searchParams.status) ? searchParams.status : null;
   const collegeStaff = user.role === 'dean' || user.role === 'college_secretary' || user.role === 'admin';
   const tab = collegeStaff && searchParams.tab === 'review' ? 'review' : 'sections';
+  // A leave that has started or ended is caught up first, so the review list is current (step 23).
+  await catchUpLeaves();
   // The review list is read on every load so its count shows on the tab; the database limits it to the college.
   const [board, review] = await Promise.all([loadBoard(user, {}), collegeStaff ? listReviewStudents() : Promise.resolve([])]);
 

@@ -100,10 +100,10 @@ export const KIND_LABEL: Record<GradeChange['kind'], string> = {
   drop: 'Official drop',
 };
 
-export type GradeTab = 'sections' | 'changes' | 'completed';
+export type GradeTab = 'sections' | 'changes' | 'completed' | 'leave';
 
 export function parseGradeTab(raw: unknown): GradeTab {
-  return parseChoice(raw, ['sections', 'changes', 'completed'], 'sections');
+  return parseChoice(raw, ['sections', 'changes', 'completed', 'leave'], 'sections');
 }
 
 export function scaleReady(scale: Scale): boolean {

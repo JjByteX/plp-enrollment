@@ -11,7 +11,10 @@ export default async function GradesPage({
   searchParams: { tab?: string; section?: string; subject?: string };
 }) {
   const user = await requireUser();
-  const { tab, ready, sections, changes, sheet } = await loadGradesPage(searchParams, { lapse: true });
+  const { tab, ready, sections, changes, sheet, leaveRequests } = await loadGradesPage(searchParams, {
+    lapse: true,
+    dean: true,
+  });
 
   return (
     <GradesBoard
@@ -22,6 +25,7 @@ export default async function GradesPage({
       changes={changes}
       sheet={sheet}
       ready={ready}
+      leaves={leaveRequests}
     />
   );
 }

@@ -5,7 +5,9 @@
 // with grade changes in flight. The Registrar's page also has the Close term control and a
 // Completed tab (step 21). Fewer than 5 rows render as a list, 5 or more as
 // a table (ux-ui-guidelines.md). A sheet opens as a centered modal. On the Registrar's page the
-// Changes tab also lists the credits waiting for approval (step 20).
+// Changes tab also lists the credits waiting for approval (step 20), and it has an On leave tab, a
+// read-only list of students on leave of absence (step 23). On the Dean's page the Changes tab lists the
+// leaves waiting for the Dean's decision.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Divider, Group, Stack, Table, Tabs, Text } from '@mantine/core';
@@ -15,6 +17,8 @@ import { FormMessage } from '@/components/FormMessage';
 import type { Role } from '@/lib/auth/roles';
 import { approveCredit, rejectCredit } from '@/features/prerequisites/actions';
 import type { PendingCredit } from '@/features/prerequisites/schema';
+import { LeaveRequestRows, OnLeaveList } from '@/features/leave-of-absence/LeaveRows';
+import type { LeaveRequest, OnLeaveStudent } from '@/features/leave-of-absence/schema';
 import { CloseTermBar } from '@/features/term-close/CloseTermBar';
 import { CompletedList } from '@/features/term-close/CompletedList';
 import type { CompletedStudent, TermStatus } from '@/features/term-close/schema';
@@ -51,6 +55,8 @@ export function GradesBoard({
   credits = [],
   termStatus = null,
   completed = [],
+  leaves = [],
+  onLeave = [],
 }: {
   viewerRole: Role;
   basePath: string;
@@ -62,6 +68,8 @@ export function GradesBoard({
   credits?: PendingCredit[]; // credits waiting for the Registrar; only that page passes them
   termStatus?: TermStatus | null; // the current term, for Close term; only the Registrar's page passes it
   completed?: CompletedStudent[]; // students who completed their program; only the Registrar's page passes them
+  leaves?: LeaveRequest[]; // leaves waiting for the Dean; only the Dean's page passes them
+  onLeave?: OnLeaveStudent[]; // students on leave; only the Registrar's page passes them
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<GradingActionResult | null>(null);
@@ -72,11 +80,11 @@ export function GradesBoard({
 
   // Close term and the Completed tab belong to the Registrar and Admin, on the Registrar's page.
   const isRegistrar = (viewerRole === 'registrar' || viewerRole === 'admin') && termStatus !== null;
-  const activeTab: GradeTab = tab === 'completed' && !isRegistrar ? 'sections' : tab;
+  const activeTab: GradeTab = (tab === 'completed' || tab === 'leave') && !isRegistrar ? 'sections' : tab;
 
   function setTab(next: string | null) {
     setMessage(null);
-    router.replace(next === 'changes' || next === 'completed' ? `${basePath}?tab=${next}` : basePath);
+    router.replace(next === 'changes' || next === 'completed' || next === 'leave' ? `${basePath}?tab=${next}` : basePath);
   }
 
   function openSheet(section: GradeSection) {
@@ -100,6 +108,7 @@ export function GradesBoard({
           <Tabs.Tab value="sections">Subjects</Tabs.Tab>
           <Tabs.Tab value="changes">Changes</Tabs.Tab>
           {isRegistrar && <Tabs.Tab value="completed">Completed</Tabs.Tab>}
+          {isRegistrar && <Tabs.Tab value="leave">On leave</Tabs.Tab>}
         </Tabs.List>
       </Tabs>
 
@@ -109,10 +118,12 @@ export function GradesBoard({
 
       {activeTab === 'sections' && <SectionRows sections={sections} onOpen={openSheet} />}
       {activeTab === 'completed' && <CompletedList students={completed} />}
+      {activeTab === 'leave' && <OnLeaveList students={onLeave} />}
       {activeTab === 'changes' && (
         <ChangeRows
           changes={changes}
           credits={credits}
+          leaves={leaves}
           viewerRole={viewerRole}
           onResult={setMessage}
           onReject={setRejecting}
@@ -241,6 +252,7 @@ function SectionRows({ sections, onOpen }: { sections: GradeSection[]; onOpen: (
 function ChangeRows({
   changes,
   credits,
+  leaves,
   viewerRole,
   onResult,
   onReject,
@@ -248,6 +260,7 @@ function ChangeRows({
 }: {
   changes: GradeChange[];
   credits: PendingCredit[];
+  leaves: LeaveRequest[];
   viewerRole: Role;
   onResult: (result: GradingActionResult) => void;
   onReject: (change: GradeChange) => void;
@@ -258,11 +271,18 @@ function ChangeRows({
   // Only the Registrar and Admin decide on credits; nobody else is shown them.
   const decidesCredits = viewerRole === 'registrar' || viewerRole === 'admin';
   const waitingCredits = decidesCredits ? credits : [];
+  // Only the Dean and Admin decide on leaves of absence (step 23).
+  const decidesLeaves = viewerRole === 'dean' || viewerRole === 'admin';
+  const waitingLeaves = decidesLeaves ? leaves : [];
 
-  if (changes.length === 0 && waitingCredits.length === 0) {
+  if (changes.length === 0 && waitingCredits.length === 0 && waitingLeaves.length === 0) {
     return (
       <Text c={color.textSecondary}>
-        {decidesCredits ? 'No grade change or credit is waiting.' : 'No grade change is waiting.'}
+        {decidesCredits
+          ? 'No grade change or credit is waiting.'
+          : decidesLeaves
+            ? 'No grade change or leave is waiting.'
+            : 'No grade change is waiting.'}
       </Text>
     );
   }
@@ -356,6 +376,8 @@ function ChangeRows({
           </Group>
         </Stack>
       ))}
+      {(changes.length > 0 || waitingCredits.length > 0) && waitingLeaves.length > 0 && <Divider />}
+      {waitingLeaves.length > 0 && <LeaveRequestRows requests={waitingLeaves} onResult={onResult} />}
     </Stack>
   );
 }

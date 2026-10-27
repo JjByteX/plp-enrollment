@@ -7,6 +7,7 @@
 import { Anchor, Divider, Group, Stack, Text } from '@mantine/core';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { termLabel } from '@/features/cor/schema';
+import { leaveTermText } from '@/features/leave-of-absence/schema';
 import { RequestRescheduleButton } from '@/features/reschedule-request/RequestRescheduleButton';
 import type { NextStep } from './queries';
 
@@ -55,6 +56,17 @@ export function NextStepCard({ step }: { step: NextStep }) {
                 ? `Your schedule for ${step.section.label} is approved.${step.slip ? '' : ' Your next step is the assessment slip from the Registrar.'}`
                 : `You are placed in ${step.section.label}. Your college is preparing your schedule.`}
           </Text>
+          {step.leave && (
+            <Text size="sm">
+              Your leave of absence is approved. It starts with the {leaveTermText(step.leave.startYear, step.leave.startSemester)}. You
+              return in the {leaveTermText(step.leave.returnYear, step.leave.returnSemester)}.
+            </Text>
+          )}
+          {step.readmitted && (
+            <Anchor href="/readmission" size="sm">
+              View readmission slip
+            </Anchor>
+          )}
           {step.needsAdvising && (
             <Text size="sm">Go to your college for advising on your next semester.</Text>
           )}
