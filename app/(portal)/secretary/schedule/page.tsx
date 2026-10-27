@@ -4,6 +4,6 @@ import { pageTitle } from '@/lib/pageTitle';
 export const metadata = pageTitle('Schedules');
 
 // The College Secretary prepares sections and professor loading, the Dean signs off and can do the same work. The secretary layout already checks the role.
-export default function SchedulesPage({ searchParams }: { searchParams: { program?: string; status?: string } }) {
+export default function SchedulesPage({ searchParams }: { searchParams: { program?: string; status?: string; tab?: string } }) {
   return <SchedulesPageContent basePath="/secretary/schedule" searchParams={searchParams} />;
 }

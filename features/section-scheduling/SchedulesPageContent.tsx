@@ -1,6 +1,7 @@
 // The server-side body shared by the Secretary / Dean schedules page and the
 // Registrar schedules page. Each page only says which base path it lives at.
 import { requireUser } from '@/lib/auth/session';
+import { listReviewStudents } from '@/features/term-close/queries';
 import { SchedulesBoard } from './SchedulesBoard';
 import { isScheduleStatus, loadBoard } from './queries';
 import { UUID } from './schema';
@@ -10,12 +11,15 @@ export async function SchedulesPageContent({
   searchParams,
 }: {
   basePath: string;
-  searchParams: { program?: string; status?: string };
+  searchParams: { program?: string; status?: string; tab?: string };
 }) {
   const user = await requireUser();
   const programId = searchParams.program && UUID.test(searchParams.program) ? searchParams.program : null;
   const status = isScheduleStatus(searchParams.status) ? searchParams.status : null;
-  const board = await loadBoard(user, {});
+  const collegeStaff = user.role === 'dean' || user.role === 'college_secretary' || user.role === 'admin';
+  const tab = collegeStaff && searchParams.tab === 'review' ? 'review' : 'sections';
+  // The review list is read on every load so its count shows on the tab; the database limits it to the college.
+  const [board, review] = await Promise.all([loadBoard(user, {}), collegeStaff ? listReviewStudents() : Promise.resolve([])]);
 
   return (
     <SchedulesBoard
@@ -28,6 +32,8 @@ export async function SchedulesPageContent({
       professors={board.professors}
       rooms={board.rooms}
       waiting={board.waiting}
+      tab={tab}
+      review={review}
     />
   );
 }

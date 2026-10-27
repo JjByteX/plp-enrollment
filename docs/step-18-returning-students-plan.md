@@ -270,3 +270,10 @@ Risks:
 - Eligibility reads approved grade sheets only. The check is read-only, so it does not run the INC lapse first (the plan said it would). A lapsed incomplete that has not been turned into a failed 5.0 yet still blocks, so the answer differs only in the label shown.
 - The loop check in `save_prerequisites` cannot be reached while a prerequisite must be strictly earlier in the curriculum. It stays as a guard in case a year level or semester is ever editable.
 - Not done: the eligibility answer is not used anywhere yet (steps 21 and 22). The audit labels for the step 19 tables (`grade_bands`, `grade_sheets`, `grades`, `grade_changes`, `grading_settings`) are still missing from `features/audit-log/schema.ts`. Nothing was run.
+
+## As built (phase 4, step 21)
+
+- Opening the next term is a trigger on `enrollment_term`, so the Term tab needs no new control. It does nothing unless the regular term before is closed and not yet opened.
+- Results are stored (`term_results`), not recomputed, so a grade change after closing does not move anyone (see the risk on grade changes after promotion).
+- The Needs review tab shows the reason and has no Open button; the load builder is step 22.
+- Not done: a Prerequisites-style count on the home lists. Nothing was run.

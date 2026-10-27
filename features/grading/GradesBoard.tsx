@@ -2,7 +2,8 @@
 
 // The Grades page body for the Professor, the Dean and the Registrar (step 19):
 // a Subjects tab with every section subject and its status, and a Changes tab
-// with grade changes in flight. Fewer than 5 rows render as a list, 5 or more as
+// with grade changes in flight. The Registrar's page also has the Close term control and a
+// Completed tab (step 21). Fewer than 5 rows render as a list, 5 or more as
 // a table (ux-ui-guidelines.md). A sheet opens as a centered modal. On the Registrar's page the
 // Changes tab also lists the credits waiting for approval (step 20).
 import { useState } from 'react';
@@ -14,6 +15,9 @@ import { FormMessage } from '@/components/FormMessage';
 import type { Role } from '@/lib/auth/roles';
 import { approveCredit, rejectCredit } from '@/features/prerequisites/actions';
 import type { PendingCredit } from '@/features/prerequisites/schema';
+import { CloseTermBar } from '@/features/term-close/CloseTermBar';
+import { CompletedList } from '@/features/term-close/CompletedList';
+import type { CompletedStudent, TermStatus } from '@/features/term-close/schema';
 import { approveChange, rejectChange, signChange, type GradingActionResult } from './actions';
 import { ReasonDialog } from './ReasonModal';
 import {
@@ -45,6 +49,8 @@ export function GradesBoard({
   sheet,
   ready,
   credits = [],
+  termStatus = null,
+  completed = [],
 }: {
   viewerRole: Role;
   basePath: string;
@@ -54,6 +60,8 @@ export function GradesBoard({
   sheet: Sheet | null; // the sheet named in the address, when one is open
   ready: boolean;
   credits?: PendingCredit[]; // credits waiting for the Registrar; only that page passes them
+  termStatus?: TermStatus | null; // the current term, for Close term; only the Registrar's page passes it
+  completed?: CompletedStudent[]; // students who completed their program; only the Registrar's page passes them
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<GradingActionResult | null>(null);
@@ -62,9 +70,13 @@ export function GradesBoard({
 
   const parent = HOME[viewerRole] ?? HOME.admin;
 
+  // Close term and the Completed tab belong to the Registrar and Admin, on the Registrar's page.
+  const isRegistrar = (viewerRole === 'registrar' || viewerRole === 'admin') && termStatus !== null;
+  const activeTab: GradeTab = tab === 'completed' && !isRegistrar ? 'sections' : tab;
+
   function setTab(next: string | null) {
     setMessage(null);
-    router.replace(next === 'changes' ? `${basePath}?tab=changes` : basePath);
+    router.replace(next === 'changes' || next === 'completed' ? `${basePath}?tab=${next}` : basePath);
   }
 
   function openSheet(section: GradeSection) {
@@ -76,10 +88,18 @@ export function GradesBoard({
     <Stack gap={spacing.md}>
       <PageHeading title="Grades" parent={parent} />
 
-      <Tabs value={tab} onChange={setTab}>
+      {isRegistrar && termStatus && (
+        <>
+          <CloseTermBar status={termStatus} onDone={setMessage} />
+          <Divider />
+        </>
+      )}
+
+      <Tabs value={activeTab} onChange={setTab}>
         <Tabs.List>
           <Tabs.Tab value="sections">Subjects</Tabs.Tab>
           <Tabs.Tab value="changes">Changes</Tabs.Tab>
+          {isRegistrar && <Tabs.Tab value="completed">Completed</Tabs.Tab>}
         </Tabs.List>
       </Tabs>
 
@@ -87,8 +107,9 @@ export function GradesBoard({
 
       <Divider />
 
-      {tab === 'sections' && <SectionRows sections={sections} onOpen={openSheet} />}
-      {tab === 'changes' && (
+      {activeTab === 'sections' && <SectionRows sections={sections} onOpen={openSheet} />}
+      {activeTab === 'completed' && <CompletedList students={completed} />}
+      {activeTab === 'changes' && (
         <ChangeRows
           changes={changes}
           credits={credits}

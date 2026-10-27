@@ -55,6 +55,9 @@ export function NextStepCard({ step }: { step: NextStep }) {
                 ? `Your schedule for ${step.section.label} is approved.${step.slip ? '' : ' Your next step is the assessment slip from the Registrar.'}`
                 : `You are placed in ${step.section.label}. Your college is preparing your schedule.`}
           </Text>
+          {step.needsAdvising && (
+            <Text size="sm">Go to your college for advising on your next semester.</Text>
+          )}
           {step.slip && (
             <Stack gap={spacing.xs}>
               <Text size="sm">

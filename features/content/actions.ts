@@ -144,6 +144,15 @@ export async function saveTerm(input: unknown): Promise<ContentActionResult> {
     .upsert({ id: true, school_year: parsed.value.schoolYear, semester: parsed.value.semester });
   if (error) return { error: 'The term could not be saved.' };
 
+  // Changing the term opens the next one when the term before it was closed (step 21): the sections
+  // are copied and the students who passed everything are placed, so the schedule pages change too.
   revalidatePath(PAGE);
-  return { ok: true, message: 'Term saved. New sections are created in this term.' };
+  revalidatePath('/secretary/schedule');
+  revalidatePath('/registrar/schedules');
+  revalidatePath('/registrar/grades');
+  return {
+    ok: true,
+    message:
+      'Term saved. New sections are created in this term. If the term before it was closed, its sections are copied and its students are placed.',
+  };
 }

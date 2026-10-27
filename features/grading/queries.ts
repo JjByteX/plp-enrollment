@@ -4,6 +4,8 @@
 // checks the caller's role and scope itself (Professor: own subjects, Dean:
 // own college, Registrar and Admin: all), so nobody reads more than they may.
 import { createClient } from '@/lib/supabase/server';
+import { listCompletedStudents, getTermStatus } from '@/features/term-close/queries';
+import type { CompletedStudent } from '@/features/term-close/schema';
 import { UUID, parseGradeTab, scaleReady, type GradeChange, type GradeSection, type Scale, type Sheet } from './schema';
 
 const EMPTY_SCALE: Scale = { incWindowDays: 14, bands: [] };
@@ -42,10 +44,11 @@ export async function listGradeChanges(): Promise<GradeChange[]> {
 }
 
 // Everything a Grades page needs, read in one place so the three pages stay the same.
-// The Dean's and the Registrar's pages catch up lapsed incompletes first.
+// The Dean's and the Registrar's pages catch up lapsed incompletes first. The Registrar's page
+// also reads the term (for Close term) and, on its Completed tab, the completed students (step 21).
 export async function loadGradesPage(
   searchParams: { tab?: string | string[]; section?: string | string[]; subject?: string | string[] },
-  options: { lapse: boolean },
+  options: { lapse: boolean; registrar?: boolean },
 ) {
   if (options.lapse) await lapseIncompleteGrades();
   const tab = parseGradeTab(searchParams.tab);
@@ -53,11 +56,13 @@ export async function loadGradesPage(
   const subjectId = Array.isArray(searchParams.subject) ? searchParams.subject[0] : searchParams.subject;
   const wanted = sectionId && subjectId && UUID.test(sectionId) && UUID.test(subjectId);
 
-  const [scale, sections, changes, sheet] = await Promise.all([
+  const [scale, sections, changes, sheet, termStatus, completed] = await Promise.all([
     getScale(),
     listGradeSections(),
     tab === 'changes' ? listGradeChanges() : Promise.resolve([] as GradeChange[]),
     wanted ? getSheet(sectionId, subjectId) : Promise.resolve(null),
+    options.registrar ? getTermStatus() : Promise.resolve(null),
+    options.registrar && tab === 'completed' ? listCompletedStudents() : Promise.resolve([] as CompletedStudent[]),
   ]);
-  return { tab, ready: scaleReady(scale), sections, changes, sheet };
+  return { tab, ready: scaleReady(scale), sections, changes, sheet, termStatus, completed };
 }

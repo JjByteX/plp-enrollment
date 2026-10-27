@@ -611,3 +611,22 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A. Admin and the Dean of the program's college set prerequisites (decision G); the Registrar and the Secretary only read. All listed prerequisites are required. A prerequisite must be in the same program and earlier in the curriculum (a lower year level, or the same year level and an earlier semester). Only a pass in an approved grade sheet, or an approved credit, satisfies one; any passing attempt counts, so a retake unblocks. The Dean or the Secretary records a credit with a reason, the Registrar approves it. A subject that others require cannot be deleted, and the message names them.
 
 **Consequences:** Eligibility is not used by any screen yet. The check is read-only and does not run the INC lapse, so a lapsed incomplete shows as incomplete until the next Grades page load, which blocks the same way. A credit can only be recorded for a student who is in a section. A rejected credit can be recorded again. Nothing in this step was executed.
+
+---
+
+**#:** 34
+**Date:** 2026-10-27
+**Milestone:** Build step 21, close term, review list and automatic promotion
+
+**Context:** Grades and prerequisites exist, but nothing moved a student who passed a term into the next one, and a student who did not pass was not listed anywhere.
+
+**Options Considered:**
+- Option A: Closing records each student's result (promote, review with the reason, or completed). The next term, when Admin sets it, copies the closed term's sections and seats the promoted students by itself.
+- Option B: Close and promote in one step into sections made at close time. The next term would have to exist before the old one closes.
+- Option C: Compute the review list on demand from grades, with no stored result.
+
+**Community Consensus:** Not searched.
+
+**Decision:** Option A. Close term is refused while any section subject that has students lacks Dean-approved grades, and once only. Only enrolled, non-withdrawn students get a result; every subject of the section counts. A student who passed the last semester of the last year (highest year level with subjects) is completed. Summer is closed without deciding anything. Promotion goes to the next regular term (1st to 2nd, 2nd to 1st of the next school year, summer skipped), the section of the same name first. A student who cannot be seated moves to the review list with that reason. A review student leaves the list when they have an enrollment in a later term. The student sees only a line to go to their college (decision S).
+
+**Consequences:** Close the term before Admin sets the next one; if Admin moves the term first, the old term cannot be closed. Section copying from a 2nd semester shifts each section up one year level while the program has that year. The list has no action until step 22. Nothing in this step was executed.

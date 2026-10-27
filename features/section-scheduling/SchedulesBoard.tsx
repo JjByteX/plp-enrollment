@@ -7,11 +7,13 @@
 // through ./actions.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Select, Stack, Table, Text, Title } from '@mantine/core';
+import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, Title } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
 import type { Role } from '@/lib/auth/roles';
+import { ReviewList } from '@/features/term-close/ReviewList';
+import type { ReviewStudent } from '@/features/term-close/schema';
 
 // The role's own home page, as the "previous page" ancestor (matches the
 // role's "Home" sidebar entry and the title its own home page shows).
@@ -52,6 +54,8 @@ export function SchedulesBoard({
   professors,
   rooms,
   waiting,
+  tab = 'sections',
+  review = [],
 }: {
   viewerRole: Role;
   basePath: string;
@@ -62,6 +66,8 @@ export function SchedulesBoard({
   professors: PersonOption[];
   rooms: RoomOption[];
   waiting: WaitingStudent[];
+  tab?: 'sections' | 'review'; // the Needs review tab is for the college staff only (step 21)
+  review?: ReviewStudent[];
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<ScheduleActionResult | null>(null);
@@ -84,6 +90,11 @@ export function SchedulesBoard({
     if (nextStatus) params.set('status', nextStatus);
     const query = params.toString();
     router.replace(query ? `${basePath}?${query}` : basePath);
+  }
+
+  function setTab(next: string | null) {
+    setMessage(null);
+    router.replace(next === 'review' ? `${basePath}?tab=review` : basePath);
   }
 
   function finish(result: ScheduleActionResult) {
@@ -122,6 +133,27 @@ export function SchedulesBoard({
     );
   }
 
+  const tabs = isCollege ? (
+    <Tabs value={tab} onChange={setTab}>
+      <Tabs.List>
+        <Tabs.Tab value="sections">Sections</Tabs.Tab>
+        <Tabs.Tab value="review">{review.length > 0 ? `Needs review (${review.length})` : 'Needs review'}</Tabs.Tab>
+      </Tabs.List>
+    </Tabs>
+  ) : null;
+
+  // Students who did not pass everything in a closed term, with the reason (step 21).
+  if (isCollege && tab === 'review') {
+    return (
+      <Stack gap={spacing.md}>
+        <PageHeading title="Schedules" parent={HOME_CRUMB[viewerRole]} />
+        {tabs}
+        <Divider />
+        <ReviewList students={review} />
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap={spacing.md}>
       <Group justify="space-between">
@@ -132,6 +164,8 @@ export function SchedulesBoard({
           </Button>
         )}
       </Group>
+
+      {tabs}
 
       <Group gap={spacing.md} align="flex-end">
         <Select

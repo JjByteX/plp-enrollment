@@ -12,7 +12,10 @@ export default async function GradesPage({
   searchParams: { tab?: string; section?: string; subject?: string };
 }) {
   const user = await requireUser();
-  const { tab, ready, sections, changes, sheet } = await loadGradesPage(searchParams, { lapse: true });
+  const { tab, ready, sections, changes, sheet, termStatus, completed } = await loadGradesPage(searchParams, {
+    lapse: true,
+    registrar: true,
+  });
   // Credits waiting for the Registrar are listed beside the grade changes (step 20).
   const credits = tab === 'changes' ? await listPendingCredits() : [];
 
@@ -26,6 +29,8 @@ export default async function GradesPage({
       sheet={sheet}
       ready={ready}
       credits={credits}
+      termStatus={termStatus}
+      completed={completed}
     />
   );
 }

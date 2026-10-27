@@ -36,6 +36,10 @@
 -- and an unapproved sheet block; a pass, a passing retake and an approved credit unblock), credits (record,
 -- approve, reject, record again), what each role may read, refusing to delete a subject that others require,
 -- the audit rows and the function grants.
+-- Also checks step 21 in 20261026050000_close_term.sql: closing a term (who may, refused while a section subject has no
+-- Dean-approved grades, once only), the result of each student (promote, review with the reason, completed, withdrawn
+-- skipped), the review and completed lists, the advising flag, and opening the next term (sections copied, the promoted
+-- student seated and told, nobody placed twice, the school year rollover, the function grants).
 -- Blocked actions print 'ok   blocked'. Any 'FAIL' line is a broken rule.
 \set ON_ERROR_STOP on
 SET search_path = public, extensions;
@@ -1804,6 +1808,180 @@ SELECT withdraw_applicant(md5('At1')::uuid, 'Step 18 check');
 SELECT expect_eq('only the current enrollment was released',
   (SELECT string_agg(semester, ',' ORDER BY semester) FROM student_sections WHERE student_id = :'t18_student'), '1st');
 SELECT expect_eq('the CORs of both terms stay as history', (SELECT count(*)::text FROM cors WHERE student_id = :'t18_student'), '2');
+
+-- ============================================================
+-- close term (step 21), 20261026050000_close_term.sql.
+-- Own program BST21, in a term no other fixture uses (2030-2031), so closing it sees only these
+-- students. Subjects: S211 and S212 (year 1, 1st) and S213 (year 1, 2nd), so year 1 is the last
+-- year and its 2nd semester the last semester. Four students in section A: q21a passes everything,
+-- q21b has an INC, q21c fails S211, q21d withdraws before the term is closed. dn2 is the Dean of
+-- the other college (step 16). The grading scale of step 19 is saved again so this block stands alone.
+-- ============================================================
+SELECT act('ad');
+UPDATE enrollment_term SET school_year = '2030-2031', semester = '1st';
+SELECT save_grade_scale('[{"label":"Pass","outcome":"passed","from":1,"to":3},{"label":"Fail","outcome":"failed","from":5,"to":5},{"label":"INC","outcome":"incomplete"}]'::jsonb, 14);
+INSERT INTO programs (id,code,name,college_id) VALUES ('00000000-0000-0000-0000-0000000000f9','BST21','Test Program T21','00000000-0000-0000-0000-0000000000c1');
+INSERT INTO subjects (id,program_id,code,title,units,year_level,semester) VALUES
+  (md5('S211')::uuid,'00000000-0000-0000-0000-0000000000f9','S211','S one',3,1,'1st'),
+  (md5('S212')::uuid,'00000000-0000-0000-0000-0000000000f9','S212','S two',3,1,'1st'),
+  (md5('S213')::uuid,'00000000-0000-0000-0000-0000000000f9','S213','S three',3,1,'2nd');
+SELECT mk_applicant('q21a','00000000-0000-0000-0000-0000000000f9', mnl_today());
+SELECT mk_applicant('q21b','00000000-0000-0000-0000-0000000000f9', mnl_today());
+SELECT mk_applicant('q21c','00000000-0000-0000-0000-0000000000f9', mnl_today());
+SELECT mk_applicant('q21d','00000000-0000-0000-0000-0000000000f9', mnl_today());
+SELECT act('sc');
+INSERT INTO sections (id,program_id,name,year_level,capacity) VALUES (md5('SC21A')::uuid,'00000000-0000-0000-0000-0000000000f9','A',1,5);
+SELECT act('rg');
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Aq21a')::uuid,'x',md5('rg')::uuid);
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Aq21b')::uuid,'x',md5('rg')::uuid);
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Aq21c')::uuid,'x',md5('rg')::uuid);
+INSERT INTO students (applicant_id,student_number,documents_received_by) VALUES (md5('Aq21d')::uuid,'x',md5('rg')::uuid);
+SELECT id AS t21_a FROM students WHERE applicant_id = md5('Aq21a')::uuid \gset
+SELECT id AS t21_b FROM students WHERE applicant_id = md5('Aq21b')::uuid \gset
+SELECT id AS t21_c FROM students WHERE applicant_id = md5('Aq21c')::uuid \gset
+SELECT id AS t21_d FROM students WHERE applicant_id = md5('Aq21d')::uuid \gset
+SELECT expect_eq('the four students are in section A of the term',
+  (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SC21A')::uuid), '4');
+SELECT withdraw_applicant(md5('Aq21d')::uuid, 'Step 21 check');
+SELECT expect_eq('the withdrawn student left the section',
+  (SELECT count(*)::text FROM student_sections WHERE section_id = md5('SC21A')::uuid), '3');
+
+-- nothing can be closed before every section subject with students has Dean-approved grades
+SELECT act('sc');
+SELECT expect_msg('a Secretary cannot close the term', $$SELECT close_term()$$, 'Only the Registrar');
+SELECT expect_msg('a Secretary cannot read the term status', $$SELECT term_close_status()$$, 'Only the Registrar');
+SELECT act('rg');
+SELECT expect_eq('the status lists both section subjects as missing', (term_close_status()->>'missingTotal'), '2');
+SELECT expect_msg('close with no grades', $$SELECT close_term()$$, 'Grades are not approved yet for: BST21 1A S211, BST21 1A S212');
+
+SELECT act('ad');
+SELECT save_grades(md5('SC21A')::uuid, md5('S211')::uuid, jsonb_build_array(
+  jsonb_build_object('studentId', :'t21_a'::uuid, 'grade', '2.0'),
+  jsonb_build_object('studentId', :'t21_b'::uuid, 'grade', '2.0'),
+  jsonb_build_object('studentId', :'t21_c'::uuid, 'grade', '5')));
+SELECT submit_grades(md5('SC21A')::uuid, md5('S211')::uuid);
+SELECT approve_grades(md5('SC21A')::uuid, md5('S211')::uuid);
+SELECT act('rg');
+SELECT expect_eq('one section subject is still missing', (term_close_status()->>'missingTotal'), '1');
+SELECT expect_msg('close with one sheet missing', $$SELECT close_term()$$, 'Grades are not approved yet for: BST21 1A S212');
+
+SELECT act('ad');
+SELECT save_grades(md5('SC21A')::uuid, md5('S212')::uuid, jsonb_build_array(
+  jsonb_build_object('studentId', :'t21_a'::uuid, 'grade', '1.5'),
+  jsonb_build_object('studentId', :'t21_b'::uuid, 'grade', 'INC'),
+  jsonb_build_object('studentId', :'t21_c'::uuid, 'grade', '2.0')));
+SELECT submit_grades(md5('SC21A')::uuid, md5('S212')::uuid);
+SELECT approve_grades(md5('SC21A')::uuid, md5('S212')::uuid);
+
+-- closing decides each student
+SELECT act('rg');
+SELECT expect_eq('nothing is missing now', (term_close_status()->>'missingTotal'), '0');
+SELECT close_term()::text AS t21_summary \gset
+SELECT expect_eq('one promoted, two to review, none completed',
+  ((:'t21_summary'::jsonb->>'promote')||'/'||(:'t21_summary'::jsonb->>'review')||'/'||(:'t21_summary'::jsonb->>'completed')), '1/2/0');
+SELECT expect_eq('the student who passed everything is marked promote',
+  (SELECT result FROM term_results WHERE student_id = :'t21_a' AND school_year = '2030-2031' AND semester = '1st'), 'promote');
+SELECT expect_eq('the incomplete is named in the reason',
+  (SELECT result||': '||reason FROM term_results WHERE student_id = :'t21_b'), 'review: Incomplete in S212');
+SELECT expect_eq('the failed subject is named in the reason',
+  (SELECT result||': '||reason FROM term_results WHERE student_id = :'t21_c'), 'review: Failed S211');
+SELECT expect_eq('the withdrawn student has no result', (SELECT count(*)::text FROM term_results WHERE student_id = :'t21_d'), '0');
+SELECT expect_msg('close twice', $$SELECT close_term()$$, 'already closed');
+SELECT expect_eq('the status says closed', (term_close_status()->>'closed'), 'true');
+SELECT expect_msg('write a term result by hand',
+  format($$INSERT INTO term_results (school_year, semester, student_id, program_id, year_level, section_name, result) VALUES ('2030-2031','1st',%L,'00000000-0000-0000-0000-0000000000f9',1,'A','promote')$$, :'t21_d'),
+  'only through closing a term');
+
+-- the review list: own college only, with the reason; the Registrar does not read it
+SELECT act('sc');
+SELECT expect_eq('the Secretary sees the two students of the college',
+  (SELECT string_agg((x->>'studentId')::text, ',' ORDER BY x->>'studentNumber') FROM jsonb_array_elements(review_students()) x WHERE x->>'programCode' = 'BST21'),
+  (SELECT string_agg(id::text, ',' ORDER BY student_number) FROM students WHERE id IN (:'t21_b'::uuid, :'t21_c'::uuid)));
+SELECT act('dn2');
+SELECT expect_eq('the Dean of the other college sees none',
+  (SELECT count(*)::text FROM jsonb_array_elements(review_students()) x WHERE x->>'programCode' = 'BST21'), '0');
+SELECT act('rg');
+SELECT expect_msg('the Registrar cannot read the review list', $$SELECT review_students()$$, 'cannot read the review list');
+
+-- the student's own card says to see the college, and shows no grade
+SELECT act('q21b');
+SELECT expect_eq('the student on review is sent to the college', my_needs_advising()::text, 'true');
+SELECT act('q21a');
+SELECT expect_eq('the student who passed everything is not', my_needs_advising()::text, 'false');
+
+-- opening the next term copies the sections and seats the promoted student
+SELECT act('ad');
+UPDATE enrollment_term SET semester = '2nd';
+SELECT expect_eq('the 2nd semester has the copied section with its capacity',
+  (SELECT string_agg(name||year_level::text||':'||capacity::text, ',') FROM sections WHERE program_id = '00000000-0000-0000-0000-0000000000f9' AND school_year = '2030-2031' AND semester = '2nd'), 'A1:5');
+SELECT expect_eq('the new section holds the subjects of the 2nd semester only',
+  (SELECT string_agg(DISTINCT sub.code, ',') FROM section_subjects x JOIN sections sec ON sec.id = x.section_id JOIN subjects sub ON sub.id = x.subject_id
+    WHERE sec.program_id = '00000000-0000-0000-0000-0000000000f9' AND sec.semester = '2nd'), 'S213');
+SELECT expect_eq('the promoted student is seated in section A of the 2nd semester',
+  (SELECT count(*)::text FROM student_sections ss JOIN sections sec ON sec.id = ss.section_id
+    WHERE ss.student_id = :'t21_a' AND ss.semester = '2nd' AND sec.name = 'A' AND sec.year_level = 1), '1');
+SELECT expect_eq('the promoted student was told',
+  (SELECT count(*)::text FROM notifications WHERE user_id = md5('q21a')::uuid AND kind = 'section_placed' AND message LIKE '%2nd semester of school year 2030-2031%'), '1');
+SELECT expect_eq('a student on review is not seated',
+  (SELECT count(*)::text FROM student_sections WHERE student_id IN (:'t21_b'::uuid, :'t21_c'::uuid) AND semester = '2nd'), '0');
+SELECT expect_eq('the closed term records that it was opened',
+  (SELECT (opened_at IS NOT NULL)::text FROM term_closures WHERE school_year = '2030-2031' AND semester = '1st'), 'true');
+-- a term change back and forth places nobody twice
+UPDATE enrollment_term SET semester = 'summer';
+UPDATE enrollment_term SET semester = '2nd';
+SELECT expect_eq('the promoted student has one enrollment in the 2nd semester',
+  (SELECT count(*)::text FROM student_sections WHERE student_id = :'t21_a' AND semester = '2nd'), '1');
+SELECT expect_eq('the review list still has both students after the term opened',
+  (SELECT count(*)::text FROM jsonb_array_elements(review_students()) x WHERE x->>'programCode' = 'BST21'), '2');
+
+-- placing a student of the review list takes them off it
+SELECT act('sc');
+SELECT move_student_section(:'t21_c', (SELECT id FROM sections WHERE program_id = '00000000-0000-0000-0000-0000000000f9' AND semester = '2nd' AND name = 'A'));
+SELECT expect_eq('a placed student leaves the review list',
+  (SELECT count(*)::text FROM jsonb_array_elements(review_students()) x WHERE x->>'programCode' = 'BST21'), '1');
+SELECT act('q21c');
+SELECT expect_eq('and is no longer told to see the college', my_needs_advising()::text, 'false');
+
+-- the last semester of the last year: passing it completes the program
+SELECT act('ad');
+SELECT id AS t21_sec2 FROM sections WHERE program_id = '00000000-0000-0000-0000-0000000000f9' AND semester = '2nd' AND name = 'A' \gset
+SELECT save_grades(:'t21_sec2'::uuid, md5('S213')::uuid, jsonb_build_array(
+  jsonb_build_object('studentId', :'t21_a'::uuid, 'grade', '2.0'),
+  jsonb_build_object('studentId', :'t21_c'::uuid, 'grade', '2.5')));
+SELECT submit_grades(:'t21_sec2'::uuid, md5('S213')::uuid);
+SELECT approve_grades(:'t21_sec2'::uuid, md5('S213')::uuid);
+SELECT act('rg');
+SELECT close_term()::text AS t21_summary2 \gset
+SELECT expect_eq('both students completed the program',
+  ((:'t21_summary2'::jsonb->>'promote')||'/'||(:'t21_summary2'::jsonb->>'review')||'/'||(:'t21_summary2'::jsonb->>'completed')), '0/0/2');
+SELECT expect_eq('the Registrar sees them in the completed list',
+  (SELECT count(*)::text FROM jsonb_array_elements(completed_students()) x WHERE x->>'programCode' = 'BST21'), '2');
+SELECT act('sc');
+SELECT expect_msg('a Secretary cannot read the completed list', $$SELECT completed_students()$$, 'Only the Registrar');
+
+-- the next school year: year 1 sections are copied for new students, nobody is promoted past the last year
+SELECT act('ad');
+UPDATE enrollment_term SET school_year = '2031-2032', semester = '1st';
+SELECT expect_eq('the next school year copies the year 1 section only',
+  (SELECT string_agg(name||year_level::text, ',') FROM sections WHERE program_id = '00000000-0000-0000-0000-0000000000f9' AND school_year = '2031-2032' AND semester = '1st'), 'A1');
+SELECT expect_eq('a completed student is not seated again',
+  (SELECT count(*)::text FROM student_sections WHERE student_id = :'t21_a' AND school_year = '2031-2032'), '0');
+
+-- audit and grants
+SELECT expect_eq('both closings are audited with their actor',
+  (SELECT count(*)::text FROM audit_log WHERE table_name = 'term_closures' AND action = 'INSERT' AND actor_id = md5('rg')::uuid), '2');
+\if :has_auth
+SET ROLE authenticated;
+SELECT act('rg');
+SELECT expect_eq('authenticated Registrar reads the term status', (term_close_status()->'term'->>'semester'), '1st');
+SELECT expect_fail('authenticated calls open_term', $$SELECT open_term('2030-2031', '2nd')$$);
+SELECT expect_fail('authenticated calls term_missing_sheets', $$SELECT * FROM term_missing_sheets()$$);
+SELECT expect_fail('authenticated writes a term result directly',
+  format($$INSERT INTO term_results (school_year, semester, student_id, program_id, year_level, section_name, result) VALUES ('2030-2031','1st',%L,'00000000-0000-0000-0000-0000000000f9',1,'A','promote')$$, :'t21_d'));
+RESET ROLE;
+\else
+SELECT 'skipped: no authenticated role, step 21 grant checks not run';
+\endif
 
 -- audit
 SELECT 'audit rows', count(*), count(DISTINCT table_name) AS tables FROM audit_log;

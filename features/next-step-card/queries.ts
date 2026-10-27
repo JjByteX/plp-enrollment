@@ -9,7 +9,7 @@
 // (step 7 decision C) and, under it, where their reschedule request stands
 // (step 12): none, waiting for the Registrar, or declined with the Registrar's
 // note. An approved request needs no line, the visit itself has moved. Students see their student number and any late item
-// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10), their COR (step 11) and whether the schedule changed after the slip (step 16). Every other role has no card (kind 'staff'); their home
+// still open, their section and whether its schedule is approved (step 8), the assessment slip once issued (step 9), their payment (step 10), their COR (step 11) whether the schedule changed after the slip (step 16) and whether they must see their college for advising after a closed term (step 21, no grade shown). Every other role has no card (kind 'staff'); their home
 // screen lists what is waiting (step 14).
 //
 // A person who withdrew (step 17) sees that and nothing else, whatever stage they
@@ -42,6 +42,7 @@ export type NextStep =
       payment: 'pending' | 'cleared' | null; // null when payment is not required
       cor: { schoolYear: string; semester: string } | null; // set once the student is enrolled
       scheduleChanged: boolean; // the schedule changed after the slip and the COR is not issued yet (step 16)
+      needsAdvising: boolean; // on the review list after a closed term; no grade is shown (step 21, decision S)
     }
   // Staff and Professors have no step of their own: their home screen lists what is waiting (step 14).
   | { kind: 'staff' };
@@ -147,6 +148,9 @@ async function getStudentStep(): Promise<NextStep> {
   // A student cannot read subjects, rooms or professors, so a function compares the slip's saved schedule (step 16).
   const { data: changed } = await supabase.rpc('my_schedule_changed');
 
+  // A student who did not pass everything in a closed term goes to their college (step 21).
+  const { data: advising } = await supabase.rpc('my_needs_advising');
+
   return {
     kind: 'student_waiting',
     studentNumber: student.student_number,
@@ -161,6 +165,7 @@ async function getStudentStep(): Promise<NextStep> {
     payment,
     cor: cor ? { schoolYear: cor.school_year, semester: cor.semester } : null,
     scheduleChanged: changed === true,
+    needsAdvising: advising === true,
   };
 }
 
