@@ -15,8 +15,8 @@ Use this manual to look up what a page does, the steps from "admitted" to "enrol
 | Your role | Read |
 |---|---|
 | Everyone | [Getting started](#2-getting-started), [The whole journey](#3-the-whole-journey-from-start-to-end) |
-| Registrar | [Registrar pages](#5-page-by-page-registrar), [Reschedules](#7-reschedules), [Withdrawals](#8-withdrawals) |
-| College Secretary or Dean | [Secretary and Dean pages](#6-page-by-page-college-secretary-and-dean), [Prerequisites and credits](#6-page-by-page-college-secretary-and-dean), [Grades](#9-grades) |
+| Registrar | [Registrar pages](#5-page-by-page-registrar), [Reschedules](#7-reschedules), [Withdrawals](#8-withdrawals), [Closing a term](#9-grades) |
+| College Secretary or Dean | [Secretary and Dean pages](#6-page-by-page-college-secretary-and-dean), [Prerequisites and credits](#6-page-by-page-college-secretary-and-dean), [Leave of absence](#6-page-by-page-college-secretary-and-dean), [Grades](#9-grades) |
 | Finance | [Finance pages](#10-page-by-page-finance) |
 | Professor | [Professor pages](#11-page-by-page-professor), [Grades](#9-grades) |
 | Admin | [Admin pages](#12-page-by-page-admin), [Setup checklist](#14-before-the-first-day-setup-checklist-admin) |
@@ -44,9 +44,9 @@ Each step belongs to one office. The system does not let anyone skip a step or d
 |---|---|
 | Applicant | A newly admitted person who has not yet submitted documents. Sees their next step. |
 | Student | An applicant whose documents were received. Sees their number, schedule, slip and COR. |
-| Registrar | Runs visits, receives documents, approves schedules, issues slips and CORs, handles reschedules. |
+| Registrar | Runs visits, receives documents, approves schedules, issues slips and CORs, handles reschedules, closes the term. |
 | Finance | Records payments and decides which courses need payment. |
-| Dean | Signs off professor loading for their own college. Can do everything the College Secretary can do. |
+| Dean | Signs off professor loading for their own college, approves grades, decides leaves of absence. Can do everything the College Secretary can do. |
 | College Secretary | Prepares sections, professors, rooms and times for their own college. |
 | Professor | Sees their classes and class lists. Enters grades. |
 | Admin | Can do everything. Also manages accounts, subjects, rooms, the school term, the grading scale and the Admissions connection. |
@@ -67,7 +67,7 @@ Common messages:
 
 - **"Email or password is wrong."** Check your typing and try again.
 - **"Too many attempts."** Wait a few minutes.
-- **"This account has no access to PLP Enrollment."** Your account is switched off. Contact the Admin.
+- **"This account has no access to PLP Enrollment."** Your account is switched off. Contact the Admin. A student's account is also switched off while an approved leave of absence is running, and switched back on when the college places the student in a section again.
 
 There is no public sign-up. Staff accounts are made by the Admin. Applicant accounts are made automatically when Admissions sends the person over.
 
@@ -153,6 +153,10 @@ Every Applicant and Student page has a **Your next step** card. It always tells 
 
 Their home page also shows a step bar: Visit, Schedule, Assessment slip, Payment (only if required), COR.
 
+### Later terms
+
+After the first term, the same steps repeat for each term. The Registrar closes the term, the Admin opens the next one, and students who passed every subject are moved up to the next term by the system. Students who did not pass everything, and students coming back from a leave of absence, wait on the **Needs review** list until the Secretary or Dean builds their load. They then get a new assessment slip, payment if required, and a new COR, as in steps 5 to 7. See [Closing a term](#9-grades), [Building a load for a student who needs review](#6-page-by-page-college-secretary-and-dean) and [Leave of absence](#6-page-by-page-college-secretary-and-dean).
+
 ---
 
 ## 4. Page by page: Applicants and Students
@@ -174,6 +178,10 @@ Open it with **View assessment slip** on the card. It shows student number, name
 ### COR page
 
 Open it with **View COR** on the card once enrolled. It shows the schedule, the payment details if payment was required, and "Officially enrolled" with the school year and semester. It can also be printed or saved as a PDF.
+
+### Readmission slip
+
+A student who comes back from a leave of absence gets a **View readmission slip** link on the **Your next step** card once the college has placed them in a section. The slip shows the leave, the term they were readmitted to, who approved the leave and who built the load, and it can be printed. It does not show the reason for the leave. The assessment slip and the COR follow as usual.
 
 ### Withdraw enrollment
 
@@ -296,6 +304,8 @@ Lists students who have a slip and either paid or do not need to pay.
 
 See [section 9](#9-grades). The Registrar approves grade changes here.
 
+The page also has the **Close term** bar at the top and two read-only tabs, **Completed** and **On leave**. Closing a term is explained in [section 9](#9-grades). **On leave** lists the students who have an approved or running leave of absence, with the first term, the length and the return term.
+
 The **Changes** tab also lists **credits** waiting for you. A credit is a subject a transferee already finished in earlier schooling. Each row shows the student, the subject, the reason (which names the line of the transferee's TOR) and who recorded it.
 
 - **Approve** makes the credit count as a pass. It has no grade number.
@@ -410,7 +420,7 @@ The credit waits for the Registrar. Until the Registrar approves it, it does not
 
 ### Building a load for a student who needs review
 
-After a term closes, a student who did not pass everything is on the **Needs review** tab of [Schedules](/secretary/schedule), with the reason.
+After a term closes, a student who did not pass everything is on the **Needs review** tab of [Schedules](/secretary/schedule), with the reason. A student coming back from a leave of absence is on the same list, with **Returns** and the term instead of **Closed**.
 
 1. Press **Open** beside the student.
 2. If the student has no section in this term, choose one under **Place** and press it first.
@@ -419,6 +429,41 @@ After a term closes, a student who did not pass everything is on the **Needs rev
 5. Press **Credits** at the bottom left to record a credit for a transferee (see above). It counts only after the Registrar approves it.
 
 **Blocked** subjects name the prerequisite that is not passed, and cannot be added by anyone, Admin included. A subject that is not offered in this semester, one the student already passed, a full section, a clash in time, or a slip that was already issued also stops the add, and the window says why. The student is told when a subject is added or removed.
+
+When a returning student is placed in a section, the leave is marked as returned, the account is switched back on and the readmission slip is issued.
+
+### Leave of absence
+
+A leave of absence lets an enrolled student stop for one or two regular terms and come back. Students never file it themselves: the Secretary or the Dean records it, and the Dean decides.
+
+**Recording a leave (Secretary or Dean)**
+
+1. Open the student's section in [Schedules](/secretary/schedule), or the student's load window, and press **Leave** beside the student.
+2. Choose the **First term of the leave**. A leave starts at a 1st or 2nd semester, never before the current term, and not in a term the student is already placed in.
+3. Choose the **Length**: 1 term, or 2 terms (one academic year).
+4. Type the **Reason** (up to 500 characters) and press **Record leave**.
+
+The window also lists the leaves already recorded and how many of the 4 terms of leave (two academic years in all) the student has used. Summer terms are skipped: a leave counts regular terms only.
+
+The system refuses a leave and says why when:
+
+- The student has no enrollment yet. A new student can withdraw instead.
+- The student withdrew, or belongs to another college.
+- The student already has a leave that is not finished.
+- The leave would go past 4 terms in all.
+
+**Deciding a leave (Dean)**
+
+Open [Grades](/dean/grades), tab **Changes**. Each leave waiting for you shows the student, program, first term, length, return term, reason and how many terms are used. Press **Approve**, or **Reject** and type a reason. A rejected leave keeps the student enrolled and the person who recorded it is told. If the first term has already started, or the student is already placed in it, the leave cannot be approved. Reject it and record a new one.
+
+**What the system does by itself**
+
+- When the first term of an approved leave opens, the leave becomes **On leave** and the student's account is switched off.
+- A student on leave is not moved up when the next term opens.
+- When the return term opens, the leave becomes **Leave ended, not yet returned** and the student appears on **Needs review** with **Returns** and the term.
+- The student is not placed automatically. The Secretary or Dean builds the load as described above. That marks the leave returned, switches the account back on and issues the readmission slip.
+
+The Registrar can see everyone on leave under [Grades](/registrar/grades), tab **On leave**. It is read only.
 
 ---
 
@@ -524,6 +569,31 @@ The type of change is shown: Correction, Completing an incomplete, or Official d
 
 When the Dean or Registrar opens their Grades page, the system checks for approved incompletes that are past the allowed days and turns them into a failed 5.0. A grade that has a change waiting for a signature is left alone.
 
+### Closing a term (Registrar or Admin)
+
+Open [Grades](/registrar/grades). The **Close term** bar at the top names the current term and how many students are enrolled. The button stays off, and the bar names the subjects, until every section subject that has students has Dean-approved grades. If no term is set, ask the Admin to set it.
+
+1. Press **Close term**.
+2. Read the confirmation and press **Close term** again. **This cannot be undone.**
+
+Closing decides, for every student enrolled in that term:
+
+- **Promote:** every subject of the section was passed. The student moves up when the next term opens.
+- **Review:** anything else, such as an incomplete, failed or dropped subject. The reason is written in words and the student goes to the **Needs review** list of their college.
+- **Completed:** passed the last semester of the last year of the program. They appear on the **Completed** tab. Graduation itself is not handled in this system.
+
+A student who withdrew, or who has no enrollment in the term, gets no result. Closing a summer term only records the closure and decides nothing for anyone.
+
+### Opening the next term (Admin)
+
+The Admin changes the school year and semester in [Content, Term](/admin/content?tab=term). If the term before it was closed, changing the term opens the new one by itself:
+
+- The new term's sections are made by copying the closed term's: same names and capacities, with the subjects filled in from the subject list. They have **no professors, rooms or times**. The Secretary prepares them and sends them for sign-off as in [section 6](#6-page-by-page-college-secretary-and-dean). When a new school year starts, sections move up one year level.
+- Every student marked **Promote** is seated in the right section if a seat is free, and is told. A student who cannot be seated goes to **Needs review** with the reason. A student on an approved leave is not seated.
+- Terms go 1st semester, 2nd semester, then 1st semester of the next school year. Summer is never part of the automatic move up.
+
+Close the old term first. If it was not closed, changing the term only changes the term.
+
 ---
 
 ## 10. Page by page: Finance
@@ -601,7 +671,7 @@ Four tabs.
 
 **Rooms:** **Add room** with Name, Capacity and College. A room used by a section cannot be deleted.
 
-**Term:** set the **School year** (like 2026-2027) and the **Semester** (1st, 2nd or summer). Nothing can be built without this. A section cannot be created and a COR cannot be issued until a term is set. Change it when a new semester starts.
+**Term:** set the **School year** (like 2026-2027) and the **Semester** (1st, 2nd or summer). Nothing can be built without this. A section cannot be created and a COR cannot be issued until a term is set. Change it when a new semester starts. Changing it also opens the new term: it makes the new sections and moves up the students who passed (see [section 9](#9-grades)). Close the old term first.
 
 **Grading:** the grading scale (see [section 9](#9-grades)).
 
@@ -644,6 +714,8 @@ The system does these without anyone doing anything. The section number shows wh
 - Moves everyone in a mass reschedule ([section 7](#7-reschedules)).
 - Frees the visit slot and seat when someone withdraws, and seats the next waiting student ([section 8](#8-withdrawals)).
 - Turns an unfinished incomplete into a failed 5.0 when the allowed days pass ([section 9](#9-grades)).
+- Decides promote, review or completed for every student when the Registrar closes a term, and moves the promoted students into the new term's sections when the Admin opens it ([section 9](#9-grades)).
+- Starts and ends leaves of absence, switching the student's account off and on again ([section 6](#6-page-by-page-college-secretary-and-dean)).
 - Keeps the **Your next step** card up to date for every student ([section 3](#3-the-whole-journey-from-start-to-end)).
 - Tells Admissions when a student gets a number and when they are enrolled. If Admissions is down, it tries again later and catches up when you open the Documents or COR page.
 - Writes every important change to the audit log ([section 12](#12-page-by-page-admin)).
@@ -678,6 +750,11 @@ Do these in order.
 | A request from Admissions is Rejected | Open [Admissions](/admin/admissions), read the reason, fix it, then press **Resend**. |
 | A student cannot sign in | Check they use the email on their account. If it was wrong, correct it on the [Documents](/registrar/documents) page. If their link expired, ask the Admin for a new one. |
 | A subject cannot be deleted | Another subject requires it, or it is in a section, or it has a grade or a credit. The message names the subjects that require it. Open [Prerequisites](/admin/prerequisites), remove it from their lists, then try again. |
+| The **Close term** button is off | The bar names the subjects whose grades the Dean has not approved. Follow up with the Dean, then try again. |
+| A student who passed is not in a section of the new term | There was no free seat or no matching section. The student is on **Needs review** with the reason. Create a section or raise capacity, then place the student. |
+| A returning student cannot be placed: "on leave of absence until..." | The leave has not reached its return term yet. The student can be placed once the return term opens. |
+| A leave cannot be recorded | The message says why: no enrollment yet, a leave already open, more than 4 terms in all, or a start that is too early. |
+| A student on leave cannot sign in | Expected. The account is switched off during the leave and back on when the student is placed in a section after the return term opens. |
 | A person withdrew by mistake | It cannot be undone in the system. The person must contact the Registrar. |
 | A slot cannot be cancelled | Someone is booked in it. Move them first, or close the slot instead. |
 
