@@ -4,7 +4,7 @@
 // person's session, so row level security applies: the Registrar and Admin
 // read every student, a student reads only their own COR.
 import { createClient } from '@/lib/supabase/server';
-import { getMyStudentId, toReadyStudents } from '@/features/assessment-slip/queries';
+import { getMyStudentId, listIssuedStudents, toReadyStudents } from '@/features/assessment-slip/queries';
 import type { ReadyStudent } from '@/features/assessment-slip/queries';
 import type { CorData } from './schema';
 
@@ -26,4 +26,19 @@ export async function getMyCor(): Promise<CorData | null> {
   const supabase = createClient();
   const { data } = await supabase.rpc('certificate_of_registration', { p_student: id });
   return (data as CorData | null) ?? null;
+}
+
+// Students whose COR is issued for the current term, for the Registrar's reprint list.
+export async function listIssuedCors(): Promise<ReadyStudent[]> {
+  return listIssuedStudents('cors');
+}
+
+// Each student's COR, in the order of the ids. A student without an issued
+// COR is left out. The database function checks that the caller is staff.
+export async function getCorsForStudents(ids: string[]): Promise<CorData[]> {
+  const supabase = createClient();
+  const cors = await Promise.all(
+    ids.map(async (id) => ((await supabase.rpc('certificate_of_registration', { p_student: id })).data as CorData | null) ?? null)
+  );
+  return cors.filter((cor): cor is CorData => cor !== null);
 }
