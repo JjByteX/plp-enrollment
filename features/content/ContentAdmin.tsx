@@ -2,7 +2,8 @@
 
 // The Admin content page body: Subjects, Rooms and Term tabs. Fewer than 5
 // rows render as a list, 5 or more as a table (ux-ui-guidelines.md). Adding,
-// editing and importing subjects open a centered modal. The tab and the chosen program live in
+// editing and importing subjects open a centered modal; Download saves the
+// program's subjects as a CSV file in the import layout. The tab and the chosen program live in
 // the URL. All changes go through ./actions.
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,6 +16,7 @@ import { SEMESTER_LABEL, termLabel, yearLabel, type Semester } from '@/features/
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { saveTerm, type ContentActionResult } from './actions';
 import type { CollegeOption, RoomRow, SubjectRow, TermRow } from './queries';
+import { downloadSubjectsCsv } from './exportSubjects';
 import { RoomModal } from './RoomModal';
 import { SubjectImportModal } from './SubjectImportModal';
 import { SubjectModal } from './SubjectModal';
@@ -99,6 +101,13 @@ export function ContentAdmin({
               maw="100%"
             />
             <Group gap={spacing.sm}>
+              <Button
+                variant="default"
+                disabled={!program || subjects.length === 0}
+                onClick={() => program && downloadSubjectsCsv(program.code, subjects)}
+              >
+                Download
+              </Button>
               <Button variant="default" disabled={!program} onClick={() => setImportOpen(true)}>
                 Import
               </Button>
