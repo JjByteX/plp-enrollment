@@ -120,6 +120,7 @@ export function PrerequisitesView({
                     </Button>
                   </Group>
                 ) : null,
+              sortable: false,
             },
           ]}
         />

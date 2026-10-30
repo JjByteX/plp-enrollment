@@ -85,6 +85,9 @@ export function AuditLogView({
       {rows.length === 0 ? (
         <Text c={color.textSecondary}>Nothing was logged for this view.</Text>
       ) : (
+        // Clicking a header sorts only the entries on this page — this page
+        // is server-paginated (`total` above comes from the server, not
+        // rows.length), so there is no full result set on the client to sort.
         <ListOrTable
           rows={rows}
           rowKey={(row) => row.id}
@@ -110,7 +113,7 @@ export function AuditLogView({
             </Group>
           )}
           columns={[
-            { header: 'When', cell: (row) => row.when },
+            { header: 'When', cell: (row) => row.when, sortValue: (row) => row.createdAt },
             { header: 'Who', cell: actorText },
             { header: 'Action', cell: (row) => actionLabel(row.action) },
             { header: 'Table', cell: (row) => tableLabel(row.table) },
@@ -124,6 +127,7 @@ export function AuditLogView({
                   </Button>
                 </Group>
               ),
+              sortable: false,
             },
           ]}
         />

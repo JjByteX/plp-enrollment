@@ -132,6 +132,7 @@ function PendingRows({ rows: all, onOpen }: { rows: PaymentRow[]; onOpen: (row: 
               </Button>
             </Group>
           ),
+          sortable: false,
         },
       ]}
     />}
@@ -171,10 +172,10 @@ function ClearedRows({ rows: all }: { rows: PaymentRow[] }) {
         { header: 'Student number', cell: (row) => row.studentNumber },
         { header: 'Student', cell: (row) => row.fullName },
         { header: 'Section', cell: (row) => row.section },
-        { header: 'Amount due', cell: (row) => formatPeso(row.amountDue ?? 0) },
-        { header: 'Amount paid', cell: (row) => formatPeso(row.amountPaid) },
+        { header: 'Amount due', cell: (row) => formatPeso(row.amountDue ?? 0), sortValue: (row) => row.amountDue ?? 0 },
+        { header: 'Amount paid', cell: (row) => formatPeso(row.amountPaid), sortValue: (row) => row.amountPaid },
         { header: 'Receipt', cell: (row) => row.receiptNo ?? '' },
-        { header: 'Cleared', cell: (row) => (row.clearedAt ? formatDate(row.clearedAt) : '') },
+        { header: 'Cleared', cell: (row) => (row.clearedAt ? formatDate(row.clearedAt) : ''), sortValue: (row) => row.clearedAt ?? '' },
       ]}
     />}
     </Stack>
@@ -230,6 +231,7 @@ function ProgramRows({
                 onChange={(event) => onToggle(program, event.currentTarget.checked)}
               />
             ),
+            sortable: false,
           },
         ]}
       />

@@ -6,10 +6,11 @@
 // the URL. All changes go through ./actions.
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Select, Stack, Table, Tabs, Text, TextInput } from '@mantine/core';
+import { Button, Divider, Group, Select, Stack, Tabs, Text, TextInput } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
+import { ListOrTable } from '@/components/ListOrTable';
 import { SEMESTER_LABEL, termLabel, yearLabel, type Semester } from '@/features/cor/schema';
 import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { saveTerm, type ContentActionResult } from './actions';
@@ -19,8 +20,6 @@ import { SubjectModal } from './SubjectModal';
 import { GradingTab } from '@/features/grading/GradingTab';
 import type { Scale } from '@/features/grading/schema';
 import { parseTermInput, type ContentTab } from './schema';
-
-const LIST_LIMIT = 5; // fewer rows than this is a list, not a table
 
 const SEMESTER_OPTIONS = (Object.keys(SEMESTER_LABEL) as Semester[]).map((value) => ({
   value,
@@ -134,135 +133,117 @@ export function ContentAdmin({
   );
 }
 
+// Semester's display order (1st, 2nd, summer) isn't its alphabetical order,
+// so sorting the Semester column needs this explicit rank rather than the
+// label text or the raw code.
+const SEMESTER_ORDER: Record<string, number> = Object.fromEntries(
+  (Object.keys(SEMESTER_LABEL) as Semester[]).map((value, index) => [value, index]),
+);
+
 function SubjectRows({ subjects, onEdit }: { subjects: SubjectRow[]; onEdit: (subject: SubjectRow) => void }) {
   if (subjects.length === 0) return <Text c={color.textSecondary}>No subject is set up for this program.</Text>;
 
   const year = (subject: SubjectRow) => (subject.yearLevel === null ? 'None' : yearLabel(subject.yearLevel));
   const semesterText = (subject: SubjectRow) => SEMESTER_LABEL[subject.semester as Semester] ?? subject.semester;
 
-  if (subjects.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {subjects.map((subject, index) => (
-          <Stack key={subject.id} gap={spacing.sm}>
-            {index > 0 && <Divider />}
-            <Group justify="space-between" wrap="nowrap">
-              <Stack gap={spacing.xs}>
-                <Text fw={fontWeight.semibold}>
-                  {subject.code}, {subject.title}
-                </Text>
-                <Text size="sm" c={color.textSecondary}>
-                  {year(subject)}, {semesterText(subject)}, {subject.units} units
-                  {subject.hasLaboratory ? ', with laboratory' : ''}
-                  {subject.offeredInSummer ? ', also in summer' : ''}
-                </Text>
-              </Stack>
-              <Button variant="default" onClick={() => onEdit(subject)}>
+  return (
+    <ListOrTable
+      rows={subjects}
+      rowKey={(subject) => subject.id}
+      minWidth={720}
+      item={(subject) => (
+        <Group justify="space-between" wrap="nowrap">
+          <Stack gap={spacing.xs}>
+            <Text fw={fontWeight.semibold}>
+              {subject.code}, {subject.title}
+            </Text>
+            <Text size="sm" c={color.textSecondary}>
+              {year(subject)}, {semesterText(subject)}, {subject.units} units
+              {subject.hasLaboratory ? ', with laboratory' : ''}
+              {subject.offeredInSummer ? ', also in summer' : ''}
+            </Text>
+          </Stack>
+          <Button variant="default" onClick={() => onEdit(subject)}>
+            Edit
+          </Button>
+        </Group>
+      )}
+      columns={[
+        {
+          header: 'Year level',
+          cell: year,
+          // null (no year level) sorts last, same as the server's own
+          // `order('year_level', { nullsFirst: false })`.
+          sortValue: (subject) => subject.yearLevel ?? Number.MAX_SAFE_INTEGER,
+        },
+        {
+          header: 'Semester',
+          cell: (subject) => (
+            <>
+              {semesterText(subject)}
+              {subject.offeredInSummer ? ', also in summer' : ''}
+            </>
+          ),
+          sortValue: (subject) => SEMESTER_ORDER[subject.semester] ?? subject.semester,
+        },
+        { header: 'Code', cell: (subject) => subject.code },
+        { header: 'Title', cell: (subject) => subject.title },
+        { header: 'Units', cell: (subject) => subject.units },
+        { header: 'Laboratory', cell: (subject) => (subject.hasLaboratory ? 'Yes' : ''), sortValue: (subject) => (subject.hasLaboratory ? 1 : 0) },
+        {
+          header: '',
+          cell: (subject) => (
+            <Group justify="flex-end">
+              <Button variant="default" size="xs" onClick={() => onEdit(subject)}>
                 Edit
               </Button>
             </Group>
-          </Stack>
-        ))}
-      </Stack>
-    );
-  }
-
-  return (
-    <Table.ScrollContainer minWidth={720}>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Year level</Table.Th>
-            <Table.Th>Semester</Table.Th>
-            <Table.Th>Code</Table.Th>
-            <Table.Th>Title</Table.Th>
-            <Table.Th>Units</Table.Th>
-            <Table.Th>Laboratory</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {subjects.map((subject) => (
-            <Table.Tr key={subject.id}>
-              <Table.Td>{year(subject)}</Table.Td>
-              <Table.Td>
-                {semesterText(subject)}
-                {subject.offeredInSummer ? ', also in summer' : ''}
-              </Table.Td>
-              <Table.Td>{subject.code}</Table.Td>
-              <Table.Td>{subject.title}</Table.Td>
-              <Table.Td>{subject.units}</Table.Td>
-              <Table.Td>{subject.hasLaboratory ? 'Yes' : ''}</Table.Td>
-              <Table.Td>
-                <Group justify="flex-end">
-                  <Button variant="default" size="xs" onClick={() => onEdit(subject)}>
-                    Edit
-                  </Button>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+          ),
+          sortable: false,
+        },
+      ]}
+    />
   );
 }
 
 function RoomRows({ rooms, onEdit }: { rooms: RoomRow[]; onEdit: (room: RoomRow) => void }) {
   if (rooms.length === 0) return <Text c={color.textSecondary}>No room is set up yet.</Text>;
 
-  if (rooms.length < LIST_LIMIT) {
-    return (
-      <Stack gap={spacing.md}>
-        {rooms.map((room, index) => (
-          <Stack key={room.id} gap={spacing.sm}>
-            {index > 0 && <Divider />}
-            <Group justify="space-between" wrap="nowrap">
-              <Stack gap={spacing.xs}>
-                <Text fw={fontWeight.semibold}>{room.name}</Text>
-                <Text size="sm" c={color.textSecondary}>
-                  {[room.capacity ? `${room.capacity} seats` : '', room.collegeCode].filter(Boolean).join(', ')}
-                </Text>
-              </Stack>
-              <Button variant="default" onClick={() => onEdit(room)}>
+  return (
+    <ListOrTable
+      rows={rooms}
+      rowKey={(room) => room.id}
+      minWidth={560}
+      item={(room) => (
+        <Group justify="space-between" wrap="nowrap">
+          <Stack gap={spacing.xs}>
+            <Text fw={fontWeight.semibold}>{room.name}</Text>
+            <Text size="sm" c={color.textSecondary}>
+              {[room.capacity ? `${room.capacity} seats` : '', room.collegeCode].filter(Boolean).join(', ')}
+            </Text>
+          </Stack>
+          <Button variant="default" onClick={() => onEdit(room)}>
+            Edit
+          </Button>
+        </Group>
+      )}
+      columns={[
+        { header: 'Name', cell: (room) => room.name },
+        { header: 'Capacity', cell: (room) => room.capacity ?? '', sortValue: (room) => room.capacity ?? -1 },
+        { header: 'College', cell: (room) => room.collegeCode },
+        {
+          header: '',
+          cell: (room) => (
+            <Group justify="flex-end">
+              <Button variant="default" size="xs" onClick={() => onEdit(room)}>
                 Edit
               </Button>
             </Group>
-          </Stack>
-        ))}
-      </Stack>
-    );
-  }
-
-  return (
-    <Table.ScrollContainer minWidth={560}>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Name</Table.Th>
-            <Table.Th>Capacity</Table.Th>
-            <Table.Th>College</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rooms.map((room) => (
-            <Table.Tr key={room.id}>
-              <Table.Td>{room.name}</Table.Td>
-              <Table.Td>{room.capacity ?? ''}</Table.Td>
-              <Table.Td>{room.collegeCode}</Table.Td>
-              <Table.Td>
-                <Group justify="flex-end">
-                  <Button variant="default" size="xs" onClick={() => onEdit(room)}>
-                    Edit
-                  </Button>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+          ),
+          sortable: false,
+        },
+      ]}
+    />
   );
 }
 

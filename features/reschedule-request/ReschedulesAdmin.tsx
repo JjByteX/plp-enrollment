@@ -120,8 +120,9 @@ function RequestRows({ requests, onOpen }: { requests: PendingRequest[]; onOpen:
               {request.reason}
             </Text>
           ),
+          sortValue: (request) => request.reason,
         },
-        { header: 'Sent', cell: (request) => formatDate(request.requestedAt) },
+        { header: 'Sent', cell: (request) => formatDate(request.requestedAt), sortValue: (request) => request.requestedAt },
         {
           header: '',
           cell: (request) => (
@@ -131,6 +132,7 @@ function RequestRows({ requests, onOpen }: { requests: PendingRequest[]; onOpen:
               </Button>
             </Group>
           ),
+          sortable: false,
         },
       ]}
     />

@@ -64,8 +64,8 @@ export function AccountsList({ rows }: { rows: AccountRow[] }) {
         { header: 'Email', cell: (row) => row.email },
         { header: 'Role', cell: (row) => roleLabel(row.role) },
         { header: 'College', cell: (row) => row.college ?? '—' },
-        { header: 'Status', cell: (row) => <StatusBadge active={row.isActive} /> },
-        { header: 'Added', cell: (row) => formatDate(row.createdAt) },
+        { header: 'Status', cell: (row) => <StatusBadge active={row.isActive} />, sortValue: (row) => (row.isActive ? 1 : 0) },
+        { header: 'Added', cell: (row) => formatDate(row.createdAt), sortValue: (row) => row.createdAt },
       ]}
     />
   );

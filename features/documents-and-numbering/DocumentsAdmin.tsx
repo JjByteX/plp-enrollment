@@ -192,6 +192,7 @@ function PendingRows({
               </Button>
             </Group>
           ),
+          sortable: false,
         },
       ]}
     />
@@ -249,7 +250,7 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
         { header: 'Student number', cell: (row) => row.studentNumber },
         { header: 'Student', cell: (row) => row.fullName },
         { header: 'Program', cell: (row) => row.programCode },
-        { header: 'Received', cell: (row) => formatWeekdayDate(row.receivedAt) },
+        { header: 'Received', cell: (row) => formatWeekdayDate(row.receivedAt), sortValue: (row) => row.receivedAt },
         { header: 'Received by', cell: (row) => row.receivedByName ?? '' },
         { header: 'Still to submit', cell: (row) => row.openLateItems.join('; ') },
         {
@@ -259,6 +260,7 @@ function ReceivedRows({ rows, filtered }: { rows: ReceivedStudent[]; filtered: b
               <ReceivedButtons row={row} />
             </Group>
           ),
+          sortable: false,
         },
       ]}
     />
