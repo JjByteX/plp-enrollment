@@ -8,7 +8,12 @@
 -- the grade point (1.25, 2.00 ...). Descriptive bands are display only.
 -- INC and DRP are label bands with no range, typed as text.
 -- Does nothing if the scale already has bands.
+--
+-- grade_bands refuses direct writes (trigger), so the write switch is turned on
+-- for this session around the insert and turned off again after it.
 -- ============================================================
+SELECT set_config('app.grade_write', 'on', false);
+
 INSERT INTO grade_bands (label, outcome, is_descriptive, from_value, to_value, sort_order)
 SELECT v.label, v.outcome, v.is_descriptive, v.from_value, v.to_value, v.sort_order
 FROM (VALUES
@@ -32,3 +37,5 @@ FROM (VALUES
   ('Passing',     'passed',     true,  3.00, 3.00, 240)
 ) AS v(label, outcome, is_descriptive, from_value, to_value, sort_order)
 WHERE NOT EXISTS (SELECT 1 FROM grade_bands);
+
+SELECT set_config('app.grade_write', 'off', false);

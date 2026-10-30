@@ -64,6 +64,10 @@ WHERE p.code = 'BSIT'
 ON CONFLICT (program_id, code) DO NOTHING;
 
 -- Prerequisites, exactly as listed in the prospectus.
+-- subject_prerequisites refuses direct writes (trigger), so the write switch is
+-- turned on for this session around the insert and turned off again after it.
+SELECT set_config('app.prereq_write', 'on', false);
+
 INSERT INTO subject_prerequisites (subject_id, prerequisite_id)
 SELECT s.id, r.id
 FROM (VALUES
@@ -102,3 +106,5 @@ JOIN subjects s ON s.program_id = p.id AND s.code = v.code
 JOIN subjects r ON r.program_id = p.id AND r.code = v.prereq
 WHERE p.code = 'BSIT'
 ON CONFLICT (subject_id, prerequisite_id) DO NOTHING;
+
+SELECT set_config('app.prereq_write', 'off', false);
