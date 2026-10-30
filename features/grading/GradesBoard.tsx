@@ -10,7 +10,7 @@
 // leaves waiting for the Dean's decision.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Divider, Group, Stack, Table, Tabs, Text } from '@mantine/core';
+import { Button, Divider, Group, Select, Stack, Table, Tabs, Text } from '@mantine/core';
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
@@ -180,12 +180,62 @@ function progress(section: GradeSection): string {
   return `${STATUS_LABEL[section.status]}, ${section.graded} of ${section.students} graded`;
 }
 
-function SectionRows({ sections, onOpen }: { sections: GradeSection[]; onOpen: (section: GradeSection) => void }) {
-  if (sections.length === 0) return <Text c={color.textSecondary}>No subject is open for grades this term.</Text>;
+function SectionRows({ sections: all, onOpen }: { sections: GradeSection[]; onOpen: (section: GradeSection) => void }) {
+  const [sectionFilter, setSectionFilter] = useState<string | null>(null);
+  const [courseFilter, setCourseFilter] = useState<string | null>(null);
+
+  if (all.length === 0) return <Text c={color.textSecondary}>No subject is open for grades this term.</Text>;
+
+  // Two dropdowns narrow the list. The course choices follow the chosen section.
+  const sectionOptions = Array.from(new Set(all.map((item) => item.label))).sort();
+  const inSection = sectionFilter ? all.filter((item) => item.label === sectionFilter) : all;
+  const courseMap = new Map(inSection.map((item) => [item.code, `${item.code}, ${item.title}`]));
+  const courseOptions = Array.from(courseMap, ([value, label]) => ({ value, label })).sort((a, b) =>
+    a.value.localeCompare(b.value),
+  );
+  const sections = courseFilter ? inSection.filter((item) => item.code === courseFilter) : inSection;
+
+  const filters = (
+    <Group gap={spacing.sm} align="flex-end">
+      <Select
+        label="Section"
+        placeholder="All sections"
+        data={sectionOptions}
+        value={sectionFilter}
+        onChange={(value) => {
+          setSectionFilter(value);
+          setCourseFilter(null);
+        }}
+        clearable
+        searchable
+        w={200}
+      />
+      <Select
+        label="Course"
+        placeholder="All courses"
+        data={courseOptions}
+        value={courseFilter}
+        onChange={setCourseFilter}
+        clearable
+        searchable
+        w={320}
+      />
+    </Group>
+  );
+
+  if (sections.length === 0) {
+    return (
+      <Stack gap={spacing.md}>
+        {filters}
+        <Text c={color.textSecondary}>No subject matches.</Text>
+      </Stack>
+    );
+  }
 
   if (sections.length < LIST_LIMIT) {
     return (
       <Stack gap={spacing.md}>
+        {filters}
         {sections.map((section, index) => (
           <Stack key={`${section.sectionId}-${section.subjectId}`} gap={spacing.sm}>
             {index > 0 && <Divider />}
@@ -212,6 +262,8 @@ function SectionRows({ sections, onOpen }: { sections: GradeSection[]; onOpen: (
   }
 
   return (
+    <Stack gap={spacing.md}>
+    {filters}
     <Table.ScrollContainer minWidth={640}>
       <Table>
         <Table.Thead>
@@ -246,6 +298,7 @@ function SectionRows({ sections, onOpen }: { sections: GradeSection[]; onOpen: (
         </Table.Tbody>
       </Table>
     </Table.ScrollContainer>
+    </Stack>
   );
 }
 

@@ -11,6 +11,7 @@ import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
 import { ListOrTable } from '@/components/ListOrTable';
+import { useSectionFilter } from '@/components/SectionFilter';
 import { formatDate, formatPeso } from '@/lib/format';
 import { setPaymentRequired, type PaymentActionResult } from './actions';
 import type { PaymentRow, ProgramSetting } from './queries';
@@ -78,11 +79,15 @@ export function PaymentsAdmin({
   );
 }
 
-function PendingRows({ rows, onOpen }: { rows: PaymentRow[]; onOpen: (row: PaymentRow) => void }) {
-  if (rows.length === 0) return <Text c={color.textSecondary}>No payment is waiting.</Text>;
+function PendingRows({ rows: all, onOpen }: { rows: PaymentRow[]; onOpen: (row: PaymentRow) => void }) {
+  const sectionFilter = useSectionFilter(all);
+  if (all.length === 0) return <Text c={color.textSecondary}>No payment is waiting.</Text>;
+  const rows = sectionFilter.apply(all);
 
   return (
-    <ListOrTable
+    <Stack gap={spacing.md}>
+    {sectionFilter.control}
+    {rows.length === 0 ? <Text c={color.textSecondary}>No payment in this section is waiting.</Text> : <ListOrTable
       rows={rows}
       rowKey={(row) => row.studentId}
       minWidth={720}
@@ -116,15 +121,20 @@ function PendingRows({ rows, onOpen }: { rows: PaymentRow[]; onOpen: (row: Payme
           ),
         },
       ]}
-    />
+    />}
+    </Stack>
   );
 }
 
-function ClearedRows({ rows }: { rows: PaymentRow[] }) {
-  if (rows.length === 0) return <Text c={color.textSecondary}>No payment has been recorded yet.</Text>;
+function ClearedRows({ rows: all }: { rows: PaymentRow[] }) {
+  const sectionFilter = useSectionFilter(all);
+  if (all.length === 0) return <Text c={color.textSecondary}>No payment has been recorded yet.</Text>;
+  const rows = sectionFilter.apply(all);
 
   return (
-    <ListOrTable
+    <Stack gap={spacing.md}>
+    {sectionFilter.control}
+    {rows.length === 0 ? <Text c={color.textSecondary}>No payment in this section has been recorded.</Text> : <ListOrTable
       rows={rows}
       rowKey={(row) => row.studentId}
       minWidth={900}
@@ -153,7 +163,8 @@ function ClearedRows({ rows }: { rows: PaymentRow[] }) {
         { header: 'Receipt', cell: (row) => row.receiptNo ?? '' },
         { header: 'Cleared', cell: (row) => (row.clearedAt ? formatDate(row.clearedAt) : '') },
       ]}
-    />
+    />}
+    </Stack>
   );
 }
 

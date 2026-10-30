@@ -17,6 +17,7 @@ import { Button, Divider, Group, Stack, Table, Tabs, Text } from '@mantine/core'
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage, type FormMessageValue } from '@/components/FormMessage';
+import { useSectionFilter } from '@/components/SectionFilter';
 import type { ReadyStudent } from '@/features/assessment-slip/queries';
 
 const LIST_LIMIT = 5;
@@ -109,6 +110,9 @@ export function ReadyIssueList<R extends FormMessageValue>({
   const [tab, setTab] = useState<string | null>('waiting');
   const [message, setMessage] = useState<FormMessageValue | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const sectionFilter = useSectionFilter([...ready, ...issued]);
+  const shownReady = sectionFilter.apply(ready);
+  const shownIssued = sectionFilter.apply(issued);
 
   // Issue (and optionally open the print view for `toPrint` afterwards).
   async function run(key: string, action: () => Promise<R>, toPrint?: ReadyStudent[]) {
@@ -141,7 +145,7 @@ export function ReadyIssueList<R extends FormMessageValue>({
       <Group justify="space-between">
         <PageHeading title={title} parent={{ label: 'Registrar', href: '/registrar' }} />
         {tab === 'issued' ? (
-          <Button component="a" href={printUrl(printPath, issued)} target="_blank" disabled={issued.length === 0}>
+          <Button component="a" href={printUrl(printPath, shownIssued)} target="_blank" disabled={shownIssued.length === 0}>
             Print all
           </Button>
         ) : (
@@ -167,18 +171,27 @@ export function ReadyIssueList<R extends FormMessageValue>({
 
       <FormMessage message={message} />
 
+      {sectionFilter.control}
+
       <Tabs value={tab} onChange={setTab}>
         <Tabs.List>
-          <Tabs.Tab value="waiting">Waiting ({ready.length})</Tabs.Tab>
-          <Tabs.Tab value="issued">Issued ({issued.length})</Tabs.Tab>
+          <Tabs.Tab value="waiting">Waiting ({shownReady.length})</Tabs.Tab>
+          <Tabs.Tab value="issued">Issued ({shownIssued.length})</Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="waiting" pt={spacing.md}>
+          {sectionFilter.active && shownReady.length > 0 && (
+            <Text size="sm" c={color.textSecondary} pb={spacing.sm}>
+              Issue all still covers every section that is waiting.
+            </Text>
+          )}
           {ready.length === 0 ? (
             <Text c={color.textSecondary}>{emptyText}</Text>
+          ) : shownReady.length === 0 ? (
+            <Text c={color.textSecondary}>No student in this section is waiting.</Text>
           ) : (
             <StudentRows
-              students={ready}
+              students={shownReady}
               actions={(student, size) => (
                 <>
                   <Button
@@ -207,9 +220,11 @@ export function ReadyIssueList<R extends FormMessageValue>({
         <Tabs.Panel value="issued" pt={spacing.md}>
           {issued.length === 0 ? (
             <Text c={color.textSecondary}>{issuedEmptyText}</Text>
+          ) : shownIssued.length === 0 ? (
+            <Text c={color.textSecondary}>No student in this section has been issued.</Text>
           ) : (
             <StudentRows
-              students={issued}
+              students={shownIssued}
               actions={(student, size) => (
                 <Button
                   component="a"
