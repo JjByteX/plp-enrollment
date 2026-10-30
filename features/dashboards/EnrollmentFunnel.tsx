@@ -3,10 +3,13 @@
 // Under it, the place where the most people stall, then a bar per stage sized
 // against the first stage. Registrar and Admin only.
 import { Group, Progress, Stack, Text } from '@mantine/core';
+import { AdminLink } from '@/components/AdminLink';
+import type { Role } from '@/lib/auth/roles';
 import { color, fontFamily, fontSize, fontWeight, layout, spacing } from '@/styles/tokens';
 import { funnelSummary, plural, type FunnelStage } from './schema';
 
-export function EnrollmentFunnel({ stages }: { stages: FunnelStage[] }) {
+// Admin gets a link to the Admissions page, where applicants arrive from; the Registrar is told to contact an Admin.
+export function EnrollmentFunnel({ stages, viewerRole }: { stages: FunnelStage[]; viewerRole: Role }) {
   const summary = funnelSummary(stages);
   const { total, biggestGap } = summary;
 
@@ -14,7 +17,16 @@ export function EnrollmentFunnel({ stages }: { stages: FunnelStage[] }) {
     <Stack gap={spacing.md}>
       <Text fw={fontWeight.semibold}>Enrollment</Text>
       {total === 0 ? (
-        <Text c={color.textSecondary}>No applicants yet.</Text>
+        <Text c={color.textSecondary}>
+          No applicants yet.
+          {' '}
+          <AdminLink
+            viewerRole={viewerRole}
+            href="/admin/admissions"
+            label="Check Admissions"
+            contact="Contact an Admin if applicants should be here."
+          />
+        </Text>
       ) : (
         <>
           <Group align="baseline" gap={spacing.md}>

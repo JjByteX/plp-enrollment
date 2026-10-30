@@ -103,60 +103,69 @@ async function getWithdrawnStep(): Promise<NextStep | null> {
 
 async function getStudentStep(): Promise<NextStep> {
   const supabase = createClient();
-  const { data } = await supabase.from('students').select('student_number').maybeSingle();
-  const student = data as { student_number: string } | null;
+
+  // Every lookup below is independent, so they all run at once. On a free
+  // Supabase each round trip is slow; doing them one after another was the
+  // main reason pages felt sluggish.
+  // A student can hold one enrollment per term (step 18); the card shows the
+  // latest. The semester names sort in term order ('1st', '2nd', 'summer').
+  const [studentRes, lateRes, placedRes, paymentRes, changedRes, advisingRes, leaveRes, readmissionRes] =
+    await Promise.all([
+      supabase.from('students').select('student_number').maybeSingle(),
+      supabase.rpc('my_open_late_items'),
+      supabase
+        .from('student_sections')
+        .select('school_year, semester, sections(name, year_level, schedule_status, programs(code))')
+        .order('school_year', { ascending: false })
+        .order('semester', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      // A student cannot read payments, so a function answers for them (step 10).
+      supabase.rpc('my_payment_status'),
+      // A student cannot read subjects, rooms or professors, so a function compares the slip's saved schedule (step 16).
+      supabase.rpc('my_schedule_changed'),
+      // A student who did not pass everything in a closed term goes to their college (step 21).
+      supabase.rpc('my_needs_advising'),
+      // An approved leave of absence that has not started, and the readmission slip after a return (step 23).
+      supabase.rpc('my_leave'),
+      supabase.rpc('my_readmission'),
+    ]);
+
+  const student = studentRes.data as { student_number: string } | null;
   if (!student) return { kind: 'none' };
 
-  const { data: late } = await supabase.rpc('my_open_late_items');
-
-  // Row level security lets a student read only their own enrollments. A student
-  // can hold one per term (step 18); the card shows the latest. The semester names
-  // sort in term order ('1st', '2nd', 'summer').
-  const { data: placed } = await supabase
-    .from('student_sections')
-    .select('school_year, semester, sections(name, year_level, schedule_status, programs(code))')
-    .order('school_year', { ascending: false })
-    .order('semester', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const placement = placed as unknown as PlacementRow | null;
+  const late = lateRes.data;
+  const placement = placedRes.data as unknown as PlacementRow | null;
   const section = placement?.sections ?? null;
+  const paymentStatus = paymentRes.data;
+  const payment = paymentStatus === 'pending' || paymentStatus === 'cleared' ? paymentStatus : null;
+  const changed = changedRes.data;
+  const advising = advisingRes.data;
+  const leave = leaveRes.data as { startYear: string; startSemester: string; returnYear: string; returnSemester: string } | null;
+  const readmission = readmissionRes.data;
 
   // The slip and the COR of that same term, readable by their own student (steps 9 and 11).
   let slip: { payment_required: boolean } | null = null;
   let cor: { school_year: string; semester: string } | null = null;
   if (placement) {
-    const { data: slipRow } = await supabase
-      .from('assessment_slips')
-      .select('payment_required')
-      .eq('school_year', placement.school_year)
-      .eq('semester', placement.semester)
-      .maybeSingle();
-    slip = slipRow as { payment_required: boolean } | null;
-
-    const { data: corRow } = await supabase
-      .from('cors')
-      .select('school_year, semester')
-      .eq('school_year', placement.school_year)
-      .eq('semester', placement.semester)
-      .maybeSingle();
-    cor = corRow as { school_year: string; semester: string } | null;
+    const [slipRes, corRes] = await Promise.all([
+      supabase
+        .from('assessment_slips')
+        .select('payment_required')
+        .eq('school_year', placement.school_year)
+        .eq('semester', placement.semester)
+        .maybeSingle(),
+      supabase
+        .from('cors')
+        .select('school_year, semester')
+        .eq('school_year', placement.school_year)
+        .eq('semester', placement.semester)
+        .maybeSingle(),
+    ]);
+    slip = slipRes.data as { payment_required: boolean } | null;
+    cor = corRes.data as { school_year: string; semester: string } | null;
   }
 
-  // A student cannot read payments, so a function answers for them (step 10).
-  const { data: paymentStatus } = await supabase.rpc('my_payment_status');
-  const payment = paymentStatus === 'pending' || paymentStatus === 'cleared' ? paymentStatus : null;
-
-  // A student cannot read subjects, rooms or professors, so a function compares the slip's saved schedule (step 16).
-  const { data: changed } = await supabase.rpc('my_schedule_changed');
-
-  // A student who did not pass everything in a closed term goes to their college (step 21).
-  const { data: advising } = await supabase.rpc('my_needs_advising');
-
-  // An approved leave of absence that has not started, and the readmission slip after a return (step 23).
-  const { data: leaveRow } = await supabase.rpc('my_leave');
-  const leave = leaveRow as { startYear: string; startSemester: string; returnYear: string; returnSemester: string } | null;
-  const { data: readmission } = await supabase.rpc('my_readmission');
   const readmitted =
     placement !== null &&
     readmission !== null &&
@@ -183,16 +192,7 @@ async function getStudentStep(): Promise<NextStep> {
   };
 }
 
-// Cached for the request, so the layout and a home page that shows the person's
-// progress (step 14) read it once.
-export const getNextStep = cache(async (user: CurrentUser): Promise<NextStep> => {
-  if (user.role !== 'student' && user.role !== 'applicant') return { kind: 'staff' };
-
-  const withdrawn = await getWithdrawnStep();
-  if (withdrawn) return withdrawn;
-
-  if (user.role === 'student') return getStudentStep();
-
+async function getApplicantStep(): Promise<NextStep> {
   const supabase = createClient();
   const { data } = await supabase
     .from('visit_bookings')
@@ -207,21 +207,25 @@ export const getNextStep = cache(async (user: CurrentUser): Promise<NextStep> =>
 
   const slot = booking.visit_slots;
 
-  const { data: applicant } = await supabase.from('applicants').select('admission_type').maybeSingle();
-  const admissionType = (applicant as { admission_type: string } | null)?.admission_type;
-  let checklist: string | null = null;
-  if (admissionType) {
-    const { data: text } = await supabase.rpc('document_checklist_text', { p_admission_type: admissionType });
-    checklist = typeof text === 'string' ? text : null;
-  }
-
+  // Independent lookups, run together. The checklist needs the admission type,
+  // so it chains off the applicant row while the reschedule request loads beside it.
   // Row level security lets an applicant read only the requests they sent.
-  const { data: latest } = await supabase
-    .from('reschedule_requests')
-    .select('status, decision_note')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [checklist, latestRes] = await Promise.all([
+    (async () => {
+      const { data: applicant } = await supabase.from('applicants').select('admission_type').maybeSingle();
+      const admissionType = (applicant as { admission_type: string } | null)?.admission_type;
+      if (!admissionType) return null;
+      const { data: text } = await supabase.rpc('document_checklist_text', { p_admission_type: admissionType });
+      return typeof text === 'string' ? text : null;
+    })(),
+    supabase
+      .from('reschedule_requests')
+      .select('status, decision_note')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const latest = latestRes.data;
   const request = latest as { status: string; decision_note: string | null } | null;
   const reschedule: RescheduleState =
     request?.status === 'pending'
@@ -238,4 +242,17 @@ export const getNextStep = cache(async (user: CurrentUser): Promise<NextStep> =>
     whatToBring: joinWhatToBring(checklist, slot.what_to_bring),
     reschedule,
   };
+}
+
+// Cached for the request, so the layout and a home page that shows the person's
+// progress (step 14) read it once. The withdrawn check and the role's own step
+// load at the same time; a withdrawal wins over whatever stage they reached.
+export const getNextStep = cache(async (user: CurrentUser): Promise<NextStep> => {
+  if (user.role !== 'student' && user.role !== 'applicant') return { kind: 'staff' };
+
+  const [withdrawn, step] = await Promise.all([
+    getWithdrawnStep(),
+    user.role === 'student' ? getStudentStep() : getApplicantStep(),
+  ]);
+  return withdrawn ?? step;
 });

@@ -21,11 +21,11 @@ export default async function RegistrarPage() {
       <WorkList items={items} />
       <Divider />
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing={spacing.xl}>
-        <EnrollmentFunnel stages={stages} />
+        <EnrollmentFunnel stages={stages} viewerRole="registrar" />
         <Stack gap={spacing.lg}>
           <VisitCapacity data={capacity} />
           <Divider />
-          <PipelineBar stages={pipeline} />
+          <PipelineBar stages={pipeline} href="/registrar/schedules" />
         </Stack>
       </SimpleGrid>
     </Stack>

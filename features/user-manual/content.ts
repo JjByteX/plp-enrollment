@@ -744,7 +744,7 @@ Do these in order.
 |---|---|
 | An applicant says "Waiting for your visit schedule" | No slot was free. Registrar adds a slot on [Visits](/registrar/visits), then presses **Assign all unassigned**. |
 | A student is not in any section | There is no section or no free seat for their program. Create a section or raise capacity. They are placed automatically once a seat opens, or move them by hand. |
-| A new section shows no subjects | The Admin has not added subjects for that program, year level and semester. |
+| A new section shows no subjects | The Admin has not added subjects for that program, year level and semester. In the section, the Admin sees an **Add subjects** link to [Content](/admin/content); everyone else is told to ask an Admin. |
 | A student cannot get a slip | Their section schedule is not approved yet. |
 | A student cannot get a COR | The slip is not issued, or payment is not cleared yet. |
 | A request from Admissions is Rejected | Open [Admissions](/admin/admissions), read the reason, fix it, then press **Resend**. |

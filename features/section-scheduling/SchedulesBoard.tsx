@@ -251,7 +251,10 @@ export function SchedulesBoard({
       <Divider />
 
       {visible.length === 0 ? (
-        <Text c={color.textSecondary}>{programId || status ? 'No sections match.' : 'No sections yet.'}</Text>
+        <Text c={color.textSecondary}>
+          {programId || status ? 'No sections match.' : 'No sections yet.'}
+          {!programId && !status && !isCollege && ' Ask the College Secretary or the Dean to add one.'}
+        </Text>
       ) : visible.length < LIST_LIMIT ? (
         <Stack gap={spacing.md}>
           {visible.map((section, index) => (

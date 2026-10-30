@@ -29,9 +29,9 @@ export default async function DeanPage() {
           total={home.attentionTotal}
         />
         <Stack gap={spacing.lg}>
-          <PipelineBar stages={home.pipeline} />
+          <PipelineBar stages={home.pipeline} href="/secretary/schedule" />
           <Divider />
-          <SeatFill seats={home.seats} />
+          <SeatFill seats={home.seats} href="/secretary/schedule" />
         </Stack>
       </SimpleGrid>
     </Stack>

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { color, fontWeight, padding, spacing } from '@/styles/tokens';
 import type { Role } from '@/lib/auth/roles';
+import { AdminLink } from '@/components/AdminLink';
 import { LeaveModal } from '@/features/leave-of-absence/LeaveModal';
 import { CreditsModal } from '@/features/prerequisites/CreditsModal';
 import {
@@ -314,7 +315,15 @@ export function SectionDetailsModal({
           {!detail ? (
             <Text c={color.textSecondary}>Loading.</Text>
           ) : rows.length === 0 ? (
-            <Text c={color.textSecondary}>No subjects for this program and year level yet.</Text>
+            <Text c={color.textSecondary}>
+              No subjects for this program and year level yet.{' '}
+              <AdminLink
+                viewerRole={viewerRole}
+                href={`/admin/content?program=${section.programId}`}
+                label="Add subjects"
+                contact="Ask an Admin to add them."
+              />
+            </Text>
           ) : (
             rows.map((row, index) => {
               const draft = drafts[row.id] ?? draftOf(row);

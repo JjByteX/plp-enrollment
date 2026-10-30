@@ -48,3 +48,35 @@
   outline: 2px solid #1A7F37; /* color.accent (green[5]) */
   outline-offset: 2px;
 }
+
+/* Thin, modern, neutral scrollbars (all scrollable areas, both color schemes). */
+:root {
+  --plp-scroll-thumb: rgba(110, 119, 129, 0.35);
+  --plp-scroll-thumb-hover: rgba(110, 119, 129, 0.6);
+}
+:root[data-mantine-color-scheme='dark'] {
+  --plp-scroll-thumb: rgba(140, 149, 159, 0.35);
+  --plp-scroll-thumb-hover: rgba(140, 149, 159, 0.6);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--plp-scroll-thumb) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--plp-scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--plp-scroll-thumb-hover);
+  background-clip: content-box;
+}

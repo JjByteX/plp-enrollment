@@ -23,7 +23,12 @@ export function SectionsAttention({
     <Stack gap={spacing.md}>
       <Text fw={fontWeight.semibold}>{title}</Text>
       {sections.length === 0 ? (
-        <Text c={color.textSecondary}>{empty}</Text>
+        <Text c={color.textSecondary}>
+          {empty}{' '}
+          <Anchor component={Link} href={href.split('?')[0]} inherit>
+            Open schedules
+          </Anchor>
+        </Text>
       ) : (
         <>
           {sections.map((section, index) => (

@@ -4,7 +4,8 @@
 // gray and green scales. This is a server component, so it uses the named
 // ProgressRoot / ProgressSection exports: dotted names (Progress.Root) cannot
 // be read from a client module on the server and crash the page.
-import { Box, Group, ProgressRoot, ProgressSection, Stack, Text } from '@mantine/core';
+import Link from 'next/link';
+import { Anchor, Box, Group, ProgressRoot, ProgressSection, Stack, Text } from '@mantine/core';
 import { color, fontWeight, gray, green, layout, spacing } from '@/styles/tokens';
 import type { ScheduleStatus } from '@/features/section-scheduling/schema';
 import type { PipelineStage } from './schema';
@@ -16,14 +17,25 @@ const STEP_COLOR: Record<ScheduleStatus, string> = {
   approved: green[5],
 };
 
-export function PipelineBar({ stages }: { stages: PipelineStage[] }) {
+// `href` is the schedules page this role opens; the empty state links there.
+export function PipelineBar({ stages, href }: { stages: PipelineStage[]; href?: string }) {
   const total = stages.reduce((sum, stage) => sum + stage.count, 0);
 
   return (
     <Stack gap={spacing.md}>
       <Text fw={fontWeight.semibold}>Schedule approvals</Text>
       {total === 0 ? (
-        <Text c={color.textSecondary}>No sections yet.</Text>
+        <Text c={color.textSecondary}>
+          No sections yet.
+          {href && (
+            <>
+              {' '}
+              <Anchor component={Link} href={href} inherit>
+                Open schedules
+              </Anchor>
+            </>
+          )}
+        </Text>
       ) : (
         <>
           <ProgressRoot size={layout.barHeight} aria-label="Sections by approval step">
