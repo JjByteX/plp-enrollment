@@ -648,3 +648,22 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A. The list is written only through database functions (a trigger refuses any other insert or update, Admin included). A subject is added from any section of the current term that offers it, and refused for every role when a prerequisite is not passed, it is already passed, its semester is not this term's, the section subject has no free seat, it clashes in time, or the assessment slip was issued. A section subject whose prerequisite is not passed is left out of a regular student's copied list. Staff remove only what they added.
 
 **Consequences:** A seat in a section and a seat in one subject of a section are now different: capacity limits placement, and an added subject counts the students who take it. A slip needs every section the load draws from to be approved. A schedule change notifies everyone who takes the section subject. Closing a term counts every subject in the student's own list. A student must be placed in a section before a load is built; the load builder does the placing. Nothing in this step was executed.
+
+---
+
+**#:** 36
+**Date:** 2026-10-31
+**Milestone:** Content page, subject import
+
+**Context:** Decision #15 said a CSV import could be added later for the real curriculum, which is hundreds of subjects across 13 programs. Admin asked for an Import button on the Subjects tab that reads CSV and Excel files, with a template to download so the file is easy to read back.
+
+**Options Considered:**
+- Option A: Import in the browser. The file is read and checked row by row in a modal, using the same rules as Add subject, and only the checked rows are sent to one server action that checks them again and inserts them in one statement.
+- Option B: Upload the raw file to the server and read it there. Fewer rules in the browser, but Admin sees no problem until after the upload and the server needs a spreadsheet reader.
+- Option C: Let the file name its own program in a column, so one file could fill several programs. More flexible, but a wrong program code in one row adds a subject to the wrong program, and a subject cannot move programs afterwards (decision #15).
+
+**Community Consensus:** Not searched.
+
+**Decision:** Option A, the AI's design for the human to veto. The program is the one chosen on the page, so the file has no program column. The file is the template: row 1 is the header, columns may be in any order, five columns are required (Code, Title, Units, Year Level, Semester) and two are optional (Has Laboratory, Offered In Summer, Yes or No). The Import button stays off until every row is valid, and the modal names each bad row by its row number in the file. A code the program already has is skipped, not changed, because the subject may already be in sections, grades and prerequisites. A code twice in one file is refused. At most 500 subjects and 2 MB per file. The libraries are `papaparse` (CSV) and `read-excel-file` (.xlsx), both loaded only when a file is chosen. An old .xls file is not read; Admin saves it as .xlsx.
+
+**Consequences:** The template files in `public/templates/` and `SUBJECT_IMPORT_HEADERS` in `features/content/importSubjects.ts` must change together if a column is added. The import cannot set prerequisites, change an existing subject, or add to another program. New subjects reach the draft sections of their year level and semester through the same database trigger as Add subject. Nothing in this step was executed against the database.

@@ -2,7 +2,7 @@
 
 // features/content/actions.ts
 //
-// Admin actions for subjects, rooms and the current term (step 15). Each
+// Admin actions for subjects (one at a time or from an uploaded file), rooms and the current term (step 15). Each
 // checks the caller is Admin, then runs under the caller's own session so row
 // level security applies and the audit log records who did it
 // (decision-log.md #10). A new subject reaches the draft sections of its year
@@ -10,7 +10,9 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/session';
+import { MAX_IMPORT_ROWS } from './importSubjects';
 import { UUID, parseRoomInput, parseSubjectEdit, parseSubjectInput, parseTermInput } from './schema';
+import { asObject } from '@/lib/validate';
 
 export type ContentActionResult = { ok: true; message: string } | { error: string };
 
@@ -59,6 +61,63 @@ export async function addSubject(input: unknown): Promise<ContentActionResult> {
 
   revalidatePath(PAGE);
   return { ok: true, message: 'Subject added. It is in the draft sections of its year level and semester in the current term.' };
+}
+
+// Adds the subjects of an uploaded file to one program. The browser has already checked the file and
+// shown the result, but nothing is trusted from it: every row is checked again with the same rules as
+// Add subject. A code the program already has is skipped, not changed (an existing subject may be in
+// sections, grades and prerequisites). All the new rows go in with one insert, so a file is added whole
+// or not at all.
+export async function importSubjects(programId: string, rows: unknown): Promise<ContentActionResult> {
+  if (!(await isAdmin())) return { error: 'Only Admin can change the subjects.' };
+  if (typeof programId !== 'string' || !UUID.test(programId)) return { error: 'Choose the program.' };
+  if (!Array.isArray(rows) || rows.length === 0) return { error: 'The file has no subjects.' };
+  if (rows.length > MAX_IMPORT_ROWS) return { error: `Import at most ${MAX_IMPORT_ROWS} subjects at a time.` };
+
+  const supabase = createClient();
+  const { data: existingRows, error: readError } = await supabase.from('subjects').select('code').eq('program_id', programId);
+  if (readError) return { error: 'The subjects could not be imported.' };
+  const taken = new Set(((existingRows ?? []) as { code: string }[]).map((row) => row.code.toLowerCase()));
+
+  const toAdd: Record<string, unknown>[] = [];
+  let skipped = 0;
+  for (const [index, raw] of rows.entries()) {
+    const parsed = parseSubjectInput({ ...asObject(raw), programId });
+    if (!parsed.ok) return { error: `Subject ${index + 1} in the file: ${parsed.reason}` };
+    const { code, title, units, yearLevel, semester, hasLaboratory, offeredInSummer } = parsed.value;
+    const key = code.toLowerCase();
+    if (taken.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    taken.add(key); // the same code twice in one file adds it once
+    toAdd.push({
+      program_id: programId,
+      code,
+      title,
+      units,
+      year_level: yearLevel,
+      semester,
+      has_laboratory: hasLaboratory,
+      offered_in_summer: offeredInSummer,
+    });
+  }
+  if (toAdd.length === 0) return { error: 'Every subject in the file is already in this program.' };
+
+  const { error } = await supabase.from('subjects').insert(toAdd);
+  if (error) {
+    return failure(
+      error,
+      'A code in the file was just added by someone else. Choose the file again.',
+      'That program was not found.',
+      'The subjects could not be imported.',
+    );
+  }
+
+  revalidatePath(PAGE);
+  const added = `${toAdd.length} ${toAdd.length === 1 ? 'subject' : 'subjects'} added`;
+  const left = skipped > 0 ? `, ${skipped} skipped because the code already exists` : '';
+  return { ok: true, message: `${added}${left}. They are in the draft sections of their year level and semester in the current term.` };
 }
 
 export async function editSubject(subjectId: string, input: unknown): Promise<ContentActionResult> {

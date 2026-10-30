@@ -667,7 +667,7 @@ Applicants and students are not created here. They arrive from Admissions.
 
 Four tabs.
 
-**Subjects:** choose a program, then **Add subject** with Code, Title, Units, Year level, Semester, whether it has a laboratory, and whether it is also offered in summer. You can edit a subject. You cannot delete a subject that is already in a section, or that has a grade or a credit. You also cannot delete a subject that other subjects require. The message names those subjects. Remove it from their prerequisites first, then delete it. New subjects are added to existing draft sections of the matching year level and semester automatically.
+**Subjects:** choose a program, then **Add subject** with Code, Title, Units, Year level, Semester, whether it has a laboratory, and whether it is also offered in summer. To add many at once, choose **Import**, download the template (Excel or CSV), fill in one subject per row, then choose the file. The window names every row with a problem and its row number, and **Import** stays off until every row is correct. A code the program already has is skipped, not changed. You can edit a subject. You cannot delete a subject that is already in a section, or that has a grade or a credit. You also cannot delete a subject that other subjects require. The message names those subjects. Remove it from their prerequisites first, then delete it. New subjects are added to existing draft sections of the matching year level and semester automatically.
 
 **Rooms:** **Add room** with Name, Capacity and College. A room used by a section cannot be deleted.
 

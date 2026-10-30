@@ -1,8 +1,8 @@
 'use client';
 
 // The Admin content page body: Subjects, Rooms and Term tabs. Fewer than 5
-// rows render as a list, 5 or more as a table (ux-ui-guidelines.md). Adding
-// and editing open a centered modal. The tab and the chosen program live in
+// rows render as a list, 5 or more as a table (ux-ui-guidelines.md). Adding,
+// editing and importing subjects open a centered modal. The tab and the chosen program live in
 // the URL. All changes go through ./actions.
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,7 @@ import type { ProgramOption } from '@/features/visit-scheduling/queries';
 import { saveTerm, type ContentActionResult } from './actions';
 import type { CollegeOption, RoomRow, SubjectRow, TermRow } from './queries';
 import { RoomModal } from './RoomModal';
+import { SubjectImportModal } from './SubjectImportModal';
 import { SubjectModal } from './SubjectModal';
 import { GradingTab } from '@/features/grading/GradingTab';
 import type { Scale } from '@/features/grading/schema';
@@ -48,6 +49,7 @@ export function ContentAdmin({
   const router = useRouter();
   const [message, setMessage] = useState<ContentActionResult | null>(null);
   const [subjectModal, setSubjectModal] = useState<{ subject: SubjectRow | null } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [roomModal, setRoomModal] = useState<{ room: RoomRow | null } | null>(null);
 
   const program = programs.find((item) => item.id === programId) ?? null;
@@ -63,6 +65,7 @@ export function ContentAdmin({
 
   function done(result: ContentActionResult) {
     setSubjectModal(null);
+    setImportOpen(false);
     setRoomModal(null);
     setMessage(result);
   }
@@ -95,9 +98,14 @@ export function ContentAdmin({
               w={400}
               maw="100%"
             />
-            <Button disabled={!program} onClick={() => setSubjectModal({ subject: null })}>
-              Add subject
-            </Button>
+            <Group gap={spacing.sm}>
+              <Button variant="default" disabled={!program} onClick={() => setImportOpen(true)}>
+                Import
+              </Button>
+              <Button disabled={!program} onClick={() => setSubjectModal({ subject: null })}>
+                Add subject
+              </Button>
+            </Group>
           </Group>
           <Divider />
           <SubjectRows subjects={subjects} onEdit={(subject) => setSubjectModal({ subject })} />
@@ -123,6 +131,14 @@ export function ContentAdmin({
           program={program}
           subject={subjectModal.subject}
           onClose={() => setSubjectModal(null)}
+          onDone={done}
+        />
+      )}
+      {importOpen && program && (
+        <SubjectImportModal
+          program={program}
+          existingCodes={subjects.map((subject) => subject.code)}
+          onClose={() => setImportOpen(false)}
           onDone={done}
         />
       )}
