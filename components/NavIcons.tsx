@@ -21,6 +21,7 @@ import {
   InboxArrowDownIcon,
   LinkIcon,
   MapPinIcon,
+  RectangleGroupIcon,
   TicketIcon,
   UserIcon,
   UsersIcon,
@@ -37,6 +38,7 @@ export const NAV_ICONS: Record<NavIconName, ComponentType<SVGProps<SVGSVGElement
   prerequisites: LinkIcon, // chain link: Prerequisites (one subject needs another)
   slips: TicketIcon, // ticket: Slips
   cor: DocumentCheckIcon, // page with check: COR
+  sections: RectangleGroupIcon, // grouped rectangles: Sections
   payments: CreditCardIcon, // card: Payments
   accounts: UsersIcon, // people: Accounts
   content: BookOpenIcon, // open book: Content

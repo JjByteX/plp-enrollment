@@ -10,7 +10,7 @@ import type { Role } from '@/lib/auth/roles';
 // Icon names are Heroicons (24 outline) component names without the "Icon"
 // suffix. components/NavIcons.tsx maps each name to its component.
 export type NavIconName =
-  | 'home' | 'visits' | 'reschedules' | 'documents' | 'schedules' | 'slips' | 'cor' | 'payments'
+  | 'home' | 'visits' | 'reschedules' | 'documents' | 'schedules' | 'slips' | 'cor' | 'sections' | 'payments'
   | 'grades' | 'prerequisites' | 'accounts' | 'content' | 'admissions' | 'audit' | 'registrar' | 'finance' | 'dean' | 'secretary' | 'professor';
 
 // `keywords` are extra search-only terms (abbreviations, synonyms, the full
@@ -35,6 +35,7 @@ const REGISTRAR: NavItem[] = [
   { label: 'Schedules', href: '/registrar/schedules', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
   { label: 'Slips', href: '/registrar/slips', icon: 'slips', keywords: ['assessment slip', 'fees', 'tuition'] },
   { label: 'COR', href: '/registrar/cors', icon: 'cor', keywords: ['certificate of registration', 'registration'] },
+  { label: 'Sections', href: '/registrar/sections', icon: 'sections', keywords: ['who has cor', 'who has slip', 'issued', 'class list'] },
   { label: 'Grades', href: '/registrar/grades', icon: 'grades', keywords: ['grade changes', 'marks', 'incomplete', 'inc'] },
 ];
 
@@ -100,6 +101,7 @@ export function navFor(role: Role): NavGroup[] {
           items: [
             { label: 'Home', href: '/dean', icon: 'home', exact: true },
             { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
+            { label: 'Sections', href: '/secretary/sections', icon: 'sections', keywords: ['who has cor', 'who has slip', 'issued', 'class list'] },
             DEAN_GRADES,
             prerequisitesItem('/dean/prerequisites'),
           ],
@@ -112,6 +114,7 @@ export function navFor(role: Role): NavGroup[] {
           items: [
             { label: 'Home', href: '/secretary', icon: 'home', exact: true },
             { label: 'Schedules', href: '/secretary/schedule', icon: 'schedules', keywords: ['sections', 'classes', 'timetable'] },
+            { label: 'Sections', href: '/secretary/sections', icon: 'sections', keywords: ['who has cor', 'who has slip', 'issued', 'class list'] },
             prerequisitesItem('/secretary/prerequisites'),
           ],
         },
