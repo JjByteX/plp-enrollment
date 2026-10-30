@@ -14,6 +14,7 @@ import { Button, Divider, Group, Select, Stack, Table, Tabs, Text } from '@manti
 import { PageHeading } from '@/components/PageHeading';
 import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
+import { StatLine } from '@/components/StatLine';
 import type { Role } from '@/lib/auth/roles';
 import { approveCredit, rejectCredit } from '@/features/prerequisites/actions';
 import type { PendingCredit } from '@/features/prerequisites/schema';
@@ -78,6 +79,11 @@ export function GradesBoard({
 
   const parent = HOME[viewerRole] ?? HOME.admin;
 
+  // The figures above the tabs: where every subject stands this term.
+  const awaiting = sections.filter((item) => item.status === 'submitted').length;
+  const approved = sections.filter((item) => item.status === 'approved').length;
+  const notSubmitted = sections.length - awaiting - approved;
+
   // Close term and the Completed tab belong to the Registrar and Admin, on the Registrar's page.
   const isRegistrar = (viewerRole === 'registrar' || viewerRole === 'admin') && termStatus !== null;
   const activeTab: GradeTab = (tab === 'completed' || tab === 'leave') && !isRegistrar ? 'sections' : tab;
@@ -95,6 +101,17 @@ export function GradesBoard({
   return (
     <Stack gap={spacing.md}>
       <PageHeading title="Grades" parent={parent} />
+
+      {sections.length > 0 && (
+        <StatLine
+          stats={[
+            { value: sections.length, label: sections.length === 1 ? 'subject' : 'subjects' },
+            { value: notSubmitted, label: 'not submitted' },
+            { value: awaiting, label: 'awaiting approval' },
+            { value: approved, label: 'approved' },
+          ]}
+        />
+      )}
 
       {isRegistrar && termStatus && (
         <>

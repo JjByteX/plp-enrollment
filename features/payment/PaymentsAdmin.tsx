@@ -12,6 +12,7 @@ import { color, fontWeight, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
 import { ListOrTable } from '@/components/ListOrTable';
 import { useSectionFilter } from '@/components/SectionFilter';
+import { StatLine } from '@/components/StatLine';
 import { formatDate, formatPeso } from '@/lib/format';
 import { setPaymentRequired, type PaymentActionResult } from './actions';
 import type { PaymentRow, ProgramSetting } from './queries';
@@ -22,10 +23,12 @@ export function PaymentsAdmin({
   tab,
   rows,
   programs,
+  stats,
 }: {
   tab: PaymentTab;
   rows: PaymentRow[];
   programs: ProgramSetting[];
+  stats: { pending: number; cleared: number; collected: number } | null; // null on the Programs tab
 }) {
   const router = useRouter();
   const [open, setOpen] = useState<PaymentRow | null>(null);
@@ -48,6 +51,16 @@ export function PaymentsAdmin({
   return (
     <Stack gap={spacing.md}>
       <PageHeading title="Payments" parent={{ label: 'Finance', href: '/finance' }} />
+
+      {stats && (
+        <StatLine
+          stats={[
+            { value: stats.pending, label: 'pending' },
+            { value: stats.cleared, label: 'cleared' },
+            { value: formatPeso(stats.collected), label: 'collected this term' },
+          ]}
+        />
+      )}
 
       <Tabs value={tab} onChange={setTab}>
         <Tabs.List>

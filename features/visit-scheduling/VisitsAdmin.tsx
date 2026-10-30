@@ -9,6 +9,7 @@ import { Button, Divider, Group, Modal, Select, Stack, Table, Text, TextInput, T
 import { PageHeading } from '@/components/PageHeading';
 import { color, padding, spacing } from '@/styles/tokens';
 import { FormMessage } from '@/components/FormMessage';
+import { StatLine, type Stat } from '@/components/StatLine';
 import {
   assignAllUnassigned,
   assignSlot,
@@ -56,6 +57,18 @@ export function VisitsAdmin({
   const canTake = (slot: SlotRow) => slot.status === 'open' && slot.freeSeats > 0 && slot.slotDate >= today;
   const pickable = programId ? slots.filter((slot) => slot.programId === programId && canTake(slot)) : [];
   const pickOptions = pickable.map((slot) => ({ value: slot.id, label: slotOptionLabel(slot) }));
+
+  // The figures above the filters: today's slots, and the seats from today on.
+  const live = slots.filter((slot) => slot.status !== 'cancelled' && slot.slotDate >= today);
+  const slotsToday = live.filter((slot) => slot.slotDate === today).length;
+  const booked = live.reduce((sum, slot) => sum + (slot.capacity - slot.freeSeats), 0);
+  const openSeats = slots.filter(canTake).reduce((sum, slot) => sum + slot.freeSeats, 0);
+  const stats: Stat[] = [
+    { value: slotsToday, label: slotsToday === 1 ? 'slot today' : 'slots today' },
+    { value: booked, label: 'booked from today' },
+    { value: openSeats, label: openSeats === 1 ? 'open seat' : 'open seats' },
+    ...(programId ? [{ value: unassigned.length, label: 'waiting for a visit' }] : []),
+  ];
 
   // What the "Waiting for a visit" section shows: a hint, or the table of applicants.
   function renderWaiting() {
@@ -156,6 +169,8 @@ export function VisitsAdmin({
           New slot
         </Button>
       </Group>
+
+      <StatLine stats={stats} />
 
       <Group gap={spacing.md} align="flex-end">
         <Select
