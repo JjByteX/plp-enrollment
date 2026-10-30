@@ -1,3 +1,5 @@
+'use client';
+
 // The Admin accounts list: every staff and student account, newest first.
 // Fewer than 5 rows render as a list, 5 or more as a table (ux-ui-guidelines.md).
 import { Badge, Group, Stack, Text } from '@mantine/core';
