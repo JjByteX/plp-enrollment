@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { signIn } from '@/lib/auth/actions';
 import { isEmail } from '@/lib/auth/validate';
 import { color, spacing } from '@/styles/tokens';
@@ -43,6 +43,9 @@ export function LoginForm() {
           onChange={(event) => setPassword(event.currentTarget.value)}
           required
         />
+        <Anchor href="/forgot-password" size="sm" ta="right">
+          Forgot password?
+        </Anchor>
         {error && (
           <Text size="sm" c={color.error} role="alert">
             {error}

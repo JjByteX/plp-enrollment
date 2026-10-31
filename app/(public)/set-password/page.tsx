@@ -19,8 +19,9 @@ export default async function SetPasswordPage() {
             <SetPasswordForm />
           ) : (
             <Stack gap={spacing.sm}>
-              <Text>This link has expired or was already used. Ask for a new one.</Text>
-              <Anchor href="/login">Sign in</Anchor>
+              <Text>This link has expired or was already used.</Text>
+              <Anchor href="/forgot-password">Send me a new link</Anchor>
+              <Anchor href="/login">Back to sign in</Anchor>
             </Stack>
           )}
         </Stack>

@@ -67,6 +67,7 @@ Common messages:
 
 - **"Email or password is wrong."** Check your typing and try again.
 - **"Too many attempts."** Wait a few minutes.
+- **Forgot your password?** Press **Forgot password?** under the password box. See "If you forget your password" below.
 - **"This account has no access to PLP Enrollment."** Your account is switched off. Contact the Admin. A student's account is also switched off while an approved leave of absence is running, and switched back on when the college places the student in a section again.
 
 There is no public sign-up. Staff accounts are made by the Admin. Applicant accounts are made automatically when Admissions sends the person over.
@@ -79,7 +80,16 @@ When an account is created, the person gets an email with a **Set password** lin
 2. Type a new password (at least 8 characters) and type it again to confirm.
 3. Press the button to save. You go straight to your home page.
 
-If the page says **"This link has expired or was already used"**, ask the Admin to send a new one.
+If the page says **"This link has expired or was already used"**, press **Send me a new link** on that page and enter your email.
+
+### If you forget your password
+
+1. On the sign-in page, press **Forgot password?**.
+2. Type the email on your account and press **Send reset link**.
+3. Open the email (check spam too) and click **Set password**.
+4. Type a new password (at least 8 characters), confirm it and save. You go straight to your home page.
+
+The page gives the same reply whether or not the email has an account, so nobody can use it to find out who is registered. If no email arrives after a few minutes, contact the Admin.
 
 ### Finding your way around
 

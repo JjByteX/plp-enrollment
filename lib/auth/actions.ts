@@ -2,7 +2,8 @@
 
 // lib/auth/actions.ts
 //
-// Server Actions for signing in, signing out and setting a password.
+// Server Actions for signing in, signing out, setting a password and asking
+// for a password reset email.
 // Everything runs as the signed-in person's own Supabase session.
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
@@ -61,4 +62,19 @@ export async function setPassword(password: string, confirm: string): Promise<Ac
   if (error) return { error: error.message };
 
   redirect(homePath(user.role));
+}
+
+// Sends the reset email. The reply is the same whether or not the address has an
+// account, so this cannot be used to find out who is registered. The emailed
+// link goes through /auth/confirm to /set-password.
+export async function requestPasswordReset(email: string): Promise<{ error: string } | { ok: true }> {
+  if (!isEmail(email)) return { error: 'Enter a valid email address.' };
+
+  const supabase = createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+  if (error?.status === 429) {
+    return { error: 'Too many requests. Try again in a few minutes.' };
+  }
+  // Any other failure is hidden on purpose, see the note above.
+  return { ok: true };
 }
