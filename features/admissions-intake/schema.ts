@@ -12,6 +12,11 @@
 //   source_name     optional, defaults to "PLP Admissions"
 //   verified_documents  optional list of document_requirements doc_type slugs
 //                   that Admissions staff already approved (information only)
+//   password_hash   optional bcrypt hash of the applicant's Admissions password
+//                   (DEMO SHORTCUT: same login on both systems). When valid, the
+//                   account is created with it and no set-password email is sent.
+//                   Missing or not a bcrypt hash (a Google sign-up has none):
+//                   the account is invited by email as before. Never logged.
 import { isEmail } from '@/lib/auth/validate';
 import { isRealDate, text } from '@/lib/validate';
 
@@ -24,6 +29,7 @@ export type IntakePayload = {
   admission_type: 'new' | 'transferee' | 'foreign';
   source_name: string;
   verified_documents: string[];
+  password_hash: string | null;
 };
 
 export type ParsedIntake = { ok: true; value: IntakePayload } | { ok: false; reason: string };
@@ -40,6 +46,26 @@ function verifiedDocuments(raw: Record<string, unknown>): string[] {
   return Array.from(new Set(slugs))
     .slice(0, MAX_VERIFIED)
     .sort((a, b) => a.localeCompare(b));
+}
+
+// bcrypt only. PHP writes "$2y$" and Supabase Auth reads "$2b$" (same algorithm),
+// so the prefix is normalised. A value that is not a bcrypt hash is ignored,
+// never rejected: it only decides how the login is made, and must not block an applicant.
+const BCRYPT_HASH = /^\$2[abxy]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+
+function passwordHash(raw: Record<string, unknown>): string | null {
+  const value = raw.password_hash;
+  if (typeof value !== 'string' || !BCRYPT_HASH.test(value)) return null;
+  return `$2b$${value.slice(4)}`;
+}
+
+// The request body as it is kept in the intake log: the password hash is never
+// stored, only a note that one was sent. Admin resend reads this copy, so a
+// resend of an applicant who has no account yet falls back to the email invite.
+export function bodyForLog(raw: unknown): unknown {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return raw;
+  if (!('password_hash' in raw)) return raw;
+  return { ...raw, password_hash: '[not stored]' };
 }
 
 export function parseIntakePayload(raw: unknown): ParsedIntake {
@@ -88,6 +114,7 @@ export function parseIntakePayload(raw: unknown): ParsedIntake {
       admission_type: admissionType,
       source_name: sourceName,
       verified_documents: verifiedDocuments(body),
+      password_hash: passwordHash(body),
     },
   };
 }
@@ -98,8 +125,10 @@ export function parseIntakePayload(raw: unknown): ParsedIntake {
 export function logFieldsFor(raw: unknown, parsed: ParsedIntake) {
   if (parsed.ok) {
     // The log table has no column for verified_documents; the raw body keeps it.
-    const { verified_documents: _verified, ...logged } = parsed.value;
+    // The password hash is never logged, not even in the raw body (see bodyForLog).
+    const { verified_documents: _verified, password_hash: _hash, ...logged } = parsed.value;
     void _verified;
+    void _hash;
     return logged;
   }
 

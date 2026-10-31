@@ -50,7 +50,7 @@ Web app (staff- and student-facing), separate system from PLP Admissions with it
 - Frontend: Next.js (App Router) + React + Mantine UI
 - Backend: Next.js API routes / Route Handlers (same codebase)
 - Database: PostgreSQL via Supabase
-- Auth: Supabase Auth (email/password; Applicants get a set-password email link per enrollment-plan.md's Admissions connection flow)
+- Auth: Supabase Auth (email/password; Applicants keep their Admissions email and password (decision-log #37); only Google sign-ups get a set-password email link per enrollment-plan.md's Admissions connection flow)
 - Hosting: Vercel
 - Fonts: Manrope (headings) and Plus Jakarta Sans (body) — exact pairing/weights to confirm when ux-ui-guidelines.md's typography rules are applied
 - Other: Supabase Storage for uploaded documents (birth certificate, report card, IDs — Registrar/Admin visibility only per RBAC)

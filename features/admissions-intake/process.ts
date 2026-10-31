@@ -8,7 +8,7 @@
 // admissions_intake_log.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { logFieldsFor, parseIntakePayload, type IntakePayload } from './schema';
+import { bodyForLog, logFieldsFor, parseIntakePayload, type IntakePayload } from './schema';
 
 // The visit the applicant was booked into at intake, when a slot was free.
 // Times are Manila time, written HH:MM (24 hour).
@@ -144,22 +144,31 @@ async function refresh(admin: SupabaseClient, existing: ApplicantRow, input: Int
   return { ok: true, result: 'updated', applicantId: existing.id };
 }
 
-// New applicant: create the login (the invite email carries the
-// set-password link), then the users and applicants rows. If a row fails the
-// new login is removed, so nothing half-made is left behind.
+// New applicant: create the login, then the users and applicants rows. If a row
+// fails the new login is removed, so nothing half-made is left behind.
+// The login is made one of two ways. With a password hash from Admissions (DEMO
+// SHORTCUT, same login on both systems) it is created already confirmed with that
+// hash, so the applicant signs in with the same email and password and gets no
+// email. Without one (a Google sign-up) the invite email carries the set-password link.
 async function create(admin: SupabaseClient, input: IntakePayload, programId: string): Promise<Applied> {
   const { data: taken } = await admin.from('users').select('id').eq('email', input.email).maybeSingle();
   if (taken) return reject(409, 'This email already belongs to another account.');
 
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(input.email, {
-    data: { full_name: input.full_name },
-  });
+  const shared = input.password_hash !== null;
+  const { data: invited, error: inviteError } = shared
+    ? await admin.auth.admin.createUser({
+        email: input.email,
+        password_hash: input.password_hash ?? undefined,
+        email_confirm: true,
+        user_metadata: { full_name: input.full_name },
+      })
+    : await admin.auth.admin.inviteUserByEmail(input.email, { data: { full_name: input.full_name } });
   if (inviteError || !invited.user) {
     if (inviteError?.status === 429) return reject(503, 'Too many emails sent. Try again later.');
     if (inviteError?.message.toLowerCase().includes('registered')) {
       return reject(409, 'This email already has an account.');
     }
-    return reject(502, 'The invitation email could not be sent.');
+    return reject(502, shared ? 'The login could not be created.' : 'The invitation email could not be sent.');
   }
 
   // Only remove a login this call just made.
@@ -229,7 +238,7 @@ export async function processIntake(raw: unknown, sourceOverride?: string): Prom
     source_name: source.slice(0, 60),
     status: applied.ok ? 'accepted' : 'rejected',
     rejection_reason: applied.ok ? null : applied.reason,
-    raw_payload: typeof raw === 'object' && raw !== null ? raw : { value: String(raw).slice(0, 1000) },
+    raw_payload: typeof raw === 'object' && raw !== null ? bodyForLog(raw) : { value: String(raw).slice(0, 1000) },
     resulting_applicant_id: applied.ok ? applied.applicantId : null,
   });
   if (logError) console.error('Could not write the intake log', logError);

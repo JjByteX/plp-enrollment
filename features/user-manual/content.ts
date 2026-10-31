@@ -74,7 +74,7 @@ There is no public sign-up. Staff accounts are made by the Admin. Applicant acco
 
 ### Setting your password for the first time
 
-When an account is created, the person gets an email with a **Set password** link.
+When a staff account is created, the person gets an email with a **Set password** link. Applicants from Admissions sign in with the same email and password they use there; only applicants who signed up with Google get the email.
 
 1. Click the link in the email.
 2. Type a new password (at least 8 characters) and type it again to confirm.
@@ -115,7 +115,7 @@ The system then, by itself:
 
 - Creates the applicant account (or updates it if the same person was sent before).
 - Books the earliest open visit slot for the applicant's program.
-- Sends the applicant an email with a link to set their password.
+- Creates the login with the same email and password the applicant uses in Admissions, so they sign in right away. An applicant who signed up with Google has no password, so they get an email with a link to set one.
 
 If no visit slot is free, the applicant shows up as "waiting for a visit" and the Registrar adds a slot (Step 2).
 
@@ -717,7 +717,7 @@ Admin actions are logged like everyone else's.
 
 The system does these without anyone doing anything. The section number shows where each one is explained.
 
-- Creates the applicant account, sends the set-password email and books the first visit ([section 3](#3-the-whole-journey-from-start-to-end) and [section 5](#5-page-by-page-registrar)).
+- Creates the applicant account (the same email and password as in Admissions, or a set-password email for Google sign-ups) and books the first visit ([section 3](#3-the-whole-journey-from-start-to-end) and [section 5](#5-page-by-page-registrar)).
 - Gives the student number and places the student in a section when documents are received ([section 3](#3-the-whole-journey-from-start-to-end) and [section 6](#6-page-by-page-college-secretary-and-dean)).
 - Fills new sections with subjects, blocks double booked professors and rooms, and tells students when their schedule is approved or changed ([section 6](#6-page-by-page-college-secretary-and-dean)).
 - Opens a pending payment only when the course requires payment, and skips Finance when it does not ([section 10](#10-page-by-page-finance)).
@@ -772,7 +772,7 @@ For any other error message, read it. It says what is missing.
 
 ### About emails
 
-At the moment, the system sends emails only for account setup (the set-password link). Updates about visit dates, reschedules and the other steps are shown on the student's **Your next step** card. Please tell students to check their card after signing in.
+At the moment, the system sends emails only for account setup (the set-password link), and only to applicants who signed up with Google. Everyone else signs in with the same email and password as in Admissions. Updates about visit dates, reschedules and the other steps are shown on the student's **Your next step** card. Please tell students to check their card after signing in.
 
 ### Who to ask
 

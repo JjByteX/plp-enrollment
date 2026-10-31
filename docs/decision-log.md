@@ -667,3 +667,22 @@ What becomes harder or easier because of this choice?
 **Decision:** Option A, the AI's design for the human to veto. The program is the one chosen on the page, so the file has no program column. The file is the template: row 1 is the header, columns may be in any order, five columns are required (Code, Title, Units, Year Level, Semester) and two are optional (Has Laboratory, Offered In Summer, Yes or No). The Import button stays off until every row is valid, and the modal names each bad row by its row number in the file. A code the program already has is skipped, not changed, because the subject may already be in sections, grades and prerequisites. A code twice in one file is refused. At most 500 subjects and 2 MB per file. The libraries are `papaparse` (CSV) and `read-excel-file` (.xlsx), both loaded only when a file is chosen. An old .xls file is not read; Admin saves it as .xlsx. A Download button saves the chosen program's subjects as a CSV in the template layout (CSV only, so no Excel writer is added).
 
 **Consequences:** The template files in `public/templates/` and `SUBJECT_IMPORT_HEADERS` in `features/content/importSubjects.ts` must change together if a column is added. The import cannot set prerequisites, change an existing subject, or add to another program. New subjects reach the draft sections of their year level and semester through the same database trigger as Add subject. Nothing in this step was executed against the database.
+
+---
+
+**#:** 37
+**Date:** 2026-10-31
+**Milestone:** Admissions connection, same login on both systems (demo)
+
+**Context:** For the demo, an applicant who confirms enrollment in Admissions should be able to sign in to Enrollment with the same email and password, with no set-password email in between. Admissions keeps only a bcrypt hash of the password, never the password itself.
+
+**Options Considered:**
+- Option A: Admissions sends the bcrypt hash and Enrollment creates the Supabase login from it (`auth.admin.createUser` with `password_hash`, already confirmed). The password itself is never stored, sent or seen by either system.
+- Option B: Admissions keeps the plain password (in the session or the database) from sign-in until the confirmation and sends that. Works only while the applicant is signed in, never for a retry by staff, and puts passwords in a table.
+- Option C: Ask the applicant to type the password again at confirmation. Safest, but it is a new step and the request was that nothing is typed.
+
+**Community Consensus:** Not searched.
+
+**Decision:** Option A, the AI's design for the human to veto. It is a demo shortcut and a known security trade: the two systems now share one password, and the hash travels in the intake call (HTTPS, Bearer secret). The hash is optional in the body (`password_hash`). A missing value or one that is not a bcrypt hash (an applicant who signed up with Google has no password) is ignored, and the applicant is invited by email as before. The hash is never written to `admissions_intake_log`: the log copy of the body shows `[not stored]`. An existing account is never touched by a resend.
+
+**Consequences:** The passwords are the same only at the moment of creation: a later password change or reset on either side does not reach the other. An Admin resend from the intake log has no hash, so for an applicant with no account yet it falls back to the email invite (Admissions' own retry button still sends the hash). Before real use, remove `password_hash` from both `core/enrollment_handoff.php` in Admissions and `features/admissions-intake/schema.ts` here, and the invite flow takes over again. Nothing in this step was executed against a running Supabase project.
